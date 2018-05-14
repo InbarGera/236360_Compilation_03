@@ -1,0 +1,146 @@
+%{
+	#include "attributes.h"
+	#include <iostream>
+	#include <stdlib.h>
+
+	using namespace std;
+
+	extern int yylex();		// do they both need to be extern?
+	int yyerror(char * message);
+%}
+
+
+%token B
+%token BYTE BOOL INT VOID TRUE FALSE RETURN IF ELSE WHILE BREAK SC COMMA ID NUM STRING
+%right ASSIGN
+%nonassoc RELOP
+%left EQ_OP
+%left OR
+%left AND
+%left PLUS_MINUS
+%left MUL_DIV
+%left NOT
+%left LBRACE LBRACK LPAREN RBRACE RBRACK RPAREN
+
+%type<exp> Exp
+
+%%
+
+
+Program	:	Funcs
+		{
+			cout<<"The expression's value is "<<$1.value<<endl;
+		}
+	;
+
+Funcs 	:	
+		|	RetType ID LPAREN Formals RPAREN LBRACE Statements RBRACE Funcs
+		;
+		
+RetType : Type
+		| VOID
+		;
+		
+Formals	:	
+		|	FormalsList
+		;
+		
+Type_ID : Type ID
+		;
+		
+FormalsList	:	FormalDecl FormalsList2
+			;
+
+FormalsList2	:	
+				|	COMMA FormalsList
+				;
+
+FormalDecl	:	Type_ID	FormalDecl2
+			;
+
+FormalDecl2	:	
+			| 	LBRACK NUM_T RBRACK
+
+NUM_T	:	NUM NUM_T2
+		;
+		
+NUM_T2	: 
+		| B
+		;
+
+Statements : Statement
+			| Statement Statements
+			;
+
+Statement	:	LBRACE Statements RBRACE
+			|	Type_ID SC
+			|	Type_ID ASSIGN Exp SC
+			|	Type_ID LBRACK NUM_T RBRACK SC
+			|	ID ASSIGN Exp SC
+			|	ID LBRACK Exp RBRACK ASSIGN Exp SC
+			|	Call SC
+			|	RETURN SC
+			|	RETURN Exp SC
+			|	IF_STATE
+			|	WHILE LPAREN Exp RPAREN Statement
+			|	BREAK SC
+			;
+			
+IF_STATE	:	IF LPAREN Exp RPAREN Statement IF_STATE_ELSE
+			;
+
+IF_STATE_ELSE	:	
+				|	ELSE Statement
+				;
+
+Call	:	ID LPAREN ExpList RPAREN
+		|	ID LPAREN RPAREN
+		;
+
+ExpList	:	Exp
+		|	Exp COMMA ExpList
+		;
+		
+Type	:	INT
+		|	BYTE
+		| 	BOOL
+		;
+		
+Exp		:	LPAREN Exp RPAREN
+		| 	ID LBRACK Exp RBRACK
+		| 	Exp PLUS_MINUS Exp
+		|	Exp	MUL_DIV	Exp
+		| 	ID
+		|	Call
+		|	NUM_T
+		|	STRING
+		|	TRUE
+		|	FALSE
+		|	NOT Exp
+		|	Exp	OR Exp
+		|	Exp AND Exp
+		|	Exp EQ_OP Exp
+		|	Exp RELOP Exp
+		;
+	
+
+
+	
+Exp_OLD	:	Exp tkand Exp { $$.value = $1.value && $3.value; }
+	|	Exp tkor Exp { $$.value = $1.value || $3.value; }
+	|	tklp Exp tkrp { $$ = $2; }
+	|	tkconst	{ $$.value = $1; }
+	;
+
+%%
+
+int main()
+{
+	yyparse();
+}
+
+int yyerror(char * message)
+{
+	cout<<"Parse error: "<<message<<endl;
+	exit(0);
+}
