@@ -42,7 +42,8 @@ break					return BREAK;
 [ 					return LBRACK;
 ] 					return RBRACK;
 = 				        return ASSIGN;
-(==|!=|<|>|<=|>=)		 	return RELOP;
+(==|!=)					return EQ_OP;
+(<|>|<=|>=)		 		return RELOP;
 (+|-)					return PLUS_MINUS;
 (/|*)					return MUL_DIV;
 [a-zA-Z][a-zA-Z0-9]* 			return ID; // yytext will hold the string so no need to copy it
