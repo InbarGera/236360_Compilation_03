@@ -43,7 +43,8 @@ break					return BREAK;
 ] 					return RBRACK;
 = 				        return ASSIGN;
 (==|!=|<|>|<=|>=)		 	return RELOP;
-(+|-|*|/) 				return BINOP;
+(+|-)					return PLUS_MINUS;
+(/|*)					return MUL_DIV;
 [a-zA-Z][a-zA-Z0-9]* 			return ID; // yytext will hold the string so no need to copy it
 (0|[1-9][0-9]*) 			{yylval.integer = string_to_num(yytext); return NUM;}
 "([^\n\r\"\\]|\\[rnt"\\])+" 		{yylval.string = remove_double_quotes(yytext); return STRING;}
