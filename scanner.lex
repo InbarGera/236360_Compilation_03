@@ -48,6 +48,7 @@ break					return BREAK;
 (0|[1-9][0-9]*) 			{yylval.integer = string_to_num(yytext); return NUM;}
 "([^\n\r\"\\]|\\[rnt"\\])+" 		{yylval.string = remove_double_quotes(yytext); return STRING;}
 //[^\r\n]*[\r|\n|\r\n]?			;
+(\n|\r|\t|\s)				; // make sure that the \s is indead space
 
 %%
 
