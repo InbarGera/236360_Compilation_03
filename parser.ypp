@@ -56,13 +56,15 @@ FormalDecl	:	Type_ID	FormalDecl2
 			;
 
 FormalDecl2	:	
-			| 	LBRACK NUM_T RBRACK
+			| 	LBRACK NUM_T RBRACK {$$.parm_type = $2.parm_type}
+			;
 
-NUM_T	:	NUM NUM_T2
+NUM_T	:	NUM NUM_T2 {$$.parm_type = ($2.parm_type == BYTE? BYTE : INT);
+						$$.parm_val = $1.parm_val;							}
 		;
 		
-NUM_T2	: 
-		| B
+NUM_T2	: {$$.parm_type = NOTHING;}
+		| B {$$.parm_type = BYTE;}
 		;
 
 Statements : Statement
@@ -105,29 +107,39 @@ Type	:	INT
 		
 Exp		:	LPAREN Exp RPAREN
 		| 	ID LBRACK Exp RBRACK
-		| 	Exp PLUS_MINUS Exp
-		|	Exp MUL_DIV Exp
+		| 	Exp PLUS_MINUS Exp {$$.parm_type = $1.checkBinOpParmType($3);
+		                        $$.parm_val = $1.makeOp($2,$3);
+		                        }
+		|	Exp MUL_DIV Exp     {$$.parm_type = $1.checkBinOpParmType($3);
+                                 $$.parm_val = $1.makeOp($2,$3);
+                                }
 		| 	ID
 		|	Call
-		|	NUM_T
+		|	NUM_T	{$$.parm_type = $1.parm_type;	$$.parm_val = $1.parm_val}
 		|	STRING
-		|	TRUE
-		|	FALSE
-		|	NOT Exp
-		|	Exp OR Exp
-		|	Exp AND Exp
-		|	Exp EQ_OP Exp
-		|	Exp RELOP Exp
+		|	TRUE	{$$.parm_type = BOOL; $$.parm_val = 1;}
+		|	FALSE	{$$.parm_type = BOOL; $$.parm_val = 0;}
+		|	NOT Exp	{if($2.parm_type != BOOL){
+							yyerror();		//TODO
+						}else{
+							$$.parm_type = BOOL;
+							$$.parm_val = 1-$2.parm_val;
+						}
+					}
+		|	Exp OR Exp { $$.parm_type = BOOL;
+						 $$.parm_val = $1.makeOP($2,$3);
+						}
+
+		|	Exp AND Exp	{ $$.parm_type = BOOL;
+                          $$.parm_val = $1.makeOP($2,$3);
+                        }
+		|	Exp EQ_OP Exp { $$.parm_type = BOOL;
+                            $$.parm_val = $1.makeOP($2,$3);
+                          }
+		|	Exp RELOP Exp { $$.parm_type = BOOL;
+                            $$.parm_val = $1.makeOP($2,$3);
+                           }
 		;
-	
-
-
-	
-Exp_OLD	:	Exp tkand Exp { $$.value = $1.value && $3.value; }
-	|	Exp tkor Exp { $$.value = $1.value || $3.value; }
-	|	tklp Exp tkrp { $$ = $2; }
-	|	tkconst	{ $$.value = $1; }
-	;
 
 %%
 

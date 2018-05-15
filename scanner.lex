@@ -2,10 +2,11 @@
 
 #include <cstring>
 #include <source.tab.hpp>
+#include "attributes.h"
 
 #define YYSTYPE struct retVal{
-	int integer;
-	char* string;
+    int integer;
+    char* string;
 }
 
 int string_to_num(char* input);
@@ -55,16 +56,16 @@ break					return BREAK;
 %%
 
 int string_to_num(char* input){
-	int sum =0;
-	while(input[0] != '\0'){
-		sum = sum*10 + (input++[0] - '0');
-	}
-	return sum;
+    int sum =0;
+    while(input[0] != '\0'){
+        sum = sum*10 + (input++[0] - '0');
+    }
+    return sum;
 }
 
 char* remove_double_quotes(char* input){
-	char* res = malloc(strlen(input));
-	strcpy(res,input+1);
-	res[strlen(res) - 1] = '\0';
-	return res;
+    char* res = malloc(strlen(input));
+    strcpy(res,input+1);
+    res[strlen(res) - 1] = '\0';
+    return res;
 }
