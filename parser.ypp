@@ -28,9 +28,6 @@
 
 
 Program	:	Funcs
-		{
-			cout<<"The expression's value is "<<$1.value<<endl;
-		}
 	;
 
 Funcs 	:	
@@ -109,7 +106,7 @@ Type	:	INT
 Exp		:	LPAREN Exp RPAREN
 		| 	ID LBRACK Exp RBRACK
 		| 	Exp PLUS_MINUS Exp
-		|	Exp	MUL_DIV	Exp
+		|	Exp MUL_DIV Exp
 		| 	ID
 		|	Call
 		|	NUM_T
@@ -117,7 +114,7 @@ Exp		:	LPAREN Exp RPAREN
 		|	TRUE
 		|	FALSE
 		|	NOT Exp
-		|	Exp	OR Exp
+		|	Exp OR Exp
 		|	Exp AND Exp
 		|	Exp EQ_OP Exp
 		|	Exp RELOP Exp
