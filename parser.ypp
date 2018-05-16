@@ -22,8 +22,6 @@
 %left NOT
 %left LBRACE LBRACK LPAREN RBRACE RBRACK RPAREN
 
-%type<exp> Exp
-
 %%
 
 
@@ -107,38 +105,19 @@ Type	:	INT
 		
 Exp		:	LPAREN Exp RPAREN
 		| 	ID LBRACK Exp RBRACK
-		| 	Exp PLUS_MINUS Exp {$$.parm_type = $1.checkBinOpParmType($3);
-		                        $$.parm_val = $1.makeOp($2,$3);
-		                        }
-		|	Exp MUL_DIV Exp     {$$.parm_type = $1.checkBinOpParmType($3);
-                                 $$.parm_val = $1.makeOp($2,$3);
-                                }
+		| 	Exp PLUS_MINUS Exp      {$$ = new parsedExp($1,parsedOp(yytext),$3);}
+		|	Exp MUL_DIV Exp         {$$ = new parsedExp($1,parsedOp(yytext),$3);}
 		| 	ID
 		|	Call
-		|	NUM_T	{$$.parm_type = $1.parm_type;	$$.parm_val = $1.parm_val}
-		|	STRING
-		|	TRUE	{$$.parm_type = BOOL; $$.parm_val = 1;}
-		|	FALSE	{$$.parm_type = BOOL; $$.parm_val = 0;}
-		|	NOT Exp	{if($2.parm_type != BOOL){
-							yyerror();		//TODO
-						}else{
-							$$.parm_type = BOOL;
-							$$.parm_val = 1-$2.parm_val;
-						}
-					}
-		|	Exp OR Exp { $$.parm_type = BOOL;
-						 $$.parm_val = $1.makeOP($2,$3);
-						}
-
-		|	Exp AND Exp	{ $$.parm_type = BOOL;
-                          $$.parm_val = $1.makeOP($2,$3);
-                        }
-		|	Exp EQ_OP Exp { $$.parm_type = BOOL;
-                            $$.parm_val = $1.makeOP($2,$3);
-                          }
-		|	Exp RELOP Exp { $$.parm_type = BOOL;
-                            $$.parm_val = $1.makeOP($2,$3);
-                           }
+		|	NUM_T	                {$$.parm_type = $1.parm_type;	$$.parm_val = $1.parm_val}
+		|	STRING                  {$$ = new parsedExp($1.string)}
+		|	TRUE	                {$$ = new parsedExp(true);}
+		|	FALSE	                {$$ = new parsedExp(false);}
+		|	NOT Exp	                {$$ = new !$1; /* TODO need to make sure it's the correct syntax */}
+		|	Exp OR Exp              {$$ = new parsedExp($1,parsedOp('||'),$3);}
+		|	Exp AND Exp	            {$$ = new parsedExp($1,parsedOp('&&'),$3);}
+		|	Exp EQ_OP Exp           {$$ = new parsedExp($1,$parsedOp(yytext)2,$3);}
+		|	Exp RELOP Exp           {$$ = new parsedExp($1,parsedOp(yytext),$3);}
 		;
 
 %%

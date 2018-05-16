@@ -4,10 +4,7 @@
 #include <source.tab.hpp>
 #include "attributes.h"
 
-#define YYSTYPE struct retVal{
-    int integer;
-    char* string;
-}
+
 
 int string_to_num(char* input);
 char* remove_double_quotes(char* input);

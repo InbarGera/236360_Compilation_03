@@ -147,15 +147,267 @@ public:
 	}
 };
 
+class parsedNum : retVal{
+public:
+    parsParmType par_type;
+    int parm_val;
+
+};
+
+class parsedStatement : retVal{
+
+};
+
+class parsedOp: retVal {
+    binOps charOpToEnum(char* opToEdit){
+        switch(strlen(opToEdit)) {
+            case 0:
+                throw;      //TODO
+            case 1:
+                switch (opToEdit[0]) {
+                    case '<':
+                        return LT;
+                    case '>':
+                        return GT;
+                    case '+':
+                        return PLUS;
+                    case '-':
+                        return MINUS;
+                    case '*':
+                        return MUL;
+                    case '/':
+                        return DIV;
+                    default:
+                        cout << "Error! not a valid operation!" << endl;
+                        return NO_OP;
+                }
+            case 2:
+                switch (opToEdit[0]) {
+                    case '&':
+                        if(opToEdit[1] != '&')
+                            throw;  //TODO
+                        return AND;
+                    case '|':
+                        if(opToEdit[1] != '|')
+                            throw;  //TODO
+                        return OR;
+                    case '=':
+                        if(opToEdit[1] != '=')
+                            throw;  //TODO
+                        return EQ;
+                    case '!':
+                        if(opToEdit[1] != '=')
+                            throw;  //TODO
+                        return NEQ;
+                    case '>':
+                        if(opToEdit[1] != '=')
+                            throw;  //TODO
+                        return GEQ;
+                    case '<':
+                        if(opToEdit[1] != '=')
+                            throw;  //TODO
+                        return LEQ;
+                    default:
+                        throw;  //TODO
+                }
+            default:
+                throw;      //TODO
+        }
+    }
+
+public:
+    binOps op;
+    parsedOp(){
+        op = NO_OP;
+    }
+    parsedOp(char* op_to_parse){
+        op = charOpToEnum(op_to_parse);
+    }
+    parsedExp makeOp(parsedExp exp1,parsedExp second_exp){
+        parsedExp& a = exp1;
+        parsedExp& b = second_exp;
+        switch (op){
+            case AND:
+                    return (a&&b);
+            case OR:
+                    return (a||b);
+            case EQ:
+                    return (a==b);
+            case NEQ:
+                    return (a!=b);
+            case LT:
+                    return (a<b);
+            case GT:
+                    return (a>b);
+            case LEQ:
+                    return (a<=b);
+            case GEQ:
+                    return (a>=b);
+            case PLUS:
+                    return (a+b);
+            case MINUS:
+                    return (a-b);
+            case MUL:
+                    return (a*b);
+            case DIV:
+                    return (a/b);
+        }
+    }
+};
+
+class parsedExp : retVal{
+public:
+    parsParmType par_type;
+    int parm_val;
+    parsedExp(){
+        par_type = NOTHING;
+        parm_val = -1;      //WHAT SHOULD IT BE??? TODO
+    };
+    parsedExp(bool b){
+        par_type = BOOL;
+        if(b)
+            parm_val = 1;
+        else
+            parm_val = 0;
+    }
+    parsedExp(char* str){
+
+    }   //TODO
+    parsedExp(parsedExp exp1, parsedOp op, parsedExp exp2){
+        return op.makeOp(exp1,exp2);
+    }
 
 
+    //operators for the expression - I know it's a heck of a code duplication....
+    parsedExp operator==(parsedExp exp2){
+        if((par_type != INT && par_type != BYTE)||
+                (exp2.par_type != INT && exp2.par_type != BYTE) )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type = BOOL;
+        new_exp.parm_val = (parm_val == exp2.parm_val);
+        return new_exp;
+    };
+    parsedExp operator!=(parsedExp exp2){
+        if((par_type != INT && par_type != BYTE)||
+           (exp2.par_type != INT && exp2.par_type != BYTE) )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type = BOOL;
+        new_exp.parm_val = (parm_val != exp2.parm_val);
+        return new_exp;
+    };
+    parsedExp operator>=(parsedExp exp2){
+        if((par_type != INT && par_type != BYTE)||
+           (exp2.par_type != INT && exp2.par_type != BYTE) )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type = BOOL;
+        new_exp.parm_val = (parm_val >= exp2.parm_val);
+        return new_exp;
+    };
+    parsedExp operator<=(parsedExp exp2){
+        if((par_type != INT && par_type != BYTE)||
+           (exp2.par_type != INT && exp2.par_type != BYTE) )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type = BOOL;
+        new_exp.parm_val = (parm_val <= exp2.parm_val);
+        return new_exp;
+    };
+    parsedExp operator<(parsedExp exp2){
+        if((par_type != INT && par_type != BYTE)||
+           (exp2.par_type != INT && exp2.par_type != BYTE) )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type = BOOL;
+        new_exp.parm_val = (parm_val < exp2.parm_val);
+        return new_exp;
+    };
+    parsedExp operator>(parsedExp exp2){
+        if((par_type != INT && par_type != BYTE)||
+           (exp2.par_type != INT && exp2.par_type != BYTE) )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type = BOOL;
+        new_exp.parm_val = (parm_val > exp2.parm_val);
+        return new_exp;
+    };
+    parsedExp operator+(parsedExp exp2){
+        if((par_type != INT && par_type != BYTE)||
+           (exp2.par_type != INT && exp2.par_type != BYTE) )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type =
+                (par_type == INT ? INT : (exp2.par_type == INT ? INT : BYTE));
+        new_exp.parm_val = (parm_val + exp2.parm_val);
+        return new_exp;
+    };
+    parsedExp operator-(parsedExp exp2){
+        if((par_type != INT && par_type != BYTE)||
+           (exp2.par_type != INT && exp2.par_type != BYTE) )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type =
+                (par_type == INT ? INT : (exp2.par_type == INT ? INT : BYTE));
+        new_exp.parm_val = (parm_val - exp2.parm_val);
+        return new_exp;
+    };
+    parsedExp operator*(parsedExp exp2){
+        if((par_type != INT && par_type != BYTE)||
+           (exp2.par_type != INT && exp2.par_type != BYTE) )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type =
+                (par_type == INT ? INT : (exp2.par_type == INT ? INT : BYTE));
+        new_exp.parm_val = (parm_val * exp2.parm_val);
+        return new_exp;
+    };
+    parsedExp operator/(parsedExp exp2){
+        if((par_type != INT && par_type != BYTE)||
+           (exp2.par_type != INT && exp2.par_type != BYTE) )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type =
+                (par_type == INT ? INT : (exp2.par_type == INT ? INT : BYTE));
+        new_exp.parm_val = (parm_val / exp2.parm_val);
+        return new_exp;
+    };
+    parsedExp operator&&(parsedExp exp2){
+        if((par_type != BOOL )||(exp2.par_type != BOOL) )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type = BOOL;
+        new_exp.parm_val = (parm_val && exp2.parm_val);
+        return new_exp;
+    };
+    parsedExp operator||(parsedExp exp2){
+        if((par_type != BOOL )||(exp2.par_type != BOOL) )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type = BOOL;
+        new_exp.parm_val = (parm_val || exp2.parm_val);
+        return new_exp;
+    };
+    parsedExp operator!(){
+        if (par_type != BOOL)
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type = BOOL;
+        new_exp.parm_val = 1-parm_val;
+        return new_exp;
+    };
 
-typedef union
-{
-	constAttribute constVal;
-	expAttribute exp;
-} STYPE;
+};
 
-#define YYSTYPE STYPE	// Tell Bison to use STYPE as the stack type
+class retVal {
+    int integer;
+    char *string;
+
+    retVal() : integer(0), string(NULL) {};
+
+};
+
+#define YYSTYPE retVal	// Tell Bison to use STYPE as the stack type
 
 #endif
