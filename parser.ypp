@@ -26,21 +26,21 @@
 
 
 Program	:	Funcs
-	;
+    	;
 
 Funcs 	:	
 		|	RetType ID LPAREN Formals RPAREN LBRACE Statements RBRACE Funcs
 		;
 		
-RetType : Type
-		| VOID
+RetType : Type          {$$ = $1;}
+		| VOID          {$$ = new parsedType(NOTHING);}
 		;
 		
 Formals	:	
 		|	FormalsList
 		;
 		
-Type_ID : Type ID
+Type_ID : Type ID       {$$ = new parsedTpID($1, $2);}
 		;
 		
 FormalsList	:	FormalDecl FormalsList2
@@ -54,15 +54,14 @@ FormalDecl	:	Type_ID	FormalDecl2
 			;
 
 FormalDecl2	:	
-			| 	LBRACK NUM_T RBRACK {$$.parm_type = $2.parm_type}
+			| 	LBRACK NUM_T RBRACK
 			;
 
-NUM_T	:	NUM NUM_T2 {$$.parm_type = ($2.parm_type == BYTE? BYTE : INT);
-						$$.parm_val = $1.parm_val;							}
+NUM_T	:	NUM NUM_T2  {$$ = new parsedNum($1, $2);	}
 		;
 		
-NUM_T2	: {$$.parm_type = NOTHING;}
-		| B {$$.parm_type = BYTE;}
+NUM_T2	:               {$$ = new parsedNum();}
+		| B             {$$ = new parsedNum(BYTE);}
 		;
 
 Statements : Statement
@@ -98,22 +97,22 @@ ExpList	:	Exp
 		|	Exp COMMA ExpList
 		;
 		
-Type	:	INT
-		|	BYTE
-		| 	BOOL
+Type	:	INT              {$$ = new parsedType(INT);}
+		|	BYTE             {$$ = new parsedType(BYTE);}
+		| 	BOOL             {$$ = new parsedType(BOOL);}
 		;
 		
-Exp		:	LPAREN Exp RPAREN
+Exp		:	LPAREN Exp RPAREN       {$$ = $1;}
 		| 	ID LBRACK Exp RBRACK
 		| 	Exp PLUS_MINUS Exp      {$$ = new parsedExp($1,parsedOp(yytext),$3);}
 		|	Exp MUL_DIV Exp         {$$ = new parsedExp($1,parsedOp(yytext),$3);}
-		| 	ID
+		| 	ID                      {$$ = new parsedExp($1);}
 		|	Call
-		|	NUM_T	                {$$.parm_type = $1.parm_type;	$$.parm_val = $1.parm_val}
-		|	STRING                  {$$ = new parsedExp($1.string)}
+		|	NUM_T	                {$$ = ew parsedExp($1);}
+		|	STRING                  {$$ = new parsedExp($1);}
 		|	TRUE	                {$$ = new parsedExp(true);}
 		|	FALSE	                {$$ = new parsedExp(false);}
-		|	NOT Exp	                {$$ = new !$1; /* TODO need to make sure it's the correct syntax */}
+		|	NOT Exp	                {$$ = new !$1; }
 		|	Exp OR Exp              {$$ = new parsedExp($1,parsedOp('||'),$3);}
 		|	Exp AND Exp	            {$$ = new parsedExp($1,parsedOp('&&'),$3);}
 		|	Exp EQ_OP Exp           {$$ = new parsedExp($1,$parsedOp(yytext)2,$3);}

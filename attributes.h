@@ -1,16 +1,20 @@
 #ifndef __ATTRIBUTES_H
 #define __ATTRIBUTES_H
 
+#include <cstring>
+#include <source.tab.hpp>
 #include <iostream>
+#include <list>
+#include "output.h"
 
 using std::cout;
 using std::endl;
-
+using std::list;
+//================================= ENUMS ===============================//
 enum parsRetType {
 	NOTHING, INT, BYTE, BOOL, VOID, STRING	};
-
 typedef parsRetType parsParmType;
-
+enum varType{IS_INT, IS_ID, IS_STR};
 enum binOps {		//binary operators - both relative and arithmatical
 	NO_OP,	//not an operation
 	AND,	//and				&&
@@ -27,7 +31,7 @@ enum binOps {		//binary operators - both relative and arithmatical
 	DIV		//divide			/
 
 };
-
+/*
 class parseInfo : retVal
 {
 private:
@@ -146,19 +150,129 @@ public:
 		}
 	}
 };
+*/
 
-class parsedNum : retVal{
+//=========================== HELPER FUNCTIONS =============================//
+int string_to_num(char* input){
+    int sum =0;
+    while(input[0] != '\0'){
+        sum = sum*10 + (input++[0] - '0');
+    }
+    return sum;
+}
+
+char* remove_double_quotes(char* input){
+    char* res = malloc(strlen(input));
+    strcpy(res,input+1);
+    res[strlen(res) - 1] = '\0';
+    return res;
+}
+
+//=========================== ORIGINAL STYPE ===============================//
+class retVal {
+public:
+    int integer;
+    char *string;
+    bool is_int;
+    bool is_id;
+    bool is_string;
+    retVal() : integer(0), string(nullptr),
+               is_int(false), is_id(false), is_string(false){};
+    retVal(char* tmp_yytext, varType var_type){
+        *this = retVal();
+        switch (var_type){
+            case IS_INT:
+                integer = string_to_num(tmp_yytext);
+                is_int = true;
+                break;
+            case IS_ID:
+                string = strdup(tmp_yytext);
+                is_id = true;
+                break;
+            case IS_STR:
+                string = remove_double_quotes(tmp_yytext);
+                is_string = true;
+                break;
+            default:
+                throw;      //TODO
+        }
+    }
+
+    ~retVal(){
+        if(is_id || is_string)
+            free(string);
+    }
+    retVal(const retVal& tmp){
+        *this = tmp;
+    }
+    retVal& operator=(const retVal& tmp){
+        if(this != &tmp){
+            integer = tmp.integer;
+            is_int = tmp.is_int;
+            is_id = tmp.is_id;
+            is_string = tmp.is_string;
+            if(tmp.is_string || tmp.is_id)
+                string = strdup(tmp.string);
+            else
+                string = nullptr;
+        }
+        return *this;
+    }
+
+
+};
+
+#define YYSTYPE retVal	// Tell Bison to use STYPE as the stack type
+//=============================== GRAMMAR VARIABLES CLASSES ================//
+class parsedType : public retVal{
 public:
     parsParmType par_type;
-    int parm_val;
+    parsedType(parsParmType type) : par_type(type) {};
+    parsedType(const parsedType& type):
+            retVal(type), par_type(type.par_type){};
+    parsedType& operator=(const parsedType& type){
+        return parsedType(type);
+    }
+};
+
+class parsedTpID : public parsedType{
+public:
+    parsedTpID(): parsedType(NOTHING){};
+    parsedTpID(parsedType type, retVal val) :
+            retVal(val), par_type(type.par_type){};
+    parsedTpID(const parsedTpID& type_id): parsedType(type_id){};
+    parsedTpID& operator=(const parsedTpID& type_id){
+        return parsedTpID(type_id);
+    }
+};
+
+class parsedNum : public retVal{
+public:
+    parsParmType par_type;
+    parsedNum(){
+        par_type = NOTHING;
+
+    }
+    parsedNum(parsParmType type) : par_type(type){};
+    parsedNum(retVal val, parsedNum type_num): retVal(val){
+        if(type_num.par_type == NOTHING)
+            par_type = INT;
+        else
+            par_type = BYTE;
+    };
+    parsedNum(const parsedNum& num) : retVal(num), par_type (num.par_type){};
+    parsedNum& operator=(const parsedNum& num){
+        return parsedNum(num);
+
+    }
+};
+
+class parsedStatement : public retVal{
+public:
 
 };
 
-class parsedStatement : retVal{
-
-};
-
-class parsedOp: retVal {
+class parsedOp: public retVal {
     binOps charOpToEnum(char* opToEdit){
         switch(strlen(opToEdit)) {
             case 0:
@@ -255,122 +369,87 @@ public:
     }
 };
 
-class parsedExp : retVal{
+class parsedExp : public parsedNum{
 public:
-    parsParmType par_type;
-    int parm_val;
-    parsedExp(){
-        par_type = NOTHING;
-        parm_val = -1;      //WHAT SHOULD IT BE??? TODO
-    };
+    parsedExp(){};
+    parsedExp(parsedNum num) : parsedNum(num){};
     parsedExp(bool b){
         par_type = BOOL;
         if(b)
-            parm_val = 1;
+            integer = 1;
         else
-            parm_val = 0;
+            integer = 0;
     }
-    parsedExp(char* str){
-
-    }   //TODO
+    parsedExp(retVal val): parsedNum(val, NOTHING){
+        if(is_string)
+            par_type = STRING;
+    }
     parsedExp(parsedExp exp1, parsedOp op, parsedExp exp2){
-        return op.makeOp(exp1,exp2);
+        *this= op.makeOp(exp1,exp2);
     }
-
+    parsedExp(const parsedExp& exp) : parsedNum(exp){};
+    parsedExp& operator=(const parsedExp& exp){
+        return parsedExp(exp);
+    }
 
     //operators for the expression - I know it's a heck of a code duplication....
     parsedExp operator==(parsedExp exp2){
-        if((par_type != INT && par_type != BYTE)||
-                (exp2.par_type != INT && exp2.par_type != BYTE) )
+        if(!is_int || !exp2.is_int )
             throw;  //TODO
         parsedExp new_exp = parsedExp();
         new_exp.par_type = BOOL;
-        new_exp.parm_val = (parm_val == exp2.parm_val);
+        new_exp.is_int = true;
+        new_exp.integer = (integer == exp2.integer ? 1 : 0);
         return new_exp;
     };
     parsedExp operator!=(parsedExp exp2){
-        if((par_type != INT && par_type != BYTE)||
-           (exp2.par_type != INT && exp2.par_type != BYTE) )
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type = BOOL;
-        new_exp.parm_val = (parm_val != exp2.parm_val);
+        parsedExp new_exp = (*this==exp2);
+        new_exp.integer = (integer != exp2.integer ? 1 : 0);
         return new_exp;
     };
     parsedExp operator>=(parsedExp exp2){
-        if((par_type != INT && par_type != BYTE)||
-           (exp2.par_type != INT && exp2.par_type != BYTE) )
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type = BOOL;
-        new_exp.parm_val = (parm_val >= exp2.parm_val);
+        parsedExp new_exp = (*this==exp2);
+        new_exp.integer = (integer >= exp2.integer ? 1 : 0);
         return new_exp;
     };
     parsedExp operator<=(parsedExp exp2){
-        if((par_type != INT && par_type != BYTE)||
-           (exp2.par_type != INT && exp2.par_type != BYTE) )
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type = BOOL;
-        new_exp.parm_val = (parm_val <= exp2.parm_val);
+        parsedExp new_exp = (*this==exp2);
+        new_exp.integer = (integer <= exp2.integer ? 1 : 0);
         return new_exp;
     };
     parsedExp operator<(parsedExp exp2){
-        if((par_type != INT && par_type != BYTE)||
-           (exp2.par_type != INT && exp2.par_type != BYTE) )
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type = BOOL;
-        new_exp.parm_val = (parm_val < exp2.parm_val);
+        parsedExp new_exp = (*this==exp2);
+        new_exp.integer = (integer < exp2.integer ? 1 : 0);
         return new_exp;
     };
     parsedExp operator>(parsedExp exp2){
-        if((par_type != INT && par_type != BYTE)||
-           (exp2.par_type != INT && exp2.par_type != BYTE) )
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type = BOOL;
-        new_exp.parm_val = (parm_val > exp2.parm_val);
+        parsedExp new_exp = (*this==exp2);
+        new_exp.integer = (integer > exp2.integer ? 1 : 0);
         return new_exp;
     };
     parsedExp operator+(parsedExp exp2){
-        if((par_type != INT && par_type != BYTE)||
-           (exp2.par_type != INT && exp2.par_type != BYTE) )
+        if(!is_int || exp2 != is_int)
             throw;  //TODO
         parsedExp new_exp = parsedExp();
         new_exp.par_type =
                 (par_type == INT ? INT : (exp2.par_type == INT ? INT : BYTE));
-        new_exp.parm_val = (parm_val + exp2.parm_val);
+        new_exp.is_int = true;
+        new_exp.integer = (integer + exp2.integer);
         return new_exp;
     };
     parsedExp operator-(parsedExp exp2){
-        if((par_type != INT && par_type != BYTE)||
-           (exp2.par_type != INT && exp2.par_type != BYTE) )
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type =
-                (par_type == INT ? INT : (exp2.par_type == INT ? INT : BYTE));
-        new_exp.parm_val = (parm_val - exp2.parm_val);
+        parsedExp new_exp = (*this+exp2);
+        new_exp.integer = (integer - exp2.integer);
         return new_exp;
     };
     parsedExp operator*(parsedExp exp2){
-        if((par_type != INT && par_type != BYTE)||
-           (exp2.par_type != INT && exp2.par_type != BYTE) )
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type =
-                (par_type == INT ? INT : (exp2.par_type == INT ? INT : BYTE));
-        new_exp.parm_val = (parm_val * exp2.parm_val);
+        parsedExp new_exp = (*this+exp2);
+        new_exp.integer = (integer * exp2.integer);
         return new_exp;
     };
     parsedExp operator/(parsedExp exp2){
-        if((par_type != INT && par_type != BYTE)||
-           (exp2.par_type != INT && exp2.par_type != BYTE) )
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type =
-                (par_type == INT ? INT : (exp2.par_type == INT ? INT : BYTE));
-        new_exp.parm_val = (parm_val / exp2.parm_val);
+        parsedExp new_exp = (*this+exp2);
+        new_exp.integer = (integer / exp2.integer);
         return new_exp;
     };
     parsedExp operator&&(parsedExp exp2){
@@ -378,15 +457,12 @@ public:
             throw;  //TODO
         parsedExp new_exp = parsedExp();
         new_exp.par_type = BOOL;
-        new_exp.parm_val = (parm_val && exp2.parm_val);
+        new_exp.integer = (integer && exp2.integer);
         return new_exp;
     };
     parsedExp operator||(parsedExp exp2){
-        if((par_type != BOOL )||(exp2.par_type != BOOL) )
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type = BOOL;
-        new_exp.parm_val = (parm_val || exp2.parm_val);
+        parsedExp new_exp = (*this && exp2);
+        new_exp.integer = (integer || exp2.integer);
         return new_exp;
     };
     parsedExp operator!(){
@@ -394,20 +470,11 @@ public:
             throw;  //TODO
         parsedExp new_exp = parsedExp();
         new_exp.par_type = BOOL;
-        new_exp.parm_val = 1-parm_val;
+        new_exp.integer = 1-integer;
         return new_exp;
     };
 
 };
 
-class retVal {
-    int integer;
-    char *string;
-
-    retVal() : integer(0), string(NULL) {};
-
-};
-
-#define YYSTYPE retVal	// Tell Bison to use STYPE as the stack type
 
 #endif
