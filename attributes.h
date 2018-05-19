@@ -272,6 +272,19 @@ public:
 
 };
 
+class parsedStatementList : public parsedStatement{
+public:
+    list<parsedStatement> state_list;
+    parsedStatementList();
+    parsedStatementList(parsedStatement state){
+        state_list.push_front(state);
+    }
+    parsedStatementList(parsedStatement state, parsedStatementList state_list_t){
+        state_list(state_list_t);
+        state_list.push_front(state);
+    }
+};
+
 class parsedOp: public retVal {
     binOps charOpToEnum(char* opToEdit){
         switch(strlen(opToEdit)) {
@@ -476,5 +489,17 @@ public:
 
 };
 
+class parsedExpList : public parsedExp{
+public:
+    list<parsedExp> exp_list;
+    parsedExpList();
+    parsedExpList(parsedExp exp) {
+        exp_list.push_front(exp);
+    }
+    parsedExpList(parsedExp exp, parsedExpList exp_list_t){
+        exp_list(exp_list_t);
+        exp_list.push_front(exp);
+    }
+};
 
 #endif

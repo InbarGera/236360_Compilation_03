@@ -64,8 +64,8 @@ NUM_T2	:               {$$ = new parsedNum();}
 		| B             {$$ = new parsedNum(BYTE);}
 		;
 
-Statements : Statement
-			| Statement Statements
+Statements : Statement                  {$$ = new parsedStatementList($1);}
+			| Statement Statements      {$$ = new parsedStatementList($1, $2);}
 			;
 
 Statement	:	LBRACE Statements RBRACE
@@ -93,8 +93,8 @@ Call	:	ID LPAREN ExpList RPAREN
 		|	ID LPAREN RPAREN
 		;
 
-ExpList	:	Exp
-		|	Exp COMMA ExpList
+ExpList	:	Exp                     {$$ = new parsedExpList($1)}
+		|	Exp COMMA ExpList       {$$ = new parsedExpList($1, $2);}
 		;
 		
 Type	:	INT              {$$ = new parsedType(INT);}
