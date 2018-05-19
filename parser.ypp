@@ -64,8 +64,8 @@ NUM_T2	:               {$$ = new parsedNum();}
 		| B             {$$ = new parsedNum(BYTE);}
 		;
 
-Statements : Statement                  {$$ = new parsedStatementList($1);}
-			| Statement Statements      {$$ = new parsedStatementList($1, $2);}
+Statements : Statement
+			| Statement Statements
 			;
 
 Statement	:	LBRACE Statements RBRACE
@@ -89,8 +89,8 @@ IF_STATE_ELSE	:
 				|	ELSE Statement
 				;
 
-Call	:	ID LPAREN ExpList RPAREN
-		|	ID LPAREN RPAREN
+Call	:	ID LPAREN ExpList RPAREN    {$$ = new parsedCall($1,$3);}
+		|	ID LPAREN RPAREN            {$$ = new parsedCall($1);}
 		;
 
 ExpList	:	Exp                     {$$ = new parsedExpList($1)}
@@ -103,12 +103,12 @@ Type	:	INT              {$$ = new parsedType(INT);}
 		;
 		
 Exp		:	LPAREN Exp RPAREN       {$$ = $1;}
-		| 	ID LBRACK Exp RBRACK
+		| 	ID LBRACK Exp RBRACK    {$$ = new parsedExp($1,$3);}
 		| 	Exp PLUS_MINUS Exp      {$$ = new parsedExp($1,parsedOp(yytext),$3);}
 		|	Exp MUL_DIV Exp         {$$ = new parsedExp($1,parsedOp(yytext),$3);}
 		| 	ID                      {$$ = new parsedExp($1);}
-		|	Call
-		|	NUM_T	                {$$ = ew parsedExp($1);}
+		|	Call                    {$$ = new parsedExp($1);}
+		|	NUM_T	                {$$ = new parsedExp($1);}
 		|	STRING                  {$$ = new parsedExp($1);}
 		|	TRUE	                {$$ = new parsedExp(true);}
 		|	FALSE	                {$$ = new parsedExp(false);}

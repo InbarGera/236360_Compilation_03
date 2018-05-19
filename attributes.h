@@ -12,9 +12,17 @@ using std::endl;
 using std::list;
 //================================= ENUMS ===============================//
 enum parsRetType {
-	NOTHING, INT, BYTE, BOOL, VOID, STRING	};
+	NOTHING, INT, BYTE, BOOL, VOID, STRING, STRUCT	};
 typedef parsRetType parsParmType;
-enum varType{IS_INT, IS_ID, IS_STR};
+enum GrammerVar{
+    NOT_INITIALIZED,
+    IS_BOOL,
+    IS_INT,
+    IS_ID,
+    IS_STR,
+    IS_CALL,
+    IS_ARRAY
+};
 enum binOps {		//binary operators - both relative and arithmatical
 	NO_OP,	//not an operation
 	AND,	//and				&&
@@ -173,33 +181,31 @@ class retVal {
 public:
     int integer;
     char *string;
-    bool is_int;
-    bool is_id;
-    bool is_string;
-    retVal() : integer(0), string(nullptr),
-               is_int(false), is_id(false), is_string(false){};
-    retVal(char* tmp_yytext, varType var_type){
-        *this = retVal();
+    GrammerVar g_var;
+    retVal() : integer(0), string(nullptr),g_var(NOT_INITIALIZED){};
+    retVal(char* tmp_yytext, GrammerVar var_type) : retVal(){
+        g_var = var_type;
         switch (var_type){
             case IS_INT:
                 integer = string_to_num(tmp_yytext);
-                is_int = true;
                 break;
             case IS_ID:
                 string = strdup(tmp_yytext);
-                is_id = true;
                 break;
             case IS_STR:
                 string = remove_double_quotes(tmp_yytext);
-                is_string = true;
                 break;
+            case IS_ARRAY:
+                //TODO
+            case IS_CALL:
+                //TODO
             default:
                 throw;      //TODO
         }
     }
 
     ~retVal(){
-        if(is_id || is_string)
+        if(g_var == IS_ID || g_var == IS_STR)
             free(string);
     }
     retVal(const retVal& tmp){
@@ -207,14 +213,11 @@ public:
     }
     retVal& operator=(const retVal& tmp){
         if(this != &tmp){
+            string = nullptr;
             integer = tmp.integer;
-            is_int = tmp.is_int;
-            is_id = tmp.is_id;
-            is_string = tmp.is_string;
-            if(tmp.is_string || tmp.is_id)
+            g_var = tmp.g_var;
+            if(tmp.g_var == IS_STR || tmp.g_var == IS_ID)
                 string = strdup(tmp.string);
-            else
-                string = nullptr;
         }
         return *this;
     }
@@ -251,10 +254,11 @@ public:
     parsParmType par_type;
     parsedNum(){
         par_type = NOTHING;
-
+        g_var = IS_INT;
     }
-    parsedNum(parsParmType type) : par_type(type){};
+    parsedNum(parsParmType type) : par_type(type), g_var(IS_INT){};
     parsedNum(retVal val, parsedNum type_num): retVal(val){
+        g_var = IS_INT;
         if(type_num.par_type == NOTHING)
             par_type = INT;
         else
@@ -266,7 +270,7 @@ public:
 
     }
 };
-
+/*
 class parsedStatement : public retVal{
 public:
 
@@ -284,7 +288,7 @@ public:
         state_list.push_front(state);
     }
 };
-
+*/
 class parsedOp: public retVal {
     binOps charOpToEnum(char* opToEdit){
         switch(strlen(opToEdit)) {
@@ -382,71 +386,117 @@ public:
     }
 };
 
-class parsedExp : public parsedNum{
+class parsedCall : public parsedNum{
 public:
+    parsedExp call_id;
+    parsedExpList exp_list;
+    parsedCall(){
+        call_id = parsedExp();
+        exp_list = parsedExpList();
+    }
+    parsedCall(parsedExp id){
+        call_id = id;
+        exp_list = parsedExpList();
+    }
+    parsedCall(parsedExp id, parsedExpList exp_list_t){
+        call_id = id;
+        exp_list = exp_list_t;
+    }
+    parsedCall(const parsedCall& call){
+        *this=call;
+    }
+    parsedCall& operator=(const parsedCall& call){
+        call_id = call.call_id;
+        exp_list = call.exp_list;
+        return *this;
+    }
+};
+
+class parsedExp : public parsedCall{
+public:
+    parsedExp array_index;
     parsedExp(){};
     parsedExp(parsedNum num) : parsedNum(num){};
     parsedExp(bool b){
         par_type = BOOL;
+        g_var = IS_BOOL;
         if(b)
             integer = 1;
         else
             integer = 0;
     }
     parsedExp(retVal val): parsedNum(val, NOTHING){
-        if(is_string)
+        if(g_var == IS_STR)
             par_type = STRING;
     }
     parsedExp(parsedExp exp1, parsedOp op, parsedExp exp2){
         *this= op.makeOp(exp1,exp2);
     }
-    parsedExp(const parsedExp& exp) : parsedNum(exp){};
+    parsedExp(parsedCall call): parsedCall(call){};
+    parsedExp(parsedExp id, parsedExp exp) : parsedExp(id){
+        g_var = IS_ARRAY;
+        array_index = exp;
+    }
+    parsedExp(const parsedExp& exp) : parsedCall(exp){};
     parsedExp& operator=(const parsedExp& exp){
         return parsedExp(exp);
     }
 
     //operators for the expression - I know it's a heck of a code duplication....
-    parsedExp operator==(parsedExp exp2){
-        if(!is_int || !exp2.is_int )
+    parsedExp operator!(){
+        if (par_type != BOOL)
             throw;  //TODO
         parsedExp new_exp = parsedExp();
         new_exp.par_type = BOOL;
-        new_exp.is_int = true;
+        new_exp.g_var = IS_BOOL;
+        new_exp.integer = 1-integer;
+        return new_exp;
+    };
+    parsedExp operator&&(parsedExp exp2){
+        if((par_type != BOOL )||(exp2.par_type != BOOL) )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type = BOOL;
+        new_exp.g_var = IS_BOOL;
+        new_exp.integer = (integer==1 && exp2.integer ==1? 1 : 0);
+        return new_exp;
+    };
+    parsedExp operator||(parsedExp exp2){
+        return (!((!*this)&&(!exp2)));
+    };
+    parsedExp operator==(parsedExp exp2){
+        if(g_var!=IS_INT || exp2.g_var!=IS_INT )
+            throw;  //TODO
+        parsedExp new_exp = parsedExp();
+        new_exp.par_type = BOOL;
+        new_exp.g_var = IS_BOOL;
         new_exp.integer = (integer == exp2.integer ? 1 : 0);
         return new_exp;
     };
     parsedExp operator!=(parsedExp exp2){
-        parsedExp new_exp = (*this==exp2);
-        new_exp.integer = (integer != exp2.integer ? 1 : 0);
-        return new_exp;
-    };
-    parsedExp operator>=(parsedExp exp2){
-        parsedExp new_exp = (*this==exp2);
-        new_exp.integer = (integer >= exp2.integer ? 1 : 0);
-        return new_exp;
-    };
-    parsedExp operator<=(parsedExp exp2){
-        parsedExp new_exp = (*this==exp2);
-        new_exp.integer = (integer <= exp2.integer ? 1 : 0);
-        return new_exp;
+        return (!(*this==exp2));
     };
     parsedExp operator<(parsedExp exp2){
         parsedExp new_exp = (*this==exp2);
         new_exp.integer = (integer < exp2.integer ? 1 : 0);
         return new_exp;
     };
+    parsedExp operator<=(parsedExp exp2){
+        return ((*this<exp2)||(*this==exp2));
+    };
     parsedExp operator>(parsedExp exp2){
-        parsedExp new_exp = (*this==exp2);
-        new_exp.integer = (integer > exp2.integer ? 1 : 0);
-        return new_exp;
+        return !(*this<=exp2);
+    };
+    parsedExp operator>=(parsedExp exp2){
+        return !(*this<exp2);
     };
     parsedExp operator+(parsedExp exp2){
-        if(!is_int || exp2 != is_int)
+        if(g_var!=IS_INT || exp2.g_var!=IS_INT)
             throw;  //TODO
         parsedExp new_exp = parsedExp();
         new_exp.par_type =
                 (par_type == INT ? INT : (exp2.par_type == INT ? INT : BYTE));
-        new_exp.is_int = true;
+        new_exp.g_var = IS_INT;
         new_exp.integer = (integer + exp2.integer);
         return new_exp;
     };
@@ -465,28 +515,6 @@ public:
         new_exp.integer = (integer / exp2.integer);
         return new_exp;
     };
-    parsedExp operator&&(parsedExp exp2){
-        if((par_type != BOOL )||(exp2.par_type != BOOL) )
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type = BOOL;
-        new_exp.integer = (integer && exp2.integer);
-        return new_exp;
-    };
-    parsedExp operator||(parsedExp exp2){
-        parsedExp new_exp = (*this && exp2);
-        new_exp.integer = (integer || exp2.integer);
-        return new_exp;
-    };
-    parsedExp operator!(){
-        if (par_type != BOOL)
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type = BOOL;
-        new_exp.integer = 1-integer;
-        return new_exp;
-    };
-
 };
 
 class parsedExpList : public parsedExp{
@@ -500,6 +528,42 @@ public:
         exp_list(exp_list_t);
         exp_list.push_front(exp);
     }
+    parsedExpList(const parsedExpList& expList1){
+        *this = expList1;
+    }
+    parsedExpList& operator=(const parsedExpList& tmp){
+        if(this != &tmp){
+            string = nullptr;
+            integer = tmp.integer;
+            g_var = tmp.g_var;
+            if(tmp.g_var == IS_STR || tmp.g_var == IS_ID)
+                string = strdup(tmp.string);
+            exp_list=tmp.exp_list;
+        }
+        return *this;
+    }
 };
+/*
+class parsedIfElseSt : public parsedExp{
+public:
+    parsedStatement if_state;
+    parsedStatement else_state;
+    bool if_else;       //true  -> else_state is valid,
+                        //false -> no else_state
+    parsedIfElseSt(): if_else(false){};
+    parsedIfElseSt(bool if_else_t ,parsedStatement ie_st) {
+        if_else = false;
+        if (if_else_t) {
+            else_state(ie_st);
+            if_else = true;
+        } else
+            if_state(ie_st);
+    }
+    parsedIfElseSt(parsedExp exp,parsedStatement st ,parsedIfElseSt ie_st)
+            : parsedExp(exp), {
 
+    }
+
+};
+*/
 #endif
