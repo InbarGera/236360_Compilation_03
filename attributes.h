@@ -5,11 +5,13 @@
 #include <source.tab.hpp>
 #include <iostream>
 #include <list>
+#include <string>
 #include "output.h"
 
 using std::cout;
 using std::endl;
 using std::list;
+using std::string;
 //================================= ENUMS ===============================//
 enum parsRetType {
 	NOTHING, INT, BYTE, BOOL, VOID, STRING, STRUCT	};
@@ -180,9 +182,9 @@ char* remove_double_quotes(char* input){
 class retVal {
 public:
     int integer;
-    char *string;
+    string str;
     GrammerVar g_var;
-    retVal() : integer(0), string(nullptr),g_var(NOT_INITIALIZED){};
+    retVal() : integer(0),g_var(NOT_INITIALIZED){};
     retVal(char* tmp_yytext, GrammerVar var_type) : retVal(){
         g_var = var_type;
         switch (var_type){
@@ -190,10 +192,10 @@ public:
                 integer = string_to_num(tmp_yytext);
                 break;
             case IS_ID:
-                string = strdup(tmp_yytext);
+                str = string(tmp_yytext);
                 break;
             case IS_STR:
-                string = remove_double_quotes(tmp_yytext);
+                str = string(remove_double_quotes(tmp_yytext));
                 break;
             case IS_ARRAY:
                 //TODO
@@ -203,26 +205,26 @@ public:
                 throw;      //TODO
         }
     }
-
+/*
     ~retVal(){
         if(g_var == IS_ID || g_var == IS_STR)
-            free(string);
+            free(str);
     }
     retVal(const retVal& tmp){
         *this = tmp;
     }
     retVal& operator=(const retVal& tmp){
         if(this != &tmp){
-            string = nullptr;
+            str = nullptr;
             integer = tmp.integer;
             g_var = tmp.g_var;
             if(tmp.g_var == IS_STR || tmp.g_var == IS_ID)
-                string = strdup(tmp.string);
+                str = strdup(tmp.str);
         }
         return *this;
     }
 
-
+*/
 };
 
 #define YYSTYPE retVal	// Tell Bison to use STYPE as the stack type
@@ -231,11 +233,13 @@ class parsedType : public retVal{
 public:
     parsParmType par_type;
     parsedType(parsParmType type) : par_type(type) {};
+    /*
     parsedType(const parsedType& type):
             retVal(type), par_type(type.par_type){};
     parsedType& operator=(const parsedType& type){
         return parsedType(type);
     }
+    */
 };
 
 class parsedTpID : public parsedType{
@@ -243,10 +247,12 @@ public:
     parsedTpID(): parsedType(NOTHING){};
     parsedTpID(parsedType type, retVal val) :
             retVal(val), par_type(type.par_type){};
+    /*
     parsedTpID(const parsedTpID& type_id): parsedType(type_id){};
     parsedTpID& operator=(const parsedTpID& type_id){
         return parsedTpID(type_id);
     }
+    */
 };
 
 class parsedNum : public retVal{
@@ -264,11 +270,13 @@ public:
         else
             par_type = BYTE;
     };
+    /*
     parsedNum(const parsedNum& num) : retVal(num), par_type (num.par_type){};
     parsedNum& operator=(const parsedNum& num){
         return parsedNum(num);
 
     }
+    */
 };
 /*
 class parsedStatement : public retVal{
@@ -382,6 +390,8 @@ public:
                     return (a*b);
             case DIV:
                     return (a/b);
+            default:
+                throw;          //TODO Not supposed to get here!
         }
     }
 };
@@ -390,18 +400,19 @@ class parsedCall : public parsedNum{
 public:
     parsedExp call_id;
     parsedExpList exp_list;
-    parsedCall(){
+    parsedCall() : g_var(IS_CALL) {
         call_id = parsedExp();
         exp_list = parsedExpList();
     }
-    parsedCall(parsedExp id){
+    parsedCall(parsedExp id) : g_var(IS_CALL){
         call_id = id;
         exp_list = parsedExpList();
     }
-    parsedCall(parsedExp id, parsedExpList exp_list_t){
+    parsedCall(parsedExp id, parsedExpList exp_list_t) : g_var(IS_CALL){
         call_id = id;
         exp_list = exp_list_t;
     }
+    /*
     parsedCall(const parsedCall& call){
         *this=call;
     }
@@ -410,6 +421,7 @@ public:
         exp_list = call.exp_list;
         return *this;
     }
+    */
 };
 
 class parsedExp : public parsedCall{
@@ -437,10 +449,12 @@ public:
         g_var = IS_ARRAY;
         array_index = exp;
     }
+    /*
     parsedExp(const parsedExp& exp) : parsedCall(exp){};
     parsedExp& operator=(const parsedExp& exp){
         return parsedExp(exp);
     }
+    */
 
     //operators for the expression - I know it's a heck of a code duplication....
     parsedExp operator!(){
@@ -521,27 +535,29 @@ class parsedExpList : public parsedExp{
 public:
     list<parsedExp> exp_list;
     parsedExpList();
-    parsedExpList(parsedExp exp) {
+    parsedExpList(parsedExp exp){
         exp_list.push_front(exp);
     }
     parsedExpList(parsedExp exp, parsedExpList exp_list_t){
         exp_list(exp_list_t);
         exp_list.push_front(exp);
     }
+    /*
     parsedExpList(const parsedExpList& expList1){
         *this = expList1;
     }
     parsedExpList& operator=(const parsedExpList& tmp){
         if(this != &tmp){
-            string = nullptr;
+            str = nullptr;
             integer = tmp.integer;
             g_var = tmp.g_var;
             if(tmp.g_var == IS_STR || tmp.g_var == IS_ID)
-                string = strdup(tmp.string);
+                str = strdup(tmp.str);
             exp_list=tmp.exp_list;
         }
         return *this;
     }
+    */
 };
 /*
 class parsedIfElseSt : public parsedExp{
