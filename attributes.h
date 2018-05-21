@@ -15,7 +15,9 @@ using std::string;
 //================================= ENUMS ===============================//
 enum parsRetType {
 	NOTHING, INT, BYTE, BOOL, VOID, STRING, STRUCT	};
+
 typedef parsRetType parsParmType;
+
 enum GrammerVar{
     NOT_INITIALIZED,
     IS_BOOL,
@@ -582,4 +584,179 @@ public:
 
 };
 */
+
+//=============================== SCOPE HANDLING ================//
+
+#define UNDEF -1
+class type{
+public:
+    enum typeKind {VOID, BOOL, INTEGER, BYTE, STRING, ARRAY};
+
+    typeKind kind;
+
+    int arrayLength;
+    typeKind arrayType;
+
+    type(typeKind Kind) : kind(Kind){
+        if(kind == ARRAY) assert(0); // this constructor should get only basic types
+    }
+
+    type(typeKind Kind, int len) : kind(ARRAY), arrayLength(len), arrayType(Kind){
+        if (Kind == ARRAY) assert(0);
+    }
+
+    bool operator==(const type& toCompare){
+        if(kind != ARRAY) return kind == toCompare.kind;
+        return arrayLength == toCompare.arrayLength && arrayType == toCompare.arrayType;
+    }
+
+    int size(){
+        return kind == ARRAY ? arrayLength:1;
+    }
+};
+
+class typeAndName : public type{
+public:
+    string name;
+
+    typeAndName(typeKind Kind,string name) : name(name){
+        type(Kind);
+    }
+
+    typeAndName(typeKind Kind, int len, string name) : name(name){
+        type(Kind),len;
+    }
+
+};
+
+class function{
+public:
+    string idName;
+    type return_type;
+    list<typeAndName> inputTypes;
+
+    function(string idName, type return_type, list<typeAndName> inputTypes) : string(string), return_type(return_type), inputTypes(inputTypes){};
+};
+
+class Id{
+public:
+    Type type;
+    int offset;
+    string name;
+
+    int byteValue; // the actual value required only in case of a Byte to make sure it not exceeds 255
+
+    Id(Type type, int offset, string name, int value) : type(type), offset(offset), name(name), byteValue(value){
+        if(type == BYTE && (value < 0 || value > 255)) {/* throw the relevant error*/}
+    };
+};
+
+class scope{
+public:
+    int nextIdLocation;
+    list<Id> IdList;
+
+    funnction currentFunctionScope; // every scope is inside a function scope, so every scope have exactly one valid return value
+    bool isWhileScope; // for the break command, make sure it is valid
+
+    scope(int nextIdLocation,funnction currentFunctionScope, bool isWhileScope) :
+            nextIdLocation(nextIdLocation), currentFunctionScope(currentFunctionScope), isWhileScope(isWhileScope){
+        Id = new list<Id>;
+    }
+
+    ~scope(){
+        printScope(); //to do :to build
+        delete IdList;
+    }
+
+    void addId(type& newIdType, string newIdName, int value){
+
+        IdList.insert (new Id(newIdType,nextIdLocation,newIdName,value));
+        nextIdLocation += newIdType.size();
+    }
+};
+
+class scopes{
+public:
+    list<function> functions;
+    list<scope> scopesList;
+
+    bool containsIdName(string name){
+        for(scope s : scopesList)
+            for(Id id : s.IdList)
+                if(id.name == name)
+                    return true;
+        return false;
+    }
+
+    bool containsFunctionName(strng name){
+        for(function f : functions)
+            if(f.idName == name)
+                return true;
+        return false;
+    }
+
+    void addFunction(type returnType, list<typeAndName> inputTypes, string name){
+        if(returnType.kind == ARRAY) throw {/* appropriate exception*/};
+        if(containsFunctionName(name)) throw {/* appropriate exception*/};
+
+        functions.push_front(new function(name, returnType, inputTypes));
+    }
+
+    void addId(string idName, type Type, int value){ // value is needed only in case of Byte
+        if(containsIdName(idName)) throw {/* appropriate exception*/};
+        scopesList.front().addId(new Id(Type,idName,value));
+    }
+
+    void newRegularScope(bool isWhileScope){
+
+        int nextIdLocation = scopesList.front().nextIdLocation;
+        bool oldIsInWhileScope = scopesList.front().isWhileScope;
+        function oldFunctionScope = scopesList.front().currentFunctionScope;
+
+        scopesList.push_front(new scope(nextIdLocation,oldFunctionScope,oldIsInWhileScope | isWhileScope));
+    }
+
+    void newFunctionScope(function func){
+        if(func.idName == "main"){
+            if(func.return_type != VOID || func.inputTypes.empty())
+                throw {/*appropriate exception*/};
+        }
+        if(containsFunctionName(func.idName)) throw {/*appropriate exception*/};
+
+        int nextIdLocation = scopesList.front().nextIdLocation;
+        scopesList.push_front(new scope(nextIdLocation,func,false));
+
+        // functions are always at the begin of the scope list, so for inserting the input values we will use a bit of
+        // a hack, just manually insert the parameters to the next scope, without changing nextIdLocation.
+
+        int i = -1;
+        list<typeAndName> tempList(func.inputTypes);
+        typeAndName temp;
+        list<Id>* IdList = &scopesList.front().IdList;
+
+        while(!temp.empty()){
+            temp = tempList->pop_front();
+            IdList.push_back(new Id(temp.kind,i--,temp.name,UNDEF));
+        }
+        //bug potent
+
+        addFunction(func);
+    }
+
+    void removeScope(){
+        delete scopesList.pop_front();
+    }
+
+    ~scopes(){
+        while(!scopesList.empty())
+            removeScope();
+
+        while(!functions.empty()){
+            functions.pop_front();
+            //to do : build the printing function
+        }
+    };
+
+};
 #endif
