@@ -7,6 +7,8 @@
 
 	extern int yylex();		// do they both need to be extern?
 	int yyerror(char * message);
+
+	scopes* scopesList;
 %}
 
 
@@ -29,11 +31,29 @@ Program	:	Funcs
     	;
 
 Funcs 	:	
-		|	RetType ID LPAREN Formals RPAREN LBRACE Statements RBRACE Funcs
+		|	Function Funcs
 		;
-		
+
+Function    : FunctionOpen FunctionClose
+        ;
+
+FunctionOpen    :   RetType ID LPAREN Formals RPAREN LBRACE
+{
+    addFunction($1,$2,$4);
+    newFunctionScope($2,$4);
+    newRegularScope(false); // true is received only in case of a while scope
+}
+        ;
+
+FunctionClose   :   Statements RBRACE
+{
+    closeScope();
+    closeScope();
+}
+        ;
+
 RetType : Type          {$$ = $1;}
-		| VOID          {$$ = new parsedType(NOTHING);}
+		| VOID          {$$ = new parsedType(VOID);}
 		;
 		
 Formals	:	
@@ -46,7 +66,7 @@ Type_ID : Type ID       {$$ = new parsedTpID($1, $2);}
 FormalsList	:	FormalDecl FormalsList2
 			;
 
-FormalsList2	:	
+FormalsList2	:
 				|	COMMA FormalsList
 				;
 
@@ -80,6 +100,7 @@ Statement	:	LBRACE Statements RBRACE
 			|	IF_STATE
 			|	WHILE LPAREN Exp RPAREN Statement
 			|	BREAK SC
+			|   SC
 			;
 			
 IF_STATE	:	IF LPAREN Exp RPAREN Statement IF_STATE_ELSE
@@ -97,24 +118,24 @@ ExpList	:	Exp                     {$$ = new parsedExpList($1)}
 		|	Exp COMMA ExpList       {$$ = new parsedExpList($1, $2);}
 		;
 		
-Type	:	INT              {$$ = new parsedType(INT);}
+Type	:	INT              {$$ = new parsedType(INT);} // to return new type with appropriate type
 		|	BYTE             {$$ = new parsedType(BYTE);}
 		| 	BOOL             {$$ = new parsedType(BOOL);}
 		;
 		
-Exp		:	LPAREN Exp RPAREN       {$$ = $1;}
-		| 	ID LBRACK Exp RBRACK    {$$ = new parsedExp($1,$3);}
+Exp		:	LPAREN Exp RPAREN       {$$ = $2;} 
+		| 	ID LBRACK Exp RBRACK    {$$ = new parsedExp($1,$3);} // make sure Id ia an array, Exp is int/byte
 		| 	Exp PLUS_MINUS Exp      {$$ = new parsedExp($1,parsedOp(yytext),$3);}
 		|	Exp MUL_DIV Exp         {$$ = new parsedExp($1,parsedOp(yytext),$3);}
-		| 	ID                      {$$ = new parsedExp($1);}
-		|	Call                    {$$ = new parsedExp($1);}
-		|	NUM_T	                {$$ = new parsedExp($1);}
-		|	STRING                  {$$ = new parsedExp($1);}
-		|	TRUE	                {$$ = new parsedExp(true);}
-		|	FALSE	                {$$ = new parsedExp(false);}
-		|	NOT Exp	                {$$ = !$1; }
-		|	Exp OR Exp              {$$ = new parsedExp($1,parsedOp('||'),$3);}
-		|	Exp AND Exp	            {$$ = new parsedExp($1,parsedOp('&&'),$3);}
+		| 	ID                      {$$ = $1;}
+		|	Call
+		|	NUM_T	                {$$ = $1;}
+		|	STRING                  {$$ = new parsedExp($1);} // return string type
+		|	TRUE	                {$$ = new parsedExp(true);} // return bool type
+		|	FALSE	                {$$ = new parsedExp(false);} // return bool type
+		|	NOT Exp	                {$$ = !$1; }  // return bool type
+		|	Exp OR Exp              {$$ = new parsedExp($1,parsedOp("||"),$3);}
+		|	Exp AND Exp	            {$$ = new parsedExp($1,parsedOp("&&"),$3);}
 		|	Exp EQ_OP Exp           {$$ = new parsedExp($1,$parsedOp(yytext)2,$3);}
 		|	Exp RELOP Exp           {$$ = new parsedExp($1,parsedOp(yytext),$3);}
 		;
@@ -123,7 +144,11 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $1;}
 
 int main()
 {
+	// initSystem
+	scopesList = new scopes();
+	//to do
 	yyparse();
+
 }
 
 int yyerror(char * message)
