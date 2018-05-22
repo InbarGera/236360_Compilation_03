@@ -33,47 +33,40 @@ Program	:	Funcs
 Funcs 	:	
 		|	Function Funcs
 		;
-
-Function    : FunctionOpen FunctionClose
+Function : FunctionDefinition LBRACE_t Statements RBRACE_t
         ;
 
-FunctionOpen    :   RetType ID LPAREN Formals RPAREN LBRACE
+FunctionDefinition : RetType ID LPAREN Formals RPAREN
 {
-    addFunction($1,$2,$4);
-    newFunctionScope($2,$4);
-    newRegularScope(false); // true is received only in case of a while scope
+    scopesList>addFunction($1,$2,$4);
+    scopesList->newFunctionScope($2);
 }
-        ;
 
-FunctionClose   :   Statements RBRACE
-{
-    closeScope();
-    closeScope();
-}
         ;
 
 RetType : Type          {$$ = $1;}
 		| VOID          {$$ = new parsedType(VOID);}
 		;
 		
-Formals	:	
-		|	FormalsList
+Formals	:	                    {/* $$ = new empty retType list}
+		|	FormalsList         {$$ = $1}
 		;
 		
 Type_ID : Type ID       {$$ = new parsedTpID($1, $2);}
 		;
 		
-FormalsList	:	FormalDecl FormalsList2
+FormalsList	:	FormalDecl FormalsList2         { $$ = {/* FormalDecl merge FormalsList2 /*} ;}
 			;
 
-FormalsList2	:
-				|	COMMA FormalsList
-				;
+FormalsList2	:       {$$ = {/*new empty list or retType*/}; }
+				|	COMMA FormalsList       { $$ = {/* merge FormalsList to $$/*} ;}
 
-FormalDecl	:	Type_ID	FormalDecl2
 			;
 
-FormalDecl2	:	
+FormalDecl	:	Type_ID	FormalDecl2     {/* $$ = new retType list with one node contains the data of $! and $2 */}
+			;
+
+FormalDecl2	:
 			| 	LBRACK NUM_T RBRACK
 			;
 
@@ -88,57 +81,85 @@ Statements : Statement
 			| Statement Statements
 			;
 
-Statement	:	LBRACE Statements RBRACE
-			|	Type_ID SC
-			|	Type_ID ASSIGN Exp SC
-			|	Type_ID LBRACK NUM_T RBRACK SC
-			|	ID ASSIGN Exp SC
-			|	ID LBRACK Exp RBRACK ASSIGN Exp SC
-			|	Call SC
-			|	RETURN SC
-			|	RETURN Exp SC
+Statement	:	LBRACE_t Statements RBRACE_t
+			|	Type_ID SC          {/*make new ID in current scope/*}
+			|	Type_ID ASSIGN Exp SC           {/*make new ID in current scope, and afterward assignment of Exp/*}
+			|	Type_ID LBRACK NUM_T RBRACK SC      {/*make new ID in current scope/*}
+			|	ID ASSIGN Exp SC        {/*make sure Exp type is compatible with ID type/*}
+			|	ID LBRACK Exp RBRACK ASSIGN Exp SC  {/*make sure that ID is an array of type EXP, maybe make sure that the first EXP is in array size ?/*}
+			|	Call SC             {/* do nothing */}
+			|	RETURN SC           {/*make sure expected return type is VOID/*}
+			|	RETURN Exp SC       {/*make sure Exp type is the same as the expected return type/*}
 			|	IF_STATE
-			|	WHILE LPAREN Exp RPAREN Statement
-			|	BREAK SC
+			|	WHILE_STATEMENT
+			|	BREAK SC            {/*make sure we are in a while scope/*}
 			|   SC
 			;
-			
-IF_STATE	:	IF LPAREN Exp RPAREN Statement IF_STATE_ELSE
-			;
+
+WHILE_STATEMENT : WHILE_OPEN Statement { scopesList->removeScope(); }
+            ;
+
+WHILE_OPEN : WHILE LPAREN Exp RPAREN { /* check that Exp is bool */; scopesList->newRegularScope(true); }
+        ;
+
+IF_STATE : IF_OPENER Statement CLOSE_SCOPE IF_STATE_ELSE
+         ;
+
+IF_OPENER : IF LPAREN Exp RPAREN        {/* make sure Exp is of type bool */;  scopesList->newRegularScope(false);}
+          ;
 
 IF_STATE_ELSE	:	
-				|	ELSE Statement
+				|	ELSE_T Statement {scopesList->removeScope();}
 				;
 
-Call	:	ID LPAREN ExpList RPAREN    {$$ = new parsedCall($1,$3);}
-		|	ID LPAREN RPAREN            {$$ = new parsedCall($1);}
+ELSE_T : ELSE       {scopesList->newRegularScope(false);}
+       ;
+
+CLOSE_SCOPE : {scopesList->removeScope();}
+            ;
+
+Call	:	ID LPAREN ExpList RPAREN    {$$ = new parsedCall($1,$3);}  /* just make sure that Id is a valid function and ExpLis is the same as Id input list */
+		|	ID LPAREN RPAREN            {$$ = new parsedCall($1);}     /* make sure Id is a valid function and its input list is empty */
 		;
 
-ExpList	:	Exp                     {$$ = new parsedExpList($1)}
-		|	Exp COMMA ExpList       {$$ = new parsedExpList($1, $2);}
-		;
-		
+ExpList:    Exp ExpList2 { /* $$ = $2.add($1s
+       ;
+
+ExpList2 :                  { $$ = /* new empty list */ }
+         | COMMA ExpList    { $$ =$2 }
+         ;
+
 Type	:	INT              {$$ = new parsedType(INT);} // to return new type with appropriate type
 		|	BYTE             {$$ = new parsedType(BYTE);}
 		| 	BOOL             {$$ = new parsedType(BOOL);}
 		;
 		
-Exp		:	LPAREN Exp RPAREN       {$$ = $2;} 
-		| 	ID LBRACK Exp RBRACK    {$$ = new parsedExp($1,$3);} // make sure Id ia an array, Exp is int/byte
+Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
+		| 	ID LBRACK Exp RBRACK    {$$ = new parsedExp($1,$3);} // make sure Id ia an array, Exp is int/byte, getting the value
 		| 	Exp PLUS_MINUS Exp      {$$ = new parsedExp($1,parsedOp(yytext),$3);}
 		|	Exp MUL_DIV Exp         {$$ = new parsedExp($1,parsedOp(yytext),$3);}
-		| 	ID                      {$$ = $1;}
+		| 	ID                      {$$ = $1;} // make sure ID is declared, and return its type
 		|	Call
 		|	NUM_T	                {$$ = $1;}
 		|	STRING                  {$$ = new parsedExp($1);} // return string type
 		|	TRUE	                {$$ = new parsedExp(true);} // return bool type
 		|	FALSE	                {$$ = new parsedExp(false);} // return bool type
-		|	NOT Exp	                {$$ = !$1; }  // return bool type
-		|	Exp OR Exp              {$$ = new parsedExp($1,parsedOp("||"),$3);}
-		|	Exp AND Exp	            {$$ = new parsedExp($1,parsedOp("&&"),$3);}
-		|	Exp EQ_OP Exp           {$$ = new parsedExp($1,$parsedOp(yytext)2,$3);}
-		|	Exp RELOP Exp           {$$ = new parsedExp($1,parsedOp(yytext),$3);}
+		|	NOT Exp	                {$$ = $1; }  // make sure Exp type is bool
+		|	Exp OR Exp              {$$ = new parsedExp($1,parsedOp("||"),$3);}  // make sure Exp and Exp are of type bool
+		|	Exp AND Exp	            {$$ = new parsedExp($1,parsedOp("&&"),$3);}     // make sure Exp and Exp are of type bool
+		|	Exp EQ_OP Exp           {$$ = new parsedExp($1,$parsedOp(yytext)2,$3);}     // make sure Exp and Exp are of type bool
+		|	Exp RELOP Exp           {$$ = new parsedExp($1,parsedOp(yytext),$3);}       // make sure Exp and Exp are COMPATIABLE types
 		;
+
+LBRACE_t : LBRACE
+{
+    scopesList->newRegularScope(false);
+}
+
+RBRACE_t : RBRACE
+{
+    scopesList->removeScope();
+}
 
 %%
 
@@ -146,9 +167,13 @@ int main()
 {
 	// initSystem
 	scopesList = new scopes();
-	//to do
-	yyparse();
+	scopesList->push_front(new scope());
 
+    addFunction(/*parameters for print */);
+    addFunction(/*parameters for printi */);
+
+	yyparse();
+	delete scopesList;
 }
 
 int yyerror(char * message)
