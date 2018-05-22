@@ -659,6 +659,9 @@ public:
     funnction currentFunctionScope; // every scope is inside a function scope, so every scope have exactly one valid return value
     bool isWhileScope; // for the break command, make sure it is valid
 
+    scope(){ // in case of the first scope scope
+        Id = new list<Id>;
+    }
     scope(int nextIdLocation,funnction currentFunctionScope, bool isWhileScope) :
             nextIdLocation(nextIdLocation), currentFunctionScope(currentFunctionScope), isWhileScope(isWhileScope){
         Id = new list<Id>;
@@ -673,6 +676,20 @@ public:
 
         IdList.insert (new Id(newIdType,nextIdLocation,newIdName,value));
         nextIdLocation += newIdType.size();
+    }
+
+    bool containsId(string name){
+        for (Id id : IdList)
+            if(id.name == name)
+                return true;
+        return false;
+    }
+
+    Id gedId(string name){
+        for (Id id : IdList)
+            if(id.name == name)
+                return id;
+        assert(0);
     }
 };
 
@@ -699,6 +716,7 @@ public:
     void addFunction(type returnType, list<typeAndName> inputTypes, string name){
         if(returnType.kind == ARRAY) throw {/* appropriate exception*/};
         if(containsFunctionName(name)) throw {/* appropriate exception*/};
+        if(name == "main" &&(return_type != VOID || inputTypes.empty())) throw {/* appropriate exception*/};
 
         functions.push_front(new function(name, returnType, inputTypes));
     }
@@ -717,12 +735,12 @@ public:
         scopesList.push_front(new scope(nextIdLocation,oldFunctionScope,oldIsInWhileScope | isWhileScope));
     }
 
-    void newFunctionScope(function func){
-        if(func.idName == "main"){
-            if(func.return_type != VOID || func.inputTypes.empty())
-                throw {/*appropriate exception*/};
+    void newFunctionScope(string functionName){
+        function* func;
+        for(function f : functions){
+            if(f.idName == functionName)
+                func =&f;
         }
-        if(containsFunctionName(func.idName)) throw {/*appropriate exception*/};
 
         int nextIdLocation = scopesList.front().nextIdLocation;
         scopesList.push_front(new scope(nextIdLocation,func,false));
@@ -731,22 +749,31 @@ public:
         // a hack, just manually insert the parameters to the next scope, without changing nextIdLocation.
 
         int i = -1;
-        list<typeAndName> tempList(func.inputTypes);
-        typeAndName temp;
-        list<Id>* IdList = &scopesList.front().IdList;
+        list<typeAndName> functionInputsVars(func.inputTypes);
+        typeAndName nextInputVar;
+        list<Id>* IdList = &scopesList.front().IdList; // just aliasing for readability
 
-        while(!temp.empty()){
-            temp = tempList->pop_front();
-            IdList.push_back(new Id(temp.kind,i--,temp.name,UNDEF));
+        while(!functionInputsVars.empty()){
+            nextInputVar = functionInputsVars->pop_front();
+            IdList.push_back(new Id(nextInputVar.kind,i--,nextInputVar.name,UNDEF));
         }
-        //bug potent
-
-        addFunction(func);
     }
 
     void removeScope(){
         delete scopesList.pop_front();
     }
+
+
+
+
+    type getId(string name){
+        list<Id> whatWeLookedAt;
+
+        return scopesList.
+    }
+
+
+
 
     ~scopes(){
         while(!scopesList.empty())
