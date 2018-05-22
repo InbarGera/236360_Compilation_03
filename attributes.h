@@ -14,10 +14,8 @@ using std::list;
 using std::string;
 //================================= ENUMS ===============================//
 enum parsRetType {
-	NOTHING, INT, BYTE, BOOL, VOID, STRING, STRUCT	};
-
+    NOTHING, INT, BYTE, BOOL, VOID, STRING, STRUCT	};
 typedef parsRetType parsParmType;
-
 enum GrammerVar{
     NOT_INITIALIZED,
     IS_BOOL,
@@ -28,19 +26,19 @@ enum GrammerVar{
     IS_ARRAY
 };
 enum binOps {		//binary operators - both relative and arithmatical
-	NO_OP,	//not an operation
-	AND,	//and				&&
-	OR,		//					||
-	EQ,		//equal				==
-	NEQ,	//not equal			!=
-	LT,		//lesser than		<
-	GT,		//greater than		>
-	LEQ,	//lesser or equal	<=
-	GEQ,	//greater or equal	>=
-	PLUS,	//plus				+
-	MINUS,	//minus				-
-	MUL,	//multiply			*
-	DIV		//divide			/
+    NO_OP,	//not an operation
+    AND,	//and				&&
+    OR,		//					||
+    EQ,		//equal				==
+    NEQ,	//not equal			!=
+    LT,		//lesser than		<
+    GT,		//greater than		>
+    LEQ,	//lesser or equal	<=
+    GEQ,	//greater or equal	>=
+    PLUS,	//plus				+
+    MINUS,	//minus				-
+    MUL,	//multiply			*
+    DIV		//divide			/
 
 };
 /*
@@ -181,13 +179,15 @@ char* remove_double_quotes(char* input){
 }
 
 //=========================== ORIGINAL STYPE ===============================//
+/*
 class retVal {
 public:
     int integer;
     string str;
     GrammerVar g_var;
+
     retVal() : integer(0),g_var(NOT_INITIALIZED){};
-    retVal(char* tmp_yytext, GrammerVar var_type) : retVal(){
+    retVal(char* tmp_yytext, GrammerVar var_type){
         g_var = var_type;
         switch (var_type){
             case IS_INT:
@@ -206,7 +206,7 @@ public:
             default:
                 throw;      //TODO
         }
-    }
+    }*/
 /*
     ~retVal(){
         if(g_var == IS_ID || g_var == IS_STR)
@@ -225,11 +225,33 @@ public:
         }
         return *this;
     }
-
 */
+//};
+
+class var_base{
+public:
+    string name;
+    Type type;
 };
 
-#define YYSTYPE retVal	// Tell Bison to use STYPE as the stack type
+class var_info: public vars_base{
+public:
+    int value;
+};
+
+
+class parsedData{
+public:
+    enum data_kind {
+        SINGLE,
+        LIST
+    };
+    var_info single_var;
+    list<var_inf> list_of_vars;
+
+};
+
+#define YYSTYPE parsedData	// Tell Bison to use STYPE as the stack type
 //=============================== GRAMMAR VARIABLES CLASSES ================//
 class parsedType : public retVal{
 public:
@@ -276,16 +298,13 @@ public:
     parsedNum(const parsedNum& num) : retVal(num), par_type (num.par_type){};
     parsedNum& operator=(const parsedNum& num){
         return parsedNum(num);
-
     }
     */
 };
 /*
 class parsedStatement : public retVal{
 public:
-
 };
-
 class parsedStatementList : public parsedStatement{
 public:
     list<parsedStatement> state_list;
@@ -369,29 +388,29 @@ public:
         parsedExp& b = second_exp;
         switch (op){
             case AND:
-                    return (a&&b);
+                return (a&&b);
             case OR:
-                    return (a||b);
+                return (a||b);
             case EQ:
-                    return (a==b);
+                return (a==b);
             case NEQ:
-                    return (a!=b);
+                return (a!=b);
             case LT:
-                    return (a<b);
+                return (a<b);
             case GT:
-                    return (a>b);
+                return (a>b);
             case LEQ:
-                    return (a<=b);
+                return (a<=b);
             case GEQ:
-                    return (a>=b);
+                return (a>=b);
             case PLUS:
-                    return (a+b);
+                return (a+b);
             case MINUS:
-                    return (a-b);
+                return (a-b);
             case MUL:
-                    return (a*b);
+                return (a*b);
             case DIV:
-                    return (a/b);
+                return (a/b);
             default:
                 throw;          //TODO Not supposed to get here!
         }
@@ -428,7 +447,7 @@ public:
 
 class parsedExp : public parsedCall{
 public:
-    parsedExp array_index;
+    list<retVal> func_params;
     parsedExp(){};
     parsedExp(parsedNum num) : parsedNum(num){};
     parsedExp(bool b){
@@ -448,8 +467,10 @@ public:
     }
     parsedExp(parsedCall call): parsedCall(call){};
     parsedExp(parsedExp id, parsedExp exp) : parsedExp(id){
+        if (exp.g_var != IS_INT)
+            throw;      //TODO
         g_var = IS_ARRAY;
-        array_index = exp;
+
     }
     /*
     parsedExp(const parsedExp& exp) : parsedCall(exp){};
@@ -579,14 +600,17 @@ public:
     }
     parsedIfElseSt(parsedExp exp,parsedStatement st ,parsedIfElseSt ie_st)
             : parsedExp(exp), {
-
     }
-
 };
 */
-//=============================== SCOPE HANDLING ================//
+
+class parsedFormalList : retVal{
+
+};
+
+///=============================== SCOPE HANDLING ================//
 #define UNDEF -1
-class type{
+class Type{
 public:
     enum typeKind {VOID, BOOL, INTEGER, BYTE, STRING, ARRAY};
     typeKind kind;
@@ -594,15 +618,15 @@ public:
     int arrayLength;
     typeKind arrayType;
 
-    type(typeKind Kind) : kind(Kind){
+    Type(typeKind Kind) : kind(Kind){
         if(kind == ARRAY) assert(0); // this constructor should get only basic types
     }
 
-    type(typeKind Kind, int len) : kind(ARRAY), arrayLength(len), arrayType(Kind){
+    Type(typeKind Kind, int len) : kind(ARRAY), arrayLength(len), arrayType(Kind){
         if (Kind == ARRAY) assert(0);
     }
 
-    bool operator==(const type& toCompare){
+    bool operator==(const Type& toCompare){
         if(kind != ARRAY) return kind == toCompare.kind;
         return arrayLength == toCompare.arrayLength && arrayType == toCompare.arrayType;
     }
