@@ -1,16 +1,7 @@
 %{
-/*      MOVED TO H FILE
-#include <cstring>
-#include <source.tab.hpp>
 
- */
 #include "attributes.h"
 
-
-/* MOVED TO H FILE
-int string_to_num(char* input);
-char* remove_double_quotes(char* input);
-*/
 %}
 
 %option yylineno
@@ -35,22 +26,22 @@ while 		        			return WHILE;
 break		        			return BREAK;
 ; 	            				return SC;
 , 		            			return COMMA;
-( 		            			return LPAREN;
-) 		            			return RPAREN;
-{ 		            			return LBRACE;
-} 		            			return RBRACE;
-[ 			            		return LBRACK;
-] 			            		return RBRACK;
+\( 		            			return LPAREN;
+\) 		            			return RPAREN;
+\{ 		            			return LBRACE;
+\} 		            			return RBRACE;
+\[ 			            		return LBRACK;
+\] 			            		return RBRACK;
 = 				                return ASSIGN;
 (==|!=)			        		return EQ_OP;
 (<|>|<=|>=)		 	        	return RELOP;
-(+|-)					        return PLUS_MINUS;
-(/|*)				        	return MUL_DIV;
+[+-]					        return PLUS_MINUS;
+[\/\*]				        	return MUL_DIV;
 [a-zA-Z][a-zA-Z0-9]* 	        	{yylval = retVal(yytext, IS_ID);	return ID;}
 (0|[1-9][0-9]*) 			        {yylval = retVal(yytext, IS_INT); return NUM;}
-"([^\n\r\"\\]|\\[rnt"\\])+" 		{yylval.string = retVal(yytext, IS_STR); return STRING;}
-//[^\r\n]*[\r|\n|\r\n]?			;
-( \n|\r|\t)				;
+\"([^\n\r\"\\]|\\[rnt"\\])+\" 		{yylval.string = retVal(yytext, IS_STR); return STRING;}
+\/\/[^\r\n]*[\r|\n|\r\n]?			    {}
+[ \n|\r|\t]				{}
 
 %%
 /*  MOVED TO THE H FILE
