@@ -657,6 +657,7 @@ class parsedFormalList : retVal{
 
 ///=============================== SCOPE HANDLING ================//
 
+
 class scope{
 public:
     int nextIdLocation;
@@ -664,22 +665,16 @@ public:
 
     bool isWhileScope; // for the break command, make sure it is valid
 
-    scope(){ // in case of the first scope scope
-        IdList = new list<Id>;
-    }
+    scope(){} // in case of the first scope scope
 
-    scope(int nextIdLocation, bool isWhileScope) : nextIdLocation(nextIdLocation), isWhileScope(isWhileScope){
-        IdList = new list<Id>;
-    }
+    scope(int nextIdLocation, bool isWhileScope) : nextIdLocation(nextIdLocation), isWhileScope(isWhileScope){}
 
-    ~scope(){
-        printScope(); //to do :to build
-        delete IdList;
-    }
+    ~scope(){}
 
     void addId(type newIdType, string newIdName){
 
-        IdList.insert (new Id(newIdType,nextIdLocation,newIdName));
+        Id temp(newIdType,nextIdLocation,newIdName);
+        IdList.insert (temp);
         nextIdLocation += newIdType.size();
     }
 
@@ -734,9 +729,11 @@ public:
     }
 
     void addInitialFunction(Type returnType, string name, Type inputType){
-        list<Type> functionInputTypes = new list<Type>;
+        list<Type> functionInputTypes;
         functionInputTypes.push_front(inputType);
-        functions.push_front(new function(name, returnType, functionInputTypes));
+
+        function temp(name, returnType, functionInputTypes);
+        functions.push_front(temp);
     }
 
     void addFunction(parsedData retType,parsedData Id, parsedData functionInputs){
@@ -748,7 +745,7 @@ public:
         string name = Id.single_var.name;
         Type returnType = retType.single_var.type;
 
-        list<Type> functionInputTypes = new list<Type>;
+        list<Type> functionInputTypes;
         while(!functionInputs.list_of_vars.empty()){
             functionInputTypes.push_back(functionInputs.list_of_vars.front().type);
             functionInputs.list_of_vars.pop_front();
@@ -759,7 +756,8 @@ public:
         if(name == "main" &&(returnType.kind != VOID || !functionInputTypes.empty())) throw {/* appropriate exception*/};
 
         // inserting to the function list
-        functions.push_front(new function(name, returnType, functionInputTypes));
+        function temp(name, returnType, functionInputTypes);
+        functions.push_front(temp);
     }
 
     void addId(parsedData Id,parsedData type,parsedData isArray){
@@ -778,11 +776,13 @@ public:
             newType.kind = type.single_var.type.kind;
         }
 
-        scopesList.front().addId(new Id(newType,Id.single_var.name));
+        scopesList.front().addId(newType,Id.single_var.name);
     }
 
     void addIdNotArray(parsedData type){
-        scopesList.front().addId(new Id(type.single_var.type,type.single_var.name));
+        if(containsIdName(type.single_var.name)) throw {/* appropriate exception*/};
+
+        scopesList.front().addId(type.single_var.type,type.single_var.name);
     }
 
     void newRegularScope(bool isWhileScope){
@@ -790,14 +790,15 @@ public:
         int nextIdLocation = scopesList.front().nextIdLocation;
         bool oldIsInWhileScope = scopesList.front().isWhileScope;
 
-
-        scopesList.push_front(new scope(nextIdLocation,oldIsInWhileScope | isWhileScope));
+        scope temp(nextIdLocation,oldIsInWhileScope | isWhileScope);
+        scopesList.push_front(temp);
     }
 
     void newFunctionScope(parsedData inputVars){
 
         int newNextIdLocation = scopesList.front().nextIdLocation;
-        scopesList.push_front(new scope(newNextIdLocation,false)); // false because opening a function means that we are not in a while scope
+        scope temp(newNextIdLocation,false);// false because opening a function means that we are not in a while scope
+        scopesList.push_front(temp);
 
         // functions are always at the begin of the scope list, so for inserting the input values we will use a bit of
         // a hack, just manually insert the parameters to the next scope, without changing nextIdLocation.
@@ -805,13 +806,27 @@ public:
         int i = -1;
 
         while(!inputVars.list_of_vars.empty()){
-            scopesList.front().IdList.push_back(new Id(inputVars.list_of_vars.front().type.kind,i--,inputVars.list_of_vars.front().name));
+            Id temp(inputVars.list_of_vars.front().type,i--,inputVars.list_of_vars.front().name);
+            scopesList.front().IdList.push_back(temp);
             inputVars.list_of_vars.pop_front();
         }
     }
 
     void removeScope(){
-        delete scopesList.pop_front();
+        scope oldScope = scopesList.front();
+        endScope();
+
+        while(!oldScope.IdList.empty()){
+            Id temp = oldScope.IdList.back();
+            printID(temp.name,temp.offset,temp.type.toString());
+
+            //void printID(const string& id, int offset, const string& type);
+
+
+        }
+
+        // print the scope
+        scopesList.pop_front();
     }
 
     void verifyAssign(parsedData Id,parsedData exp){
@@ -819,7 +834,7 @@ public:
 
         Type idType = Id.single_var.type;
         if((!idType == exp.single_var.type) && // the types are different, and it is not a case of assign byte to int
-                (!(idType == idType.INTEGER) && (exp.single_var.type == exp.single_var.type.BYTE)))
+                (!(idType.kind == idType.INTEGER) && (exp.single_var.type.kind == exp.single_var.type.BYTE)))
             throw {/*  appropriate exception */}; // incompatible types
     }
 
@@ -851,7 +866,8 @@ public:
     }
 
     void verifyReturnType(parsedData returnType){
-        if(!functions.front().return_type == returnType.single_var.type)
+        if((!functions.front().return_type == returnType.single_var.type) &&
+                !(functions.front().return_type ==)
             throw {/*  appropriate exception */}; //function return different type
     }
 
@@ -903,8 +919,9 @@ public:
             removeScope();
 
         while(!functions.empty()){
+            function temp = functions.front();
+            // print temp
             functions.pop_front();
-            //to do : build the printing function
         }
     };
 
