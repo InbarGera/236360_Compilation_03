@@ -7,6 +7,7 @@
 #include <list>
 #include <string>
 #include "output.h"
+#include "output.h"
 
 using std::cout;
 using std::endl;
@@ -253,6 +254,38 @@ public:
     int size(){
         return kind == ARRAY ? arrayLength:1;
     }
+
+    static string typeKindToString(typeKind kind){
+        switch(kind) {
+            case VOID : {
+                return "VOID";
+            }
+            case BOOL : {
+                return "BOOL";
+            }
+            case INTEGER : {
+                return "INTEGER";
+            }
+            case BYTE : {
+                return "BYTE";
+            }
+            case STRING : {
+                return "STRING";
+            }
+            case ARRAY : {
+                return "ARRAY";
+            }
+            default: {
+                assert(0);
+            }
+        }
+    }
+
+    string toString(){
+        if(kind == ARRAY)
+            return makeArrayType(typeKindToString(arrayType),arrayLength);
+        return typeKindToString(kind);
+    }
 };
 
 class var_base{
@@ -292,10 +325,22 @@ public:
 class function{
 public:
     string idName;
-    type return_type;
+    Type return_type;
     list<Type> inputTypes;
 
     function(string idName, type return_type, list<Type> inputTypes) : string(string), return_type(return_type), inputTypes(inputTypes){};
+
+    string toString(){
+        function temp = this;
+        list<string> inputTypes;
+        while(!temp.inputTypes.empty()){
+            Type temp2 = temp.inputTypes.back();
+            inputTypes.push_front(temp2.toString());
+            temp.inputTypes.pop_back();
+        }
+
+        return makeFunctionType(temp.return_type.toString(),inputTypes);
+    }
 };
 
 #define YYSTYPE parsedData	// Tell Bison to use STYPE as the stack type
