@@ -25,149 +25,13 @@ enum GrammerVar{
     IS_CALL,
     IS_ARRAY
 };
-/*
-enum binOps {		//binary operators - both relative and arithmatical
-    NO_OP,	//not an operation
-    AND,	//and				&&
-    OR,		//					||
-    EQ,		//equal				==
-    NEQ,	//not equal			!=
-    LT,		//lesser than		<
-    GT,		//greater than		>
-    LEQ,	//lesser or equal	<=
-    GEQ,	//greater or equal	>=
-    PLUS,	//plus				+
-    MINUS,	//minus				-
-    MUL,	//multiply			*
-    DIV		//divide			/
 
-};
- */
 enum binOps {
     REL_OP,
     BOOL_OP,
     MATH_OP
 };
-/*
-class parseInfo : retVal
-{
-private:
-	binOps charOpToEnum(char* opToEdit){
-		if(strlen(opToEdit) == 1){
-			switch (opToEdit[0]){
-				case '<':
-					return LT;
-				case '>':
-					return GT;
-				case '+':
-					return PLUS;
-				case '-':
-					return MINUS;
-				case '*':
-					return MUL;
-				case '/':
-					return DIV;
-				default:
-					cout << "Error! not a valid operation!" << endl;
-					return NO_OP;
-			}
-		}else{	//strlen(opToEdit) = 2
-			switch (opToEdit[0]){
-				case '&':
-					return AND;
-				case '|':
-					return OR;
-				case '=':
-					return EQ;
-				case '!':
-					return NEQ;
-				case '>':
-					return GEQ;
-				case '<':
-					return LEQ;
-				default:
-					cout << "Error! not a valid operation!" << endl;
-					return NO_OP;
-			}
-		}
-	}
-	bool checkNumOrBoolTypes(parsParmType type1, parsParmType type2, bool is_bool){
-		if(is_bool){
-			if((type1 != type2)|| type1!= BOOL)
-				return false;
-		}
-		if((type1 != INT && type1 != BYTE) || (type2 != INT && type2 != BYTE))
-			return false;
-		return true;
-	}
-public:
-	int ret_val;
-	parsRetType ret_type;	//used for functions return value
-	int parm_val;
-	parsParmType parm_type;	//used for parameters
-	bool is_while_scope;
-	parsParmType checkBinOpParmType(parseInfo exp){
-		if(parm_type == INT || exp.parm_type == INT)
-			return INT;
-		return BYTE;
-	}
-	int makeOp(char* op_to_make,parseInfo second_exp){
-		binOps operation = charOpToEnum(op_to_make);
-		a = parm_val;
-		b = second_exp.parm_val;
-		switch (operation){
-			case AND:
-				if(checkNumOrBoolTypes(parm_type, second_exp.parm_type, true))
-					return (a&&b);
-				yyerror();	//TODO
-			case OR:
-				if(checkNumOrBoolTypes(parm_type, second_exp.parm_type, true))
-					return (a||b);
-				yyerror();	//TODO
-			case EQ:
-				if(checkNumOrBoolTypes(parm_type, second_exp.parm_type, false))
-						return (a==b);
-				yyerror();	//TODO
-			case NEQ:
-				if(checkNumOrBoolTypes(parm_type, second_exp.parm_type, false))
-					return (a!=b);
-				yyerror();	//TODO
-			case LT:
-				if(checkNumOrBoolTypes(parm_type, second_exp.parm_type, false))
-					return (a<b);
-				yyerror();	//TODO
-			case GT:
-				if(checkNumOrBoolTypes(parm_type, second_exp.parm_type, false))
-					return (a>b);
-				yyerror();	//TODO
-			case LEQ:
-				if(checkNumOrBoolTypes(parm_type, second_exp.parm_type, false))
-					return (a<=b);
-				yyerror();	//TODO
-			case GEQ:
-				if(checkNumOrBoolTypes(parm_type, second_exp.parm_type, false))
-					return (a>=b);
-				yyerror();	//TODO
-			case PLUS:
-				if(checkNumOrBoolTypes(parm_type, second_exp.parm_type, false))
-					return (a+b);
-				yyerror();	//TODO
-			case MINUS:
-				if(checkNumOrBoolTypes(parm_type, second_exp.parm_type, false))
-					return (a-b);
-				yyerror();	//TODO
-			case MUL:
-				if(checkNumOrBoolTypes(parm_type, second_exp.parm_type, false))
-					return (a*b);
-				yyerror();	//TODO
-			case DIV:
-				if(checkNumOrBoolTypes(parm_type, second_exp.parm_type, false))
-					return (a/b);
-				yyerror();	//TODO
-		}
-	}
-};
-*/
+
 enum typeKind {VOID, BOOL, INTEGER, BYTE, STRING, ARRAY};
 
 //=========================== HELPER FUNCTIONS =============================//
@@ -186,63 +50,17 @@ char* remove_double_quotes(char* input){
     return res;
 }
 
-//=========================== ORIGINAL STYPE ===============================//
-/*
-class retVal {
-public:
-    int integer;
-    string str;
-    GrammerVar g_var;
-    retVal() : integer(0),g_var(NOT_INITIALIZED){};
-    retVal(char* tmp_yytext, GrammerVar var_type){
-        g_var = var_type;
-        switch (var_type){
-            case IS_INT:
-                integer = string_to_num(tmp_yytext);
-                break;
-            case IS_ID:
-                str = string(tmp_yytext);
-                break;
-            case IS_STR:
-                str = string(remove_double_quotes(tmp_yytext));
-                break;
-            case IS_ARRAY:
-                //TODO
-            case IS_CALL:
-                //TODO
-            default:
-                throw;      //TODO
-        }
-    }*/
-/*
-    ~retVal(){
-        if(g_var == IS_ID || g_var == IS_STR)
-            free(str);
-    }
-    retVal(const retVal& tmp){
-        *this = tmp;
-    }
-    retVal& operator=(const retVal& tmp){
-        if(this != &tmp){
-            str = nullptr;
-            integer = tmp.integer;
-            g_var = tmp.g_var;
-            if(tmp.g_var == IS_STR || tmp.g_var == IS_ID)
-                str = strdup(tmp.str);
-        }
-        return *this;
-    }
-*/
-//};
 //=========================== DATA TYPES ===============================//
 class Type{
 public:
+    enum typeKind {VOID, BOOL, INTEGER, BYTE, STRING, ARRAY};
     typeKind kind;
 
     int arrayLength;
     typeKind arrayType;
 
     Type() : kind(VOID), arrayLength(-1), arrayType(VOID) {};
+
     Type(typeKind Kind) : kind(Kind), arrayLength(-1){
         if(kind == ARRAY) assert(0); // this constructor should get only basic types
     }
@@ -258,6 +76,38 @@ public:
 
     int size(){
         return kind == ARRAY ? arrayLength:1;
+    }
+
+    static string typeKindToString(typeKind kind){
+        switch(kind) {
+            case VOID : {
+                return "VOID";
+            }
+            case BOOL : {
+                return "BOOL";
+            }
+            case INTEGER : {
+                return "INTEGER";
+            }
+            case BYTE : {
+                return "BYTE";
+            }
+            case STRING : {
+                return "STRING";
+            }
+            case ARRAY : {
+                return "ARRAY";
+            }
+            default: {
+                assert(0);
+            }
+        }
+    }
+
+    string toString(){
+        if(kind == ARRAY)
+            return makeArrayType(typeKindToString(arrayType),arrayLength);
+        return typeKindToString(kind);
     }
 };
 
@@ -288,8 +138,30 @@ public:
     int offset;
 
     Id(Type type, int offset, string name) : type(type), offset(offset), name(name){};
-
 };
+
+class function{
+public:
+    string idName;
+    Type return_type;
+    list<Type> inputTypes;
+
+    function(string idName, type return_type, list<Type> inputTypes) : string(string), return_type(return_type), inputTypes(inputTypes){};
+
+    string toString(){
+        function temp = this;
+        list<string> inputTypes;
+        while(!temp.inputTypes.empty()){
+            Type temp2 = temp.inputTypes.back();
+            inputTypes.push_front(temp2.toString());
+            temp.inputTypes.pop_back();
+        }
+
+        return makeFunctionType(temp.return_type.toString(),inputTypes);
+    }
+};
+
+//=============================== GRAMMAR VARIABLES CLASSES ================//
 
 class parsedData{
 public:
@@ -414,373 +286,7 @@ public:
     }
 };
 
-class function{
-public:
-    string idName;
-    type return_type;
-    list<Type> inputTypes;
-
-    function(string idName, type return_type, list<Type> inputTypes) : string(string), return_type(return_type), inputTypes(inputTypes){};
-};
-
 #define YYSTYPE parsedData	// Tell Bison to use STYPE as the stack type
-//=============================== GRAMMAR VARIABLES CLASSES ================//
-/*
-class parsedType : public retVal{
-public:
-    parsParmType par_type;
-    parsedType(parsParmType type) : par_type(type) {};
-
-    parsedType(const parsedType& type):
-            retVal(type), par_type(type.par_type){};
-    parsedType& operator=(const parsedType& type){
-        return parsedType(type);
-    }
-
-};
-
-class parsedTpID : public parsedType{
-public:
-    parsedTpID(): parsedType(NOTHING){};
-    parsedTpID(parsedType type, retVal val) :
-            retVal(val), par_type(type.par_type){};
-
-    parsedTpID(const parsedTpID& type_id): parsedType(type_id){};
-    parsedTpID& operator=(const parsedTpID& type_id){
-        return parsedTpID(type_id);
-    }
-
-};
-
-class parsedNum : public retVal{
-public:
-    parsParmType par_type;
-    parsedNum(){
-        par_type = NOTHING;
-        g_var = IS_INT;
-    }
-    parsedNum(parsParmType type) : par_type(type), g_var(IS_INT){};
-    parsedNum(retVal val, parsedNum type_num): retVal(val){
-        g_var = IS_INT;
-        if(type_num.par_type == NOTHING)
-            par_type = INT;
-        else
-            par_type = BYTE;
-    };
-
-    parsedNum(const parsedNum& num) : retVal(num), par_type (num.par_type){};
-    parsedNum& operator=(const parsedNum& num){
-        return parsedNum(num);
-    }
-
-};
-*/
- /*
-class parsedStatement : public retVal{
-public:
-};
-class parsedStatementList : public parsedStatement{
-public:
-    list<parsedStatement> state_list;
-    parsedStatementList();
-    parsedStatementList(parsedStatement state){
-        state_list.push_front(state);
-    }
-    parsedStatementList(parsedStatement state, parsedStatementList state_list_t){
-        state_list(state_list_t);
-        state_list.push_front(state);
-    }
-};
-*/
- /*
-class parsedOp: public retVal {
-    binOps charOpToEnum(char* opToEdit){
-        switch(strlen(opToEdit)) {
-            case 0:
-                throw;      //TODO
-            case 1:
-                switch (opToEdit[0]) {
-                    case '<':
-                        return LT;
-                    case '>':
-                        return GT;
-                    case '+':
-                        return PLUS;
-                    case '-':
-                        return MINUS;
-                    case '*':
-                        return MUL;
-                    case '/':
-                        return DIV;
-                    default:
-                        cout << "Error! not a valid operation!" << endl;
-                        return NO_OP;
-                }
-            case 2:
-                switch (opToEdit[0]) {
-                    case '&':
-                        if(opToEdit[1] != '&')
-                            throw;  //TODO
-                        return AND;
-                    case '|':
-                        if(opToEdit[1] != '|')
-                            throw;  //TODO
-                        return OR;
-                    case '=':
-                        if(opToEdit[1] != '=')
-                            throw;  //TODO
-                        return EQ;
-                    case '!':
-                        if(opToEdit[1] != '=')
-                            throw;  //TODO
-                        return NEQ;
-                    case '>':
-                        if(opToEdit[1] != '=')
-                            throw;  //TODO
-                        return GEQ;
-                    case '<':
-                        if(opToEdit[1] != '=')
-                            throw;  //TODO
-                        return LEQ;
-                    default:
-                        throw;  //TODO
-                }
-            default:
-                throw;      //TODO
-        }
-    }
-
-public:
-    binOps op;
-    parsedOp(){
-        op = NO_OP;
-    }
-    parsedOp(char* op_to_parse){
-        op = charOpToEnum(op_to_parse);
-    }
-    parsedExp makeOp(parsedExp exp1,parsedExp second_exp){
-        parsedExp& a = exp1;
-        parsedExp& b = second_exp;
-        switch (op){
-            case AND:
-                return (a&&b);
-            case OR:
-                return (a||b);
-            case EQ:
-                return (a==b);
-            case NEQ:
-                return (a!=b);
-            case LT:
-                return (a<b);
-            case GT:
-                return (a>b);
-            case LEQ:
-                return (a<=b);
-            case GEQ:
-                return (a>=b);
-            case PLUS:
-                return (a+b);
-            case MINUS:
-                return (a-b);
-            case MUL:
-                return (a*b);
-            case DIV:
-                return (a/b);
-            default:
-                throw;          //TODO Not supposed to get here!
-        }
-    }
-};
-
-class parsedCall : public parsedNum{
-public:
-    parsedExp call_id;
-    parsedExpList exp_list;
-    parsedCall() : g_var(IS_CALL) {
-        call_id = parsedExp();
-        exp_list = parsedExpList();
-    }
-    parsedCall(parsedExp id) : g_var(IS_CALL){
-        call_id = id;
-        exp_list = parsedExpList();
-    }
-    parsedCall(parsedExp id, parsedExpList exp_list_t) : g_var(IS_CALL){
-        call_id = id;
-        exp_list = exp_list_t;
-    }
-
-    parsedCall(const parsedCall& call){
-        *this=call;
-    }
-    parsedCall& operator=(const parsedCall& call){
-        call_id = call.call_id;
-        exp_list = call.exp_list;
-        return *this;
-    }
-
-};
-*/
-/*
-class parsedExp : public parsedCall{
-public:
-    list<retVal> func_params;
-    parsedExp(){};
-    parsedExp(parsedNum num) : parsedNum(num){};
-    parsedExp(bool b){
-        par_type = BOOL;
-        g_var = IS_BOOL;
-        if(b)
-            integer = 1;
-        else
-            integer = 0;
-    }
-    parsedExp(retVal val): parsedNum(val, NOTHING){
-        if(g_var == IS_STR)
-            par_type = STRING;
-    }
-    parsedExp(parsedExp exp1, parsedOp op, parsedExp exp2){
-        *this= op.makeOp(exp1,exp2);
-    }
-    parsedExp(parsedCall call): parsedCall(call){};
-    parsedExp(parsedExp id, parsedExp exp) : parsedExp(id){
-        if (exp.g_var != IS_INT)
-            throw;      //TODO
-        g_var = IS_ARRAY;
-
-    }
-
-    parsedExp(const parsedExp& exp) : parsedCall(exp){};
-    parsedExp& operator=(const parsedExp& exp){
-        return parsedExp(exp);
-    }
-
-
-    //operators for the expression - I know it's a heck of a code duplication....
-    parsedExp operator!(){
-        if (par_type != BOOL)
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type = BOOL;
-        new_exp.g_var = IS_BOOL;
-        new_exp.integer = 1-integer;
-        return new_exp;
-    };
-    parsedExp operator&&(parsedExp exp2){
-        if((par_type != BOOL )||(exp2.par_type != BOOL) )
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type = BOOL;
-        new_exp.g_var = IS_BOOL;
-        new_exp.integer = (integer==1 && exp2.integer ==1? 1 : 0);
-        return new_exp;
-    };
-    parsedExp operator||(parsedExp exp2){
-        return (!((!*this)&&(!exp2)));
-    };
-    parsedExp operator==(parsedExp exp2){
-        if(g_var!=IS_INT || exp2.g_var!=IS_INT )
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type = BOOL;
-        new_exp.g_var = IS_BOOL;
-        new_exp.integer = (integer == exp2.integer ? 1 : 0);
-        return new_exp;
-    };
-    parsedExp operator!=(parsedExp exp2){
-        return (!(*this==exp2));
-    };
-    parsedExp operator<(parsedExp exp2){
-        parsedExp new_exp = (*this==exp2);
-        new_exp.integer = (integer < exp2.integer ? 1 : 0);
-        return new_exp;
-    };
-    parsedExp operator<=(parsedExp exp2){
-        return ((*this<exp2)||(*this==exp2));
-    };
-    parsedExp operator>(parsedExp exp2){
-        return !(*this<=exp2);
-    };
-    parsedExp operator>=(parsedExp exp2){
-        return !(*this<exp2);
-    };
-    parsedExp operator+(parsedExp exp2){
-        if(g_var!=IS_INT || exp2.g_var!=IS_INT)
-            throw;  //TODO
-        parsedExp new_exp = parsedExp();
-        new_exp.par_type =
-                (par_type == INT ? INT : (exp2.par_type == INT ? INT : BYTE));
-        new_exp.g_var = IS_INT;
-        new_exp.integer = (integer + exp2.integer);
-        return new_exp;
-    };
-    parsedExp operator-(parsedExp exp2){
-        parsedExp new_exp = (*this+exp2);
-        new_exp.integer = (integer - exp2.integer);
-        return new_exp;
-    };
-    parsedExp operator*(parsedExp exp2){
-        parsedExp new_exp = (*this+exp2);
-        new_exp.integer = (integer * exp2.integer);
-        return new_exp;
-    };
-    parsedExp operator/(parsedExp exp2){
-        parsedExp new_exp = (*this+exp2);
-        new_exp.integer = (integer / exp2.integer);
-        return new_exp;
-    };
-};
-*/
-/*
-class parsedExpList : public parsedExp{
-public:
-    list<parsedExp> exp_list;
-    parsedExpList();
-    parsedExpList(parsedExp exp){
-        exp_list.push_front(exp);
-    }
-    parsedExpList(parsedExp exp, parsedExpList exp_list_t){
-        exp_list(exp_list_t);
-        exp_list.push_front(exp);
-    }
-
-    parsedExpList(const parsedExpList& expList1){
-        *this = expList1;
-    }
-    parsedExpList& operator=(const parsedExpList& tmp){
-        if(this != &tmp){
-            str = nullptr;
-            integer = tmp.integer;
-            g_var = tmp.g_var;
-            if(tmp.g_var == IS_STR || tmp.g_var == IS_ID)
-                str = strdup(tmp.str);
-            exp_list=tmp.exp_list;
-        }
-        return *this;
-    }
-
-};
-*/
-/*
-class parsedIfElseSt : public parsedExp{
-public:
-    parsedStatement if_state;
-    parsedStatement else_state;
-    bool if_else;       //true  -> else_state is valid,
-                        //false -> no else_state
-    parsedIfElseSt(): if_else(false){};
-    parsedIfElseSt(bool if_else_t ,parsedStatement ie_st) {
-        if_else = false;
-        if (if_else_t) {
-            else_state(ie_st);
-            if_else = true;
-        } else
-            if_state(ie_st);
-    }
-    parsedIfElseSt(parsedExp exp,parsedStatement st ,parsedIfElseSt ie_st)
-            : parsedExp(exp), {
-    }
-};
-*/
 
 //=============================== SCOPE HANDLING ================//
 
@@ -791,22 +297,16 @@ public:
 
     bool isWhileScope; // for the break command, make sure it is valid
 
-    scope(){ // in case of the first scope scope
-        IdList = new list<Id>;
-    }
+    scope(){} // in case of the first scope scope
 
-    scope(int nextIdLocation, bool isWhileScope) : nextIdLocation(nextIdLocation), isWhileScope(isWhileScope){
-        IdList = new list<Id>;
-    }
+    scope(int nextIdLocation, bool isWhileScope) : nextIdLocation(nextIdLocation), isWhileScope(isWhileScope){}
 
-    ~scope(){
-        printScope(); //to do :to build
-        delete IdList;
-    }
+    ~scope(){}
 
     void addId(type newIdType, string newIdName){
 
-        IdList.insert (new Id(newIdType,nextIdLocation,newIdName));
+        Id temp(newIdType,nextIdLocation,newIdName);
+        IdList.insert (temp);
         nextIdLocation += newIdType.size();
     }
 
@@ -841,7 +341,7 @@ public:
     function getFunction(string name){
         for(function fun : functions)
             if(fun.idName == name)
-                return fun;
+                    return fun;
         assert(0);
     }
 
@@ -861,9 +361,11 @@ public:
     }
 
     void addInitialFunction(Type returnType, string name, Type inputType){
-        list<Type> functionInputTypes = new list<Type>;
+        list<Type> functionInputTypes;
         functionInputTypes.push_front(inputType);
-        functions.push_front(new function(name, returnType, functionInputTypes));
+
+        function temp(name, returnType, functionInputTypes);
+        functions.push_front(temp);
     }
 
     void addFunction(parsedData retType,parsedData Id, parsedData functionInputs){
@@ -875,7 +377,7 @@ public:
         string name = Id.single_var.name;
         Type returnType = retType.single_var.type;
 
-        list<Type> functionInputTypes = new list<Type>;
+        list<Type> functionInputTypes;
         while(!functionInputs.list_of_vars.empty()){
             functionInputTypes.push_back(functionInputs.list_of_vars.front().type);
             functionInputs.list_of_vars.pop_front();
@@ -886,7 +388,8 @@ public:
         if(name == "main" &&(returnType.kind != VOID || !functionInputTypes.empty())) throw {/* appropriate exception*/};
 
         // inserting to the function list
-        functions.push_front(new function(name, returnType, functionInputTypes));
+        function temp(name, returnType, functionInputTypes);
+        functions.push_front(temp);
     }
 
     void addId(parsedData Id,parsedData type,parsedData isArray){
@@ -905,11 +408,13 @@ public:
             newType.kind = type.single_var.type.kind;
         }
 
-        scopesList.front().addId(new Id(newType,Id.single_var.name));
+        scopesList.front().addId(newType,Id.single_var.name);
     }
 
     void addIdNotArray(parsedData type){
-        scopesList.front().addId(new Id(type.single_var.type,type.single_var.name));
+        if(containsIdName(type.single_var.name)) throw {/* appropriate exception*/};
+
+        scopesList.front().addId(type.single_var.type,type.single_var.name);
     }
 
     void newRegularScope(bool isWhileScope){
@@ -917,14 +422,15 @@ public:
         int nextIdLocation = scopesList.front().nextIdLocation;
         bool oldIsInWhileScope = scopesList.front().isWhileScope;
 
-
-        scopesList.push_front(new scope(nextIdLocation,oldIsInWhileScope | isWhileScope));
+        scope temp(nextIdLocation,oldIsInWhileScope | isWhileScope);
+        scopesList.push_front(temp);
     }
 
     void newFunctionScope(parsedData inputVars){
 
         int newNextIdLocation = scopesList.front().nextIdLocation;
-        scopesList.push_front(new scope(newNextIdLocation,false)); // false because opening a function means that we are not in a while scope
+        scope temp(newNextIdLocation,false);// false because opening a function means that we are not in a while scope
+        scopesList.push_front(temp);
 
         // functions are always at the begin of the scope list, so for inserting the input values we will use a bit of
         // a hack, just manually insert the parameters to the next scope, without changing nextIdLocation.
@@ -932,13 +438,24 @@ public:
         int i = -1;
 
         while(!inputVars.list_of_vars.empty()){
-            scopesList.front().IdList.push_back(new Id(inputVars.list_of_vars.front().type.kind,i--,inputVars.list_of_vars.front().name));
+            Id temp(inputVars.list_of_vars.front().type,i--,inputVars.list_of_vars.front().name);
+            scopesList.front().IdList.push_back(temp);
             inputVars.list_of_vars.pop_front();
         }
     }
 
     void removeScope(){
-        delete scopesList.pop_front();
+        scope oldScope = scopesList.front();
+
+        // print the scope
+        endScope();
+        while(!oldScope.IdList.empty()){
+            Id temp = oldScope.IdList.back();
+            printID(temp.name,temp.offset,temp.type.toString());
+            oldScope.IdList.pop_back();
+        }
+
+        scopesList.pop_front();
     }
 
     void verifyAssign(parsedData Id,parsedData exp){
@@ -946,7 +463,7 @@ public:
 
         Type idType = Id.single_var.type;
         if((!idType == exp.single_var.type) && // the types are different, and it is not a case of assign byte to int
-           (!(idType == idType.INTEGER) && (exp.single_var.type == exp.single_var.type.BYTE)))
+                (!(idType.kind == idType.INTEGER) && (exp.single_var.type.kind == exp.single_var.type.BYTE)))
             throw {/*  appropriate exception */}; // incompatible types
     }
 
@@ -963,7 +480,7 @@ public:
             throw {/*  appropriate exception */}; // id is not array
 
         if((!indexType.kind == indexType.BYTE) &&
-           (!indexType.kind == indexType.INTEGER))
+                (!indexType.kind == indexType.INTEGER))
             throw {/*  appropriate exception */}; // array index is not of numeric type
 
         if(!idType.arrayType == assignedType.kind && // the types are different, and it is not a case of assign byte to int
@@ -978,7 +495,9 @@ public:
     }
 
     void verifyReturnType(parsedData returnType){
-        if(!functions.front().return_type == returnType.single_var.type)
+        if((!functions.front().return_type == returnType.single_var.type) &&
+                !((functions.front().return_type == functions.front().return_type.INTEGER) &&
+                        (returnType.single_var.type == returnType.single_var.type.BYTE)))
             throw {/*  appropriate exception */}; //function return different type
     }
 
@@ -993,7 +512,7 @@ public:
             throw {/*  appropriate exception */}; //expected boolean type
     }
 
-    void verifyFunctionCall(parsedData idInput,parsedData inputList){
+    void verityFunctionCall(parsedData idInput,parsedData inputList){
         assert(inputList.kind == inputList.LIST);
 
         if(!containsFunctionName(idInput.single_var.name))
@@ -1025,15 +544,14 @@ public:
             throw {/*  appropriate exception */}; //wrong function call parameters number
     }
 
-    ~scopes(){
-        while(!scopesList.empty())
-            removeScope();
+   ~scopes() {
+       while (!scopesList.empty())
+           removeScope();
 
-        while(!functions.empty()){
-            functions.pop_front();
-            //to do : build the printing function
-        }
-    };
-
+       while (!functions.empty()) {
+           function func = functions.front();
+           printID(func.idName, 0, func.toString());
+       }
+   }
 };
 #endif
