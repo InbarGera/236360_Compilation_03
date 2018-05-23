@@ -2,7 +2,7 @@
 #define __ATTRIBUTES_H
 
 #include <cstring>
-#include <source.tab.hpp>
+#include "parser.tab.hpp"
 #include <iostream>
 #include <list>
 #include <string>
@@ -227,6 +227,34 @@ public:
 */
 //};
 
+
+//=========================== DATA TYPES ===============================//
+class Type{
+public:
+    enum typeKind {VOID, BOOL, INTEGER, BYTE, STRING, ARRAY};
+    typeKind kind;
+
+    int arrayLength;
+    typeKind arrayType;
+
+    Type(typeKind Kind) : kind(Kind){
+        if(kind == ARRAY) assert(0); // this constructor should get only basic types
+    }
+
+    Type(typeKind Kind, int len) : kind(ARRAY), arrayLength(len), arrayType(Kind){
+        if (Kind == ARRAY) assert(0);
+    }
+
+    bool operator==(const Type& toCompare){
+        if(kind != ARRAY) return kind == toCompare.kind;
+        return arrayLength == toCompare.arrayLength && arrayType == toCompare.arrayType;
+    }
+
+    int size(){
+        return kind == ARRAY ? arrayLength:1;
+    }
+};
+
 class var_base{
 public:
     string name;
@@ -236,6 +264,14 @@ public:
 class var_info: public var_base{
 public:
     int value;
+};
+
+class Id : public var_base{
+public:
+    int offset;
+
+    Id(Type type, int offset, string name) : type(type), offset(offset), name(name){};
+
 };
 
 class parsedData{
@@ -251,6 +287,15 @@ public:
     list<var_info> list_of_vars;
 
     parsedData() : kind(UNDEF){};
+};
+
+class function{
+public:
+    string idName;
+    type return_type;
+    list<Type> inputTypes;
+
+    function(string idName, type return_type, list<Type> inputTypes) : string(string), return_type(return_type), inputTypes(inputTypes){};
 };
 
 #define YYSTYPE parsedData	// Tell Bison to use STYPE as the stack type
@@ -611,48 +656,6 @@ class parsedFormalList : retVal{
 };
 
 ///=============================== SCOPE HANDLING ================//
-class Type{
-public:
-    enum typeKind {VOID, BOOL, INTEGER, BYTE, STRING, ARRAY};
-    typeKind kind;
-
-    int arrayLength;
-    typeKind arrayType;
-
-    Type(typeKind Kind) : kind(Kind){
-        if(kind == ARRAY) assert(0); // this constructor should get only basic types
-    }
-
-    Type(typeKind Kind, int len) : kind(ARRAY), arrayLength(len), arrayType(Kind){
-        if (Kind == ARRAY) assert(0);
-    }
-
-    bool operator==(const Type& toCompare){
-        if(kind != ARRAY) return kind == toCompare.kind;
-        return arrayLength == toCompare.arrayLength && arrayType == toCompare.arrayType;
-    }
-
-    int size(){
-        return kind == ARRAY ? arrayLength:1;
-    }
-};
-
-class function{
-public:
-    string idName;
-    type return_type;
-    list<Type> inputTypes;
-
-    function(string idName, type return_type, list<Type> inputTypes) : string(string), return_type(return_type), inputTypes(inputTypes){};
-};
-
-class Id : public var_base{
-public:
-    int offset;
-
-    Id(Type type, int offset, string name) : type(type), offset(offset), name(name){};
-
-};
 
 class scope{
 public:
