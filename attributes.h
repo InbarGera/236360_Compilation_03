@@ -185,7 +185,6 @@ public:
     int integer;
     string str;
     GrammerVar g_var;
-
     retVal() : integer(0),g_var(NOT_INITIALIZED){};
     retVal(char* tmp_yytext, GrammerVar var_type){
         g_var = var_type;
@@ -234,21 +233,24 @@ public:
     Type type;
 };
 
-class var_info: public vars_base{
+class var_info: public var_base{
 public:
     int value;
 };
-
 
 class parsedData{
 public:
     enum data_kind {
         SINGLE,
-        LIST
+        LIST,
+        UNDEF
     };
-    var_info single_var;
-    list<var_inf> list_of_vars;
 
+    data_kind kind;
+    var_info single_var;
+    list<var_info> list_of_vars;
+
+    parsedData() : kind(UNDEF){};
 };
 
 #define YYSTYPE parsedData	// Tell Bison to use STYPE as the stack type
@@ -609,7 +611,6 @@ class parsedFormalList : retVal{
 };
 
 ///=============================== SCOPE HANDLING ================//
-#define UNDEF -1
 class Type{
 public:
     enum typeKind {VOID, BOOL, INTEGER, BYTE, STRING, ARRAY};
@@ -640,18 +641,16 @@ class function{
 public:
     string idName;
     type return_type;
-    list<type> inputTypes;
+    list<Type> inputTypes;
 
-    function(string idName, type return_type, list<type> inputTypes) : string(string), return_type(return_type), inputTypes(inputTypes){};
+    function(string idName, type return_type, list<Type> inputTypes) : string(string), return_type(return_type), inputTypes(inputTypes){};
 };
 
-class Id{
+class Id : public var_base{
 public:
-    type Type;
     int offset;
-    string name;
 
-    Id(type Type, int offset, string name) : Type(Type), offset(offset), name(name){};
+    Id(Type type, int offset, string name) : type(type), offset(offset), name(name){};
 
 };
 
@@ -663,10 +662,11 @@ public:
     bool isWhileScope; // for the break command, make sure it is valid
 
     scope(){ // in case of the first scope scope
-        Id = new list<Id>;
+        IdList = new list<Id>;
     }
+
     scope(int nextIdLocation, bool isWhileScope) : nextIdLocation(nextIdLocation), isWhileScope(isWhileScope){
-        Id = new list<Id>;
+        IdList = new list<Id>;
     }
 
     ~scope(){
@@ -674,9 +674,9 @@ public:
         delete IdList;
     }
 
-    void addId(type& newIdType, string newIdName, int value){
+    void addId(type newIdType, string newIdName){
 
-        IdList.insert (new Id(newIdType,nextIdLocation,newIdName,value));
+        IdList.insert (new Id(newIdType,nextIdLocation,newIdName));
         nextIdLocation += newIdType.size();
     }
 
@@ -700,36 +700,86 @@ public:
     list<function> functions;
     list<scope> scopesList;
 
-    Id* getId(string name){
+    Id getId(string name){
         for(scope s : scopesList)
             for(Id id : s.IdList)
                 if(id.name == name)
-                    return &id;
-        return nullptr;
+                    return id;
+        assert(0);
+    }
+
+    function getFunction(string name){
+        for(function fun : functions)
+            if(fun.idName == name)
+                    return fun;
+        assert(0);
     }
 
     bool containsIdName(string name){
-        getId(name) == NULL ? false:true;
+        for(scope s : scopesList)
+            for(Id id : s.IdList)
+                if(id.name == name)
+                    return true;
+        return false;
     }
 
-    bool containsFunctionName(strng name){
+    bool containsFunctionName(string name){
         for(function f : functions)
             if(f.idName == name)
                 return true;
         return false;
     }
 
-    void addFunction(type returnType, list<typeAndName> inputTypes, string name){
-        if(returnType.kind == ARRAY) throw {/* appropriate exception*/};
-        if(containsFunctionName(name)) throw {/* appropriate exception*/};
-        if(name == "main" &&(return_type != VOID || inputTypes.empty())) throw {/* appropriate exception*/};
-
-        functions.push_front(new function(name, returnType, inputTypes));
+    void addInitialFunction(Type returnType, string name, Type inputType){
+        list<Type> functionInputTypes = new list<Type>;
+        functionInputTypes.push_front(inputType);
+        functions.push_front(new function(name, returnType, functionInputTypes));
     }
 
-    void addId(string idName, type Type){ // value is needed only in case of Byte
-        if(containsIdName(idName)) throw {/* appropriate exception*/};
-        scopesList.front().addId(new Id(Type,idName));
+    void addFunction(parsedData retType,parsedData Id, parsedData functionInputs){
+        assert(retType.kind == retType.SINGLE);
+        assert(Id.kind == Id.SINGLE);
+        assert(functionInputs.kind == functionInputs.LIST);
+
+        //extracting the variables from the parsed data
+        string name = Id.single_var.name;
+        Type returnType = retType.single_var.type;
+
+        list<Type> functionInputTypes = new list<Type>;
+        while(!functionInputs.list_of_vars.empty()){
+            functionInputTypes.push_back(functionInputs.list_of_vars.front().type);
+            functionInputs.list_of_vars.pop_front();
+        }
+
+        // input check
+        if(containsFunctionName(name)) throw {/* appropriate exception*/};
+        if(name == "main" &&(returnType.kind != VOID || !functionInputTypes.empty())) throw {/* appropriate exception*/};
+
+        // inserting to the function list
+        functions.push_front(new function(name, returnType, functionInputTypes));
+    }
+
+    void addId(parsedData Id,parsedData type,parsedData isArray){
+        assert(Id.kind == Id.SINGLE);
+        assert(type.kind == type.SINGLE);
+
+        if(containsIdName(Id.single_var.name)) throw {/* appropriate exception*/};
+
+        Type newType;
+        if(isArray.single_var.type.kind == isArray.single_var.type.ARRAY){
+            newType.kind = newType.ARRAY;
+            newType.arrayType = type.single_var.type.kind;
+            newType.arrayLength = isArray.single_var.value;
+        }
+        else{
+            newType.kind = type.single_var.type.kind;
+        }
+
+        scopesList.front().addId(new Id(newType,Id.single_var.name));
+    }
+
+    void addIdNotArray(parsedData type){
+        scopesList.front().addId(new Id(type.single_var.type,type.single_var.name));
     }
 
     void newRegularScope(bool isWhileScope){
@@ -741,21 +791,19 @@ public:
         scopesList.push_front(new scope(nextIdLocation,oldIsInWhileScope | isWhileScope));
     }
 
-    void newFunctionScope(___DATA___ listOfInputsTypesAndNames){
+    void newFunctionScope(parsedData inputVars){
 
-        scopesList.push_front(new scope(scopesList.front().nextIdLocation,false));
+        int newNextIdLocation = scopesList.front().nextIdLocation;
+        scopesList.push_front(new scope(newNextIdLocation,false)); // false because opening a function means that we are not in a while scope
 
         // functions are always at the begin of the scope list, so for inserting the input values we will use a bit of
         // a hack, just manually insert the parameters to the next scope, without changing nextIdLocation.
 
         int i = -1;
-        list<typeAndName> functionInputsVars(func.inputTypes);
-        typeAndName nextInputVar;
-        list<Id>* IdList = &scopesList.front().IdList; // just aliasing for readability
 
-        while(!functionInputsVars.empty()){
-            nextInputVar = functionInputsVars->pop_front();
-            IdList.push_back(new Id(nextInputVar.kind,i--,nextInputVar.name,UNDEF));
+        while(!inputVars.list_of_vars.empty()){
+            scopesList.front().IdList.push_back(new Id(inputVars.list_of_vars.front().type.kind,i--,inputVars.list_of_vars.front().name));
+            inputVars.list_of_vars.pop_front();
         }
     }
 
@@ -763,7 +811,91 @@ public:
         delete scopesList.pop_front();
     }
 
-    ~scopes(){
+    void verifyAssign(parsedData Id,parsedData exp){
+        if(!containsIdName(Id.single_var.name)) throw {/*  appropriate exception */}; // id not found
+
+        Type idType = Id.single_var.type;
+        if((!idType == exp.single_var.type) && // the types are different, and it is not a case of assign byte to int
+                (!(idType == idType.INTEGER) && (exp.single_var.type == exp.single_var.type.BYTE)))
+            throw {/*  appropriate exception */}; // incompatible types
+    }
+
+    void verifyAssignToArray(parsedData idInput, parsedData arrIndex, parsedData assigned){
+
+        if(!containsIdName(id.single_var.name))
+            throw {/*  appropriate exception */}; //id not found
+
+        Type idType = getId(idInput.single_var.name)->type;
+        Type indexType = arrIndex.single_var.type;
+        Type assignedType = assigned.single_var.type;
+
+        if(!idType.kind == idType.ARRAY)
+            throw {/*  appropriate exception */}; // id is not array
+
+        if((!indexType.kind == indexType.BYTE) &&
+                (!indexType.kind == indexType.INTEGER))
+            throw {/*  appropriate exception */}; // array index is not of numeric type
+
+        if(!idType.arrayType == assignedType.kind && // the types are different, and it is not a case of assign byte to int
+           (!(idType.arrayType == idType.INTEGER) && (assignedType.kind == assignedType.BYTE)))
+            throw {/*  appropriate exception */}; // array type is not compatible with exp type
+    }
+
+    void verifyReturnTypeVoid(){
+        Type temp(VOID);
+        if(!functions.front().return_type == temp)
+            throw {/*  appropriate exception */}; //function return different type
+    }
+
+    void verifyReturnType(parsedData returnType){
+        if(!functions.front().return_type == returnType.single_var.type)
+            throw {/*  appropriate exception */}; //function return different type
+    }
+
+    void verifyBreakBlock(){
+        if(!scopesList.front().isWhileScope)
+            throw {/*  appropriate exception */}; //break in middle of not while scope
+    }
+
+    void verifyExpIsBool(parsedData expType){
+        type temp(BOOL);
+        if(!expType.single_var.type == temp)
+            throw {/*  appropriate exception */}; //expected boolean type
+    }
+
+    void verityFunctionCall(parsedData idInput,parsedData inputList){
+        assert(inputList.kind == inputList.LIST);
+
+        if(!containsFunctionName(idInput.single_var.name))
+            throw {/*  appropriate exception */}; //no such function
+
+        list<Type> functionInputList = getFunction(idInput.single_var.name).inputTypes;
+        list<var_info> actualInputTypes = inputList.list_of_vars;
+
+        auto funIterator = functionInputList.cbegin();
+        auto inputIterator = actualInputTypes.cbegin();
+
+        while(funIterator != functionInputList.cend() && inputIterator != actualInputTypes.cend()){
+            if(!funIterator == inputIterator->type)
+                throw {/*  appropriate exception */}; //wrong function call parameters
+            funIterator++;
+            inputIterator++;
+        }
+
+        if((!funIterator == functionInputList.cend()) || (!inputIterator == actualInputTypes.cend()))
+            throw {/*  appropriate exception */}; //wrong function call parameters number
+
+    }
+
+    void verifyNoParametersFunctionCall(parsedData idInput){
+        if(!containsFunctionName(idInput.single_var.name))
+            throw {/*  appropriate exception */}; //no such function
+
+        if(!getFunction(idInput.single_var.name).inputTypes.empty())
+            throw {/*  appropriate exception */}; //wrong function call parameters number
+    }
+
+   ~scopes(){
         while(!scopesList.empty())
             removeScope();
 
