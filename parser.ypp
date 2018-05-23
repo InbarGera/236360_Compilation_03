@@ -42,14 +42,14 @@ FunctionDefinition : RetType ID LPAREN Formals RPAREN {scopesList>addFunction($1
                    ;
 
 RetType : Type          {$$ = $1;}      //Lior
-		| VOID          {$$ = new parsedType(VOID);}    //Lior
+		| VOID          {$$ = new Type(VOID);}    //Lior
 		;
 
 Formals	:	                    {$$ = new parsedData}  //Lior
 		|	FormalsList         {$$ = $1}             //Lior
 		;
 
-Type_ID : Type ID       {$$ = new parsedTpID($1, $2);}    //Lior
+Type_ID : Type ID       {$$ = new parsedData($1, $2);}    //Lior
 		;
 
 FormalsList	:	FormalDecl FormalsList2         { /*$$ = { FormalDecl merge FormalsList2 } ;*/ }   //Lior
@@ -67,11 +67,11 @@ FormalDecl2	:
 			| 	LBRACK NUM_T RBRACK     {/*add information about array  */}         //Lior
 			;
 
-NUM_T :	NUM NUM_T2  {$$ = new parsedNum($1, $2); /*TODO add type/byte check */	}    //Lior
+NUM_T :	NUM NUM_T2  {$$ = new parsedData($1, $2); /*TODO add type/byte check */	}    //Lior
 		;
 
-NUM_T2 :                 {$$ = new parsedNum();}     //Lior
-		| B              {$$ = new parsedNum(BYTE);}    //Lior
+NUM_T2 :                 {$$ = new parsedData();}     //Lior
+		| B              {$$ = new parsedData(Type(BYTE));}    //Lior
 		;
 
 
@@ -80,26 +80,32 @@ Statements :    Statement     // done
 			;
 
 Statement : 	LBRACE_t Statements RBRACE_t        // done
-			|	Type_ID SC          {scopesList->addIdNotArray($1)}         // done
-			|	Type_ID ASSIGN Exp SC           {scopesList->addIdNotArray($1); scopesList->verifyAssign($1,$3)}     // done
+			|	Type_ID SC                          {scopesList->addIdNotArray($1)}         // done
+			|	Type_ID ASSIGN Exp SC               {scopesList->addIdNotArray($1);
+			                                         scopesList->verifyAssign($1,$3)}     // done
 			|	Type_ID LBRACK NUM_T RBRACK SC      {scopesList->addId($1,$1,$3)}      // done
-			|	ID ASSIGN Exp SC        {scopesList->verifyAssign($1,$3)}       // done
+			|	ID ASSIGN Exp SC                    {scopesList->verifyAssign($1,$3)}       // done
 			|	ID LBRACK Exp RBRACK ASSIGN Exp SC  {scopesList->verifyAssignToArray($1,$3,$6)}         // done
 			|	Call SC             // done
-			|	RETURN SC           {scopesList->verifyReturnTypeVoid();}       // done
-			|	RETURN Exp SC       {scopesList->verifyReturnType($2);}       // done
-			|   IF LPAREN Exp RPAREN Open_Scope Statement { scopesList->removeScope(); }
-			|   IF LPAREN Exp RPAREN Open_Scope Statement ELSE CloseScope Open_Scope Statement { scopesList->removeScope(); }
+			|	RETURN SC                           {scopesList->verifyReturnTypeVoid();}       // done
+			|	RETURN Exp SC                       {scopesList->verifyReturnType($2);}       // done
+			|   If_State
+			|   IF LPAREN Exp RPAREN Statement
+			|   IF LPAREN Exp RPAREN Statement ELSE Statement
 			|	While_Statement
-			|	BREAK SC            {scopesList->verifyBreakBlock();}        // done
+			|	BREAK SC                             {scopesList->verifyBreakBlock();}        // done
 			|   SC
 			;
 
-Open_Scope : { scopesList->newRegularScope(false);}
-           ;
+If_State : If_Open If_Internal_Statement
 
-CloseScope : { scopesList->removeScope(); }
-           ;
+If_Internal_Statement : Statement {scopesList->removeScope();}
+                      ;
+
+If_Open  : IF LPAREN Exp RPAREN { scopesList->newRegularScope(false);}
+         ;
+
+
 
 While_Statement : While_Open Statement { scopesList->removeScope(); }          // done
             ;
@@ -110,36 +116,50 @@ While_Open : WHILE LPAREN Exp RPAREN {scopesList->verifyExpIsBool($3); scopesLis
 //end of need to fix if
 
 //TODO Inbar call returns type
-Call	:	ID LPAREN ExpList RPAREN    {scopesList->verifyFunctionCall($1,$3);    ________   $$ = new parsedCall($1,$3);}  /* just make sure that Id is a valid function and ExpLis is the same as Id input list */
-		|	ID LPAREN RPAREN            {scopesList->verifyNoParametersFunctionCall($1); _________ $$ = new parsedCall($1);}     /* make sure Id is a valid function and its input list is empty */
+Call	:	ID LPAREN ExpList RPAREN    {scopesList->verifyFunctionCall($1,$3);
+                                         $$ = new parsedExp((scopesList->getFunction($1.getName())).type);}
+		|	ID LPAREN RPAREN            {scopesList->verifyNoParametersFunctionCall($1);
+		                                 $$ = new parsedExp((scopesList->getFunction($1.getName())).type);}
 		;
 //TODO Lior
-ExpList:    Exp ExpList2 { }// $$ = new parsedExpList($1,$2) ;}
+ExpList:    Exp ExpList2 {  $$ = new parsedData($1,$2) ;}
 
-ExpList2 :                  { $$ = new parsedExpList(); }
-         | COMMA ExpList    { $$ =$2; }
+ExpList2 :                  { $$ = new parsedData(); }
+         | COMMA ExpList    { $$ = new parsedData($2, IS_CALL); }
          ;
 
-Type	:	INT              {$$ = new parsedType(INT);} // to return new type with appropriate type
-		|	BYTE             {$$ = new parsedType(BYTE);}
-		| 	BOOL             {$$ = new parsedType(BOOL);}
+Type	:	INT              {$$ = new Type(INT);} // to return new type with appropriate type
+		|	BYTE             {$$ = new Type(BYTE);}
+		| 	BOOL             {$$ = new Type(BOOL);}
 		;
 
 Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
-		| 	ID LBRACK Exp RBRACK    {$$ = new parsedExp($1,$3);} // make sure Id ia an array, Exp is int/byte, getting the value
-		| 	Exp PLUS_MINUS Exp      {$$ = new parsedExp($1,parsedOp(yytext),$3);}
-		|	Exp MUL_DIV Exp         {$$ = new parsedExp($1,parsedOp(yytext),$3);}
-		| 	ID                      {$$ = $1;} // make sure ID is declared, and return its type
-		|	Call
-		|	NUM_T	                {$$ = $1;}
-		|	STRING                  {$$ = new parsedExp($1);} // return string type
-		|	TRUE	                {$$ = new parsedExp(true);} // return bool type
-		|	FALSE	                {$$ = new parsedExp(false);} // return bool type
-		|	NOT Exp	                {$$ = $1; }  // make sure Exp type is bool
-		|	Exp OR Exp              {$$ = new parsedExp($1,parsedOp("||"),$3);}  // make sure Exp and Exp are of type bool
-		|	Exp AND Exp	            {$$ = new parsedExp($1,parsedOp("&&"),$3);}     // make sure Exp and Exp are of type bool
-		|	Exp EQ_OP Exp           {$$ = new parsedExp($1,parsedOp(yytext),$3);}     // make sure Exp and Exp are of type bool
-		|	Exp RELOP Exp           {$$ = new parsedExp($1,parsedOp(yytext),$3);}       // make sure Exp and Exp are COMPATIABLE types
+		| 	ID LBRACK Exp RBRACK    {if (scopesList->containsIdName($1.getName())){
+		                                if ($3.isInteger())
+		                                    return parsedExp(scopesList->getId($1.getName()).type);
+		                                }
+		                                else
+		                                    throw;  //TODO Exp not an inteeger!
+
+		                             else
+		                                throw;      //TODO ID doesn't exist!
+		                             }
+		| 	Exp PLUS_MINUS Exp      {$$ = new parsedExp($1,$3, MATH_OP);}
+		|	Exp MUL_DIV Exp         {$$ = new parsedExp($1,$3, MATH_OP);}
+		| 	ID                      {if (scopesList->containsIdName($1.getName())){
+		                                $$ = parsedExp(scopesList->getId($1.getName()).type);
+		                                }
+		                            }
+		|	Call                    {$$ = $1;}
+		|	NUM_T	                {$$ = new parsedExp($1);}
+		|	STRING                  {$$ = new parsedExp(Type(STRING));} // return string type
+		|	TRUE	                {$$ = new parsedExp(Type(BOOL));} // return bool type
+		|	FALSE	                {$$ = new parsedExp(Type(BOOL));} // return bool type
+		|	NOT Exp	                {$$ = new parsedExp($2, BOOL_OP);; }  // make sure Exp type is bool
+		|	Exp OR Exp              {$$ = new parsedExp($1,$3, BOOL_OP);}  // make sure Exp and Exp are of type bool
+		|	Exp AND Exp	            {$$ = new parsedExp($1,$3, BOOL_OP);}     // make sure Exp and Exp are of type bool
+		|	Exp EQ_OP Exp           {$$ = new parsedExp($1,$3, REL_OP);}     // For ambiguity reasons!!!!!!!!!
+		|	Exp RELOP Exp           {$$ = new parsedExp($1,$3, REL_OP);}       // make sure Exp and Exp are COMPATIABLE types
 		;
 
 LBRACE_t : LBRACE { scopesList->newRegularScope(false); }
