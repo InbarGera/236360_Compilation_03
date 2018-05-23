@@ -88,23 +88,18 @@ Statement : 	LBRACE_t Statements RBRACE_t        // done
 			|	Call SC             // done
 			|	RETURN SC           {scopesList->verifyReturnTypeVoid();}       // done
 			|	RETURN Exp SC       {scopesList->verifyReturnType($2);}       // done
-			|   If_State
-			|   IF LPAREN Exp RPAREN Statement
-			|   IF LPAREN Exp RPAREN Statement ELSE Statement
+			|   IF LPAREN Exp RPAREN Open_Scope Statement { scopesList->removeScope(); }
+			|   IF LPAREN Exp RPAREN Open_Scope Statement ELSE CloseScope Open_Scope Statement { scopesList->removeScope(); }
 			|	While_Statement
 			|	BREAK SC            {scopesList->verifyBreakBlock();}        // done
 			|   SC
 			;
 
-If_State : If_Open If_Internal_Statement
+Open_Scope : { scopesList->newRegularScope(false);}
+           ;
 
-If_Internal_Statement : Statement {scopesList->removeScope();}
-                      ;
-
-If_Open  : IF LPAREN Exp RPAREN { scopesList->newRegularScope(false);}
-         ;
-
-
+CloseScope : { scopesList->removeScope(); }
+           ;
 
 While_Statement : While_Open Statement { scopesList->removeScope(); }          // done
             ;
