@@ -657,7 +657,6 @@ class parsedFormalList : retVal{
 
 ///=============================== SCOPE HANDLING ================//
 
-
 class scope{
 public:
     int nextIdLocation;
@@ -814,18 +813,15 @@ public:
 
     void removeScope(){
         scope oldScope = scopesList.front();
-        endScope();
 
+        // print the scope
+        endScope();
         while(!oldScope.IdList.empty()){
             Id temp = oldScope.IdList.back();
             printID(temp.name,temp.offset,temp.type.toString());
-
-            //void printID(const string& id, int offset, const string& type);
-
-
+            oldScope.IdList.pop_back();
         }
 
-        // print the scope
         scopesList.pop_front();
     }
 
@@ -867,7 +863,8 @@ public:
 
     void verifyReturnType(parsedData returnType){
         if((!functions.front().return_type == returnType.single_var.type) &&
-                !(functions.front().return_type ==)
+                !((functions.front().return_type == functions.front().return_type.INTEGER) &&
+                        (returnType.single_var.type == returnType.single_var.type.BYTE)))
             throw {/*  appropriate exception */}; //function return different type
     }
 
@@ -914,16 +911,14 @@ public:
             throw {/*  appropriate exception */}; //wrong function call parameters number
     }
 
-   ~scopes(){
-        while(!scopesList.empty())
-            removeScope();
+   ~scopes() {
+       while (!scopesList.empty())
+           removeScope();
 
-        while(!functions.empty()){
-            function temp = functions.front();
-            // print temp
-            functions.pop_front();
-        }
-    };
-
+       while (!functions.empty()) {
+           function func = functions.front();
+           printID(func.idName, 0, func.toString());
+       }
+   }
 };
 #endif
