@@ -126,7 +126,7 @@ public:
     int value;
     VarInfo() : value(0){};
     VarInfo(Type type): value(0),VarBase(type) {};
-    VarInfo(int val) : VarBase(string(),Type::INTEGER) {};
+    VarInfo(int val) : value(val), VarBase(string(),Type::INTEGER) {};
     VarInfo(int val, string str, Type::typeKind kind):
             value(val), VarBase(str,kind){};
     VarInfo(int val, string str, Type::typeKind kind, int len):
@@ -215,10 +215,13 @@ public:
     parsedData(parsedData& data1, parsedData& data2){
         if(data2.kind != UNDEF)
             kind = data2.kind;
+
         single_var = data1.single_var;
+        single_var.name = data2.single_var.name;
         switch (data2.kind){
             case SINGLE: {
                 single_var.type = data1.single_var.type;
+                single_var.value = data1.single_var.value;
                 if(single_var.type.kind == Type::BYTE) {
                     if (data1.single_var.value > 255 || data1.single_var.value < 0)
                         throw;      //TODO
@@ -470,25 +473,20 @@ public:
         functions.push_front(temp);
     }
 
-    void addId(parsedData Id,parsedData type,parsedData isArray){
+    void addIdArray(parsedData Id,parsedData type,parsedData arraySize){
         assert(Id.kind == Id.SINGLE);
         assert(type.kind == type.SINGLE);
 
         if(containsIdName(Id.single_var.name)) {}//throw {/* appropriate exception*/};
 
         Type newType;
-        if(isArray.single_var.type.kind == isArray.single_var.type.ARRAY){
 
-            if(isArray.single_var.value < 0 || isArray.single_var.value > 256)
-            {}//throw {/* appropriate exception*/}; // array size not good
+        if(arraySize.single_var.value < 0 || arraySize.single_var.value > 256)
+        {}//throw {/* appropriate exception*/}; // array size not good
 
-            newType.kind = newType.ARRAY;
-            newType.arrayType = type.single_var.type.kind;
-            newType.arrayLength = isArray.single_var.value;
-        }
-        else{
-            newType.kind = type.single_var.type.kind;
-        }
+        newType.kind = newType.ARRAY;
+        newType.arrayType = type.single_var.type.kind;
+        newType.arrayLength = arraySize.single_var.value;
 
         scopesList.front().addId(newType,Id.single_var.name);
     }

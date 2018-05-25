@@ -68,24 +68,23 @@ NUM_T2 :                 {$$ = new parsedData(Type::INTEGER);}     //Lior
 		;
 
 
-Statements :    Statement     // done
-			|   Statements Statement    // done
+Statements  :   Statement
+			|   Statement Statements    {cout << "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC" << endl;}
 			;
 
-Statement : 	LBRACE_t Statements RBRACE_t        // done
-			|	Type_ID SC          {scopesList->addIdNotArray(*$1);}         // done
-			|	Type_ID ASSIGN Exp SC           {scopesList->addIdNotArray(*$1); scopesList->verifyAssign(*$1,*$3);}     // done
-			|	Type_ID LBRACK NUM_T RBRACK SC      {scopesList->addId(*$1,*$1,*$3);}      // done
-			|	ID ASSIGN Exp SC        {scopesList->verifyAssign(*$1,*$3);}       // done
-			|	ID LBRACK Exp RBRACK ASSIGN Exp SC  {scopesList->verifyAssignToArray(*$1,*$3,*$6);}         // done
+Statement : 	LBRACE_t Statements RBRACE_t
+			|	Type_ID SC          {scopesList->addIdNotArray(*$1);}
+			|	Type_ID ASSIGN Exp SC           {scopesList->addIdNotArray(*$1); scopesList->verifyAssign(*$1,*$3);}
+			|	Type_ID LBRACK NUM_T RBRACK SC      {scopesList->addIdArray(*$1,*$1,*$3);}
+			|	ID ASSIGN Exp SC        {scopesList->verifyAssign(*$1,*$3);}
+			|	ID LBRACK Exp RBRACK ASSIGN Exp SC  {scopesList->verifyAssignToArray(*$1,*$3,*$6);}
 			|	Call SC             // done
-			|	RETURN SC           {scopesList->verifyReturnTypeVoid();}       // done
-			|	RETURN Exp SC       {scopesList->verifyReturnType(*$2);}       // done
+			|	RETURN SC           {scopesList->verifyReturnTypeVoid();}
+			|	RETURN Exp SC       {scopesList->verifyReturnType(*$2);}
 			|   IF LPAREN Exp RPAREN Open_Scope Statement { scopesList->removeScope(); }
 			|   IF LPAREN Exp RPAREN Open_Scope Statement ELSE CloseScope Open_Scope Statement { scopesList->removeScope(); }
 			|	While_Statement
-			|	BREAK SC            {scopesList->verifyBreakBlock();}        // done
-			|   SC
+			|	BREAK SC            {scopesList->verifyBreakBlock();}
 			;
 
 Open_Scope : { scopesList->newRegularScope(false);}
@@ -94,7 +93,7 @@ Open_Scope : { scopesList->newRegularScope(false);}
 CloseScope : { scopesList->removeScope(); }
            ;
 
-While_Statement : While_Open Statement { scopesList->removeScope(); }          // done
+While_Statement : While_Open Statement {scopesList->removeScope();}
             ;
 
 While_Open : WHILE LPAREN Exp RPAREN {scopesList->verifyExpIsBool(*$3); scopesList->newRegularScope(true); }    // done
@@ -115,9 +114,9 @@ ExpList2 :                  { $$ = new parsedData(); }
          | COMMA ExpList    { $$ = new parsedData(*$2, IS_CALL); }
          ;
 
-Type	:	INT              {	Type tmp; $$ = new parsedData(parsedData(Type(tmp.INTEGER)));} // to return new type with appropriate type
-		|	BYTE             {	Type tmp; $$ = new parsedData(parsedData(Type(tmp.BYTE)));}
-		| 	BOOL             {	Type tmp; $$ = new parsedData( parsedData(Type(tmp.BOOL)));}
+Type	:	INT              {$$ = new parsedData(parsedData(Type(Type::INTEGER)));} // to return new type with appropriate type
+		|	BYTE             {$$ = new parsedData(parsedData(Type(Type::BYTE)));}
+		| 	BOOL             {$$ = new parsedData( parsedData(Type(Type::BOOL)));}
 		;
 
 Exp		:	LPAREN Exp RPAREN       {$$ = $2;}

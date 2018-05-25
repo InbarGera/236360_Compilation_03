@@ -43,5 +43,6 @@ break		        			return BREAK;
 \"([^\n\r\"\\]|\\[rnt"\\])+\" 		{yylval = new parsedData(yytext, IS_STR); return STRING;}
 \/\/[^\r\n]*[\r|\n|\r\n]?			    {}
 [ \n|\r|\t]				{}
+.                       exit(1);
 
 %%
