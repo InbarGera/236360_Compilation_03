@@ -211,16 +211,19 @@ public:
             kind = data2.kind;
         single_var = data1.single_var;
         switch (data2.kind){
-            case SINGLE:
+            case SINGLE: {
                 single_var.type = Type(Type::BYTE);
-                if(data1.single_var.value > 255 || data1.single_var.value < 0)
+                if (data1.single_var.value > 255 || data1.single_var.value < 0)
                     throw;      //TODO
-            case ARRAY:
+            }break;
+            case ARRAY: {
                 single_var.type =
                         Type(data1.single_var.type.kind, data2.single_var.type.arrayLength);
-            case LIST:
+            }break;
+            case LIST: {
                 list_of_vars = data2.list_of_vars;
                 list_of_vars.push_front(data1.single_var);
+            }break;
             default:
                 throw; //TODO
         }
@@ -273,25 +276,26 @@ public:
     }
     parsedExp(parsedExp exp1, parsedExp exp2, binOps ops){
         switch (ops){
-            case REL_OP:
-                if(exp1.isInteger() && exp2.isInteger()) {
+            case REL_OP: {
+                if (exp1.isInteger() && exp2.isInteger()) {
                     *this = parsedExp(Type(Type::BOOL));
-                }
-                else
+                } else
                     throw;      //TODO
-            case BOOL_OP:
-                if(exp1.isBool() && exp2.isBool()) {
+            }break;
+            case BOOL_OP: {
+                if (exp1.isBool() && exp2.isBool()) {
                     *this = parsedExp(Type(Type::BOOL));
-                }
-                else
+                } else
                     throw;      //TODO
-            case MATH_OP:
-                try{
+            }break;
+            case MATH_OP: {
+                try {
                     *this = maxRange(exp1, exp2);
                 }
-                catch (...){
+                catch (...) {
                     throw;      //TODO
                 }
+            }break;
             default:
                 throw;          //TODO
         }
@@ -356,8 +360,13 @@ public:
     Id getId(string name){
         list<scope> allScopes(scopesList);
 
-        for(scope s = allScopes.front(); !allScopes.empty(); allScopes.pop_front(), s = allScopes.front()) {
-            for (Id id = s.IdList.front(); !s.IdList.empty(); s.IdList.pop_front(), id = s.IdList.front())
+        if(allScopes.size() == 0)
+            assert(0);
+
+        for(scope s = allScopes.front(); allScopes.size() > 1; allScopes.pop_front(), s = allScopes.front()) {
+            if (s.IdList.size() == 0)
+                continue;
+            for (Id id = s.IdList.front(); s.IdList.size() > 1; s.IdList.pop_front(), id = s.IdList.front())
                 if (id.name == name)
                     return id;
         }
@@ -366,7 +375,11 @@ public:
 
     function getFunction(string name){
         list<function> funcs = functions;
-        for(function fun = funcs.front() ; !funcs.empty() ; funcs.pop_front(), fun = funcs.front())
+
+        if(funcs.size() == 0)
+            assert(0);
+
+        for(function fun = funcs.front() ; funcs.size() > 1; funcs.pop_front(), fun = funcs.front())
             if(fun.idName == name)
                 return fun;
         assert(0);
@@ -375,16 +388,26 @@ public:
     bool containsIdName(string name){
         list<scope> allScopes(scopesList);
 
-        for(scope s = allScopes.front(); !allScopes.empty(); allScopes.pop_front(), s = allScopes.front())
-            for (Id id = s.IdList.front(); !s.IdList.empty(); s.IdList.pop_front(), id = s.IdList.front())
-                if(id.name == name)
+        if(allScopes.size() == 0)
+            return false;
+
+        for(scope s = allScopes.front(); allScopes.size() > 1; allScopes.pop_front(), s = allScopes.front()) {
+            if (s.IdList.size() == 0)
+                continue;
+            for (Id id = s.IdList.front(); s.IdList.size() > 1; s.IdList.pop_front(), id = s.IdList.front())
+                if (id.name == name)
                     return true;
+        }
         return false;
     }
 
     bool containsFunctionName(string name){
         list<function> funcs = functions;
-        for(function fun = funcs.front() ; !funcs.empty() ; funcs.pop_front(), fun = funcs.front())
+
+        if(funcs.size() == 0)
+            return false;
+
+        for(function fun = funcs.front() ; funcs.size() > 1; funcs.pop_front(), fun = funcs.front())
             if(fun.idName == name)
                 return true;
         return false;
@@ -401,7 +424,7 @@ public:
     void addFunction(parsedData retType,parsedData Id, parsedData functionInputs){
         assert(retType.kind == retType.SINGLE);
         assert(Id.kind == Id.SINGLE);
-        assert(functionInputs.kind == functionInputs.LIST);
+        //assert(functionInputs.kind == functionInputs.LIST);
 
         //extracting the variables from the parsed data
         string name = Id.single_var.name;
@@ -586,6 +609,7 @@ public:
         while (!functions.empty()) {
             function func = functions.front();
             printID(func.idName, 0, func.toString());
+            functions.pop_front();
         }
     }
 };
