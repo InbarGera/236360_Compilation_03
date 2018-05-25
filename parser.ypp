@@ -33,12 +33,12 @@ Program	:	Funcs
 Funcs :
 		|	Function Funcs
 		;
-Function : FunctionDefinition LBRACE_t Statements RBRACE_t
+Function : FunctionDefinition LBRACE Statements RBRACE_t
         ;
 
 
 FunctionDefinition : RetType ID LPAREN Formals RPAREN {scopesList->addFunction(*$1,*$2,*$4);
-                                                        scopesList->newFunctionScope(*$2);}
+                                                        scopesList->newFunctionScope(*$2,*$4);}
                    ;
 
 RetType : Type          {$$ = $1;}      //Lior

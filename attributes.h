@@ -506,11 +506,10 @@ public:
         scopesList.push_front(temp);
     }
 
-    void newFunctionScope(parsedData inputVars){
+    void newFunctionScope(parsedData functionId, parsedData inputVars){
 
         int newNextIdLocation = scopesList.front().nextIdLocation;
-        scope temp(newNextIdLocation,false);// false because opening a function means that we are not in a while scope
-        scopesList.push_front(temp);
+        scope newScope(newNextIdLocation,false);// false because opening a function means that we are not in a while scope
 
         // functions are always at the begin of the scope list, so for inserting the input values we will use a bit of
         // a hack, just manually insert the parameters to the next scope, without changing nextIdLocation.
@@ -518,10 +517,12 @@ public:
         int i = -1;
 
         while(!inputVars.list_of_vars.empty()){
-            Id temp(inputVars.list_of_vars.front().type,i--,inputVars.list_of_vars.front().name);
-            scopesList.front().IdList.push_back(temp);
+            Id temp(inputVars.list_of_vars.front().type,i,inputVars.list_of_vars.front().name);
+            newScope.IdList.push_back(temp);
             inputVars.list_of_vars.pop_front();
+            i -= inputVars.list_of_vars.front().type.size();
         }
+        scopesList.push_front(newScope);
     }
 
     void removeScope(){
