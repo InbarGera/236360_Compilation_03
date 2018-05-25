@@ -6,19 +6,14 @@
 #include <iostream>
 #include <list>
 #include <string>
-#include "output.h"
 #include <assert.h>
+#include "output.h"
 
 using std::cout;
 using std::endl;
 using std::list;
 using std::string;
 //================================= ENUMS ===============================//
-enum parsRetType {
-    NOTHING, INT, BYTE, BOOL, VOID, STRING
-};
-
-typedef parsRetType parsParmType;
 enum GrammerVar{
     NOT_INITIALIZED,
     IS_BOOL,
@@ -36,7 +31,6 @@ enum binOps {
 };
 
 enum typeKind {VOID, BOOL, INTEGER, BYTE, STRING, ARRAY};
-#define YYSTYPE parsedData	// Tell Bison to use STYPE as the stack type
 
 //=========================== HELPER FUNCTIONS =============================//
 int string_to_num(char* input){
@@ -201,11 +195,11 @@ public:
                 throw;      //TODO
         }
     }
-    parsedData(Type type, parsedData data) : kind(SINGLE){
+    parsedData(Type type, parsedData& data) : kind(SINGLE){
         single_var.type = type;
         single_var.name = data.getName();
     }
-    parsedData(parsedData data1, parsedData data2){
+    parsedData(parsedData& data1, parsedData& data2){
         if(data2.kind != UNDEF)
             kind = data2.kind;
         single_var = data1.single_var;
@@ -217,7 +211,7 @@ public:
             list_of_vars.push_front(data1.single_var);
         }
     }
-    parsedData(parsedData data, GrammerVar g_var){
+    parsedData(parsedData& data, GrammerVar g_var){
         if (g_var == IS_CALL){
             kind = LIST;
             list_of_vars = data.list_of_vars;
@@ -236,18 +230,19 @@ public:
         return single_var.value;
     }
 };
+#define YYSTYPE parsedData*	// Tell Bison to use STYPE as the stack type
 
 class parsedExp : public parsedData {
 public:
     parsedExp();
     parsedExp(Type type) : parsedData(type){};
-    parsedExp(parsedExp exp, binOps ops){
+    parsedExp(parsedExp& exp, binOps ops){
         if(ops == BOOL_OP)
             if (exp.isBool())
                 return parsedExp(Type(BOOL));
         throw;      //TODO
     }
-    parsedExp(parsedExp exp1, parsedExp exp2, binOps ops){
+    parsedExp(parsedExp& exp1, parsedExp& exp2, binOps ops){
         switch (ops){
             case REL_OP:
                 if(exp1.isInteger() && exp2.isInteger())
@@ -270,6 +265,15 @@ public:
                 throw;          //TODO
         }
     }
+    parsedExp(parsedData& data) : parsedData(data){};
+    parsedExp(parsedData& data1, parsedData& data2, binOps ops){
+        *this = parsedExp(parsedExp(data1), parsedExp(data2), ops);
+    }
+    parsedExp(parsedData& data, binOps ops){
+        *this = parsedExp(parsedExp(data), ops);
+    }
+
+
     bool isInteger(parsedExp exp){
         Type int_t = Type(INTEGER);
         Type byte_t = Type(BYTE);
@@ -328,7 +332,6 @@ public:
     }
 };
 
-
 class scopes{
 public:
     list<function> functions;
@@ -345,7 +348,7 @@ public:
     function getFunction(string name){
         for(function fun : functions)
             if(fun.idName == name)
-                    return fun;
+                return fun;
         assert(0);
     }
 
@@ -471,7 +474,7 @@ public:
 
         Type idType = Id.single_var.type;
         if((!idType == exp.single_var.type) && // the types are different, and it is not a case of assign byte to int
-                (!(idType.kind == idType.INTEGER) && (exp.single_var.type.kind == exp.single_var.type.BYTE)))
+           (!(idType.kind == idType.INTEGER) && (exp.single_var.type.kind == exp.single_var.type.BYTE)))
         {}//throw {/*  appropriate exception */}; // incompatible types
     }
 
@@ -488,7 +491,7 @@ public:
         {}//throw {/*  appropriate exception */}; // id is not array
 
         if((!indexType.kind == indexType.BYTE) &&
-                (!indexType.kind == indexType.INTEGER))
+           (!indexType.kind == indexType.INTEGER))
         {}//throw {/*  appropriate exception */}; // array index is not of numeric type
 
         if(!idType.arrayType == assignedType.kind && // the types are different, and it is not a case of assign byte to int
@@ -504,8 +507,8 @@ public:
 
     void verifyReturnType(parsedData returnType){
         if((!functions.front().return_type == returnType.single_var.type) &&
-                !((functions.front().return_type == functions.front().return_type.INTEGER) &&
-                        (returnType.single_var.type == returnType.single_var.type.BYTE)))
+           !((functions.front().return_type == functions.front().return_type.INTEGER) &&
+             (returnType.single_var.type == returnType.single_var.type.BYTE)))
         {}//throw {/*  appropriate exception */}; //function return different type
     }
 
@@ -552,14 +555,15 @@ public:
         {}//throw {/*  appropriate exception */}; //wrong function call parameters number
     }
 
-   ~scopes() {
-       while (!scopesList.empty())
-           removeScope();
+    ~scopes() {
+        while (!scopesList.empty())
+            removeScope();
 
-       while (!functions.empty()) {
-           function func = functions.front();
-           printID(func.idName, 0, func.toString());
-       }
-   }
+        while (!functions.empty()) {
+            function func = functions.front();
+            printID(func.idName, 0, func.toString());
+        }
+    }
 };
+
 #endif
