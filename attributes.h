@@ -31,7 +31,7 @@ enum binOps {
     MATH_OP
 };
 
-enum typeKind {VOID, BOOL, INTEGER, BYTE,  STRING,  ARRAY};
+//enum typeKind {VOID, BOOL, INTEGER, BYTE,  STRING,  ARRAY};
 
 //=========================== HELPER FUNCTIONS =============================//
 int string_to_num(char* input){
@@ -43,7 +43,7 @@ int string_to_num(char* input){
 }
 
 char* remove_double_quotes(char* input){
-    char* res = malloc(strlen(input));
+    char* res = malloc(strlen(input)* sizeof(char));
     strcpy(res,input+1);
     res[strlen(res) - 1] = '\0';
     return res;
@@ -58,7 +58,9 @@ public:
     int arrayLength;
     typeKind arrayType;
 
-    Type() : kind(VOID), arrayLength(-1), arrayType(VOID) {};
+    Type() : kind(VOID), arrayLength(-1) {
+        arrayType = Type::typeKind::VOID;
+    };
 
     Type(typeKind Kind) : kind(Kind), arrayLength(-1){
         if(kind == ARRAY) assert(0); // this constructor should get only basic types
@@ -116,8 +118,8 @@ public:
     Type type;
     VarBase();
     VarBase(Type type_t) : name(), type(type_t){};
-    VarBase(string str,typeKind kind): name(str), type(kind){};
-    VarBase(string str, typeKind kind, int len):name(str), type(kind, len){};
+    VarBase(string str,Type::typeKind kind): name(str), type(kind){};
+    VarBase(string str, Type::typeKind kind, int len):name(str), type(kind, len){};
 };
 
 class VarInfo: public VarBase{
@@ -125,10 +127,10 @@ public:
     int value;
     VarInfo() : value(0){};
     VarInfo(Type type): value(0),VarBase(type) {};
-    varInfo(int val) : VarBase(string(),INTEGER) {};
-    VarInfo(int val, string str, typeKind kind):
+    VarInfo(int val) : VarBase(string(),Type::typeKind::INTEGER) {};
+    VarInfo(int val, string str, Type::typeKind kind):
             value(val), VarBase(str,kind){};
-    VarInfo(int val, string str, typeKind kind, int len):
+    VarInfo(int val, string str, Type::typeKind kind, int len):
             value(val), VarBase(str, kind, len){};
 };
 
@@ -136,7 +138,7 @@ class Id : public VarBase{
 public:
     int offset;
 
-    Id(Type type, int offset, string name) : type(type), offset(offset), name(name){};
+    Id(Type type, int offset, string name) : VarBase(name, type), offset(offset){};
 };
 
 class function{
@@ -145,7 +147,8 @@ public:
     Type return_type;
     list<Type> inputTypes;
     function();
-    function(string idName, Type return_type, list<Type> inputTypes) : string(string), return_type(return_type), inputTypes(inputTypes){};
+    function(string idName, Type return_type, list<Type> inputTypes) :
+            string(string), return_type(return_type), inputTypes(inputTypes){};
 
     string toString(){
         function temp = this;
@@ -183,10 +186,10 @@ public:
                 single_var = VarInfo(string_to_num(tmp_yytext));
                 break;
             case IS_ID:
-                single_var = VarInfo(0,string(tmp_yytext), VOID);
+                single_var = VarInfo(0,string(tmp_yytext), Type::typeKind::VOID);
                 break;
             case IS_STR:
-                single_var = VarInfo(0,string(remove_double_quotes(tmp_yytext)),STRING);
+                single_var = VarInfo(0,string(remove_double_quotes(tmp_yytext)),Type::typeKind::STRING);
                 break;
             case IS_ARRAY:
                 //TODO
@@ -205,7 +208,7 @@ public:
             kind = data2.kind;
         single_var = data1.single_var;
         if(data2.kind == SINGLE){   //we are in the NUM_T case
-            single_var.type = type(BYTE);
+            single_var.type = Type(Type::typeKind::BYTE);
         }
         else if(data2.kind == LIST){ //we are in the EXPLIST case
             list_of_vars = data2.list_of_vars;
@@ -221,8 +224,8 @@ public:
         }
     }
     bool isInteger(){
-        Type int_t = Type(INTEGER);
-        Type byte_t = Type(BYTE);
+        Type int_t = Type(Type::typeKind::INTEGER);
+        Type byte_t = Type(Type::typeKind::BYTE);
         return (getType()==int_t || getType()==byte_t);
     }
 
@@ -242,27 +245,30 @@ class parsedExp : public parsedData {
 public:
     parsedExp();
     parsedExp(Type type) : parsedData(type){};
-    parsedExp(parsedExp& exp, binOps ops){
+    parsedExp(parsedExp exp, binOps ops){
         if(ops == BOOL_OP)
-            if (exp.isBool())
-                return parsedExp(Type(BOOL));
+            if (exp.isBool()){
+                *this =  parsedExp(Type(Type::typeKind::BOOL));
+            }
         throw;      //TODO
     }
-    parsedExp(parsedExp& exp1, parsedExp& exp2, binOps ops){
+    parsedExp(parsedExp exp1, parsedExp exp2, binOps ops){
         switch (ops){
             case REL_OP:
-                if(exp1.isInteger() && exp2.isInteger())
-                    return parsedExp(Type(BOOL));
+                if(exp1.isInteger() && exp2.isInteger()) {
+                    *this = parsedExp(Type(Type::typeKind::BOOL));
+                }
                 else
                     throw;      //TODO
             case BOOL_OP:
-                if(exp1.isBool() && exp2.isBool())
-                    return parsedExp(Type(BOOL));
+                if(exp1.isBool() && exp2.isBool()) {
+                    *this = parsedExp(Type(Type::typeKind::BOOL));
+                }
                 else
                     throw;      //TODO
             case MATH_OP:
                 try{
-                    return maxRange(exp1, exp2);
+                    *this = maxRange(exp1, exp2);
                 }
                 catch (){
                     throw;      //TODO
@@ -271,26 +277,26 @@ public:
                 throw;          //TODO
         }
     }
-    parsedExp(parsedData& data) : parsedData(data){};
-    parsedExp(parsedData& data1, parsedData& data2, binOps ops){
+    parsedExp(parsedData data) : parsedData(data){};
+    parsedExp(parsedData data1, parsedData data2, binOps ops){
         *this = parsedExp(parsedExp(data1), parsedExp(data2), ops);
     }
-    parsedExp(parsedData& data, binOps ops){
+    parsedExp(parsedData data, binOps ops){
         *this = parsedExp(parsedExp(data), ops);
     }
 
 
     bool isInteger(){
-        Type int_t = Type(INTEGER);
-        Type byte_t = Type(BYTE);
+        Type int_t = Type(Type::typeKind::INTEGER);
+        Type byte_t = Type(Type::typeKind::BYTE);
         return (getType()==int_t || getType()==byte_t);
     }
     bool isBool(){
-        return getType()==Type(BOOL);
+        return getType()==Type(Type::typeKind::BOOL);
     }
     Type maxRange(parsedExp exp1, parsedExp exp2) {
-        Type int_t = Type(INTEGER);
-        Type byte_t = Type(BYTE);
+        Type int_t = Type(Type::typeKind::INTEGER);
+        Type byte_t = Type(Type::typeKind::BYTE);
         if (exp1.getType() == int_t || exp2.getType() == int_t)
             return parsedExp(int_t);
         else if (exp1.getType() == byte_t && exp2.getType() == byte_t)
@@ -506,7 +512,7 @@ public:
     }
 
     void verifyReturnTypeVoid(){
-        Type temp = temp.VOID;
+        Type temp(Type::typeKind::VOID);
         if(!(functions.front().return_type == temp))
         {}//throw {/*  appropriate exception */}; //function return different type
     }
@@ -524,7 +530,7 @@ public:
     }
 
     void verifyExpIsBool(parsedData expType){
-        Type temp = temp.BOOL;
+        Type temp(Type::typeKind::BOOL);
         if(!(expType.single_var.type == temp))
         {}//throw {/*  appropriate exception */}; //expected boolean type
     }
