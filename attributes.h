@@ -33,7 +33,7 @@ enum binOps {
 };
 
 //=========================== HELPER FUNCTIONS =============================//
-int string_to_num(char* input){
+static int string_to_num(char* input){
     int sum =0;
     while(input[0] != '\0'){
         sum = sum*10 + (input++[0] - '0');
@@ -41,7 +41,7 @@ int string_to_num(char* input){
     return sum;
 }
 
-char* remove_double_quotes(char* input){
+static char* remove_double_quotes(char* input){
     char* res = (char*)malloc(strlen(input)* sizeof(char));
     strcpy(res,input+1);
     res[strlen(res) - 1] = '\0';
@@ -115,13 +115,13 @@ class VarBase{
 public:
     string name;
     Type type;
-    VarBase();
+    VarBase(){};
     VarBase(Type type_t) : name(), type(type_t){};
     VarBase(string str,Type::typeKind kind): name(str), type(kind){};
     VarBase(string str, Type::typeKind kind, int len):name(str), type(kind, len){};
 };
 
-class VarInfo: public VarBase{
+class VarInfo : public VarBase{
 public:
     int value;
     VarInfo() : value(0){};

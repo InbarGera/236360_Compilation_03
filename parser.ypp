@@ -6,8 +6,7 @@
 	using namespace std;
 
 	extern int yylex();		// do they both need to be extern?
-	extern int yyerror(char * message);
-
+    int yyerror(char * message);
 	scopes* scopesList;
 %}
 
@@ -176,4 +175,10 @@ int main()
 
 	yyparse();
 	delete scopesList;
+}
+
+int yyerror(char * message)
+{
+	cout << "Parse error: "<<message<<endl;
+	exit(0);
 }
