@@ -1,6 +1,7 @@
 %{
 
 #include "attributes.h"
+#include "parser.tab.hpp"
 
 %}
 
@@ -44,19 +45,4 @@ break		        			return BREAK;
 [ \n|\r|\t]				{}
 
 %%
-/*  MOVED TO THE H FILE
-int string_to_num(char* input){
-    int sum =0;
-    while(input[0] != '\0'){
-        sum = sum*10 + (input++[0] - '0');
-    }
-    return sum;
-}
 
-char* remove_double_quotes(char* input){
-    char* res = malloc(strlen(input));
-    strcpy(res,input+1);
-    res[strlen(res) - 1] = '\0';
-    return res;
-}
- */

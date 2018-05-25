@@ -38,7 +38,7 @@ Function : FunctionDefinition LBRACE_t Statements RBRACE_t
         ;
 
 
-FunctionDefinition : RetType ID LPAREN Formals RPAREN {scopesList>addFunction(*$1,*$2,*$4); scopesList->newFunctionScope(*$2);}
+FunctionDefinition : RetType ID LPAREN Formals RPAREN {scopesList->addFunction(*$1,*$2,*$4); scopesList->newFunctionScope(*$2);}
                    ;
 
 RetType : Type          {$$ = $1;}      //Lior
@@ -64,7 +64,7 @@ FormalDecl :	Type_ID	FormalDecl2     { scopesList->addId(*$1,*$1,*$2);
 			;
 
 FormalDecl2	:
-			| 	LBRACK NUM_T RBRACK     {$$ = new parsedData(*$2,IS_ARRAY)}         //Lior
+			| 	LBRACK NUM_T RBRACK     {$$ = new parsedData(*$2,IS_ARRAY);}         //Lior
 			;
 
 NUM_T :	NUM NUM_T2  {$$ = new parsedData(*$1, *$2); /*TODO add type/byte check */	}    //Lior
@@ -176,10 +176,4 @@ int main()
 
 	yyparse();
 	delete scopesList;
-}
-
-int yyerror(char * message)
-{
-	cout<<"Parse error: "<<message<<endl;
-	exit(0);
 }

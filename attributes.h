@@ -2,13 +2,13 @@
 #define __ATTRIBUTES_H
 
 #include <cstring>
-#include "parser.tab.hpp"
 #include <iostream>
 #include <list>
 #include <string>
 #include <cassert>
 #include <stdlib.h>
 #include "output.h"
+#include <sstream>
 
 using std::cout;
 using std::endl;
