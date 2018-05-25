@@ -6,7 +6,8 @@
 #include <iostream>
 #include <list>
 #include <string>
-#include <assert.h>
+#include <cassert>
+#include <stdlib.h>
 #include "output.h"
 
 using std::cout;
@@ -30,8 +31,6 @@ enum binOps {
     BOOL_OP,
     MATH_OP
 };
-
-//enum typeKind {VOID, BOOL, INTEGER, BYTE,  STRING,  ARRAY};
 
 //=========================== HELPER FUNCTIONS =============================//
 int string_to_num(char* input){
@@ -326,7 +325,6 @@ public:
     }
 };
 
-
 //=============================== SCOPE HANDLING ================//
 
 class scope{
@@ -338,11 +336,6 @@ public:
 
     scope(){} // in case of the first scope scope
 
-    scope(const scope& s){
-        functions = s.functions;
-        scopesList = s.scopesList;
-    }
-
     scope(int nextIdLocation, bool isWhileScope) : nextIdLocation(nextIdLocation), isWhileScope(isWhileScope){}
 
     ~scope(){}
@@ -350,22 +343,8 @@ public:
     void addId(Type newIdType, string newIdName){
 
         Id temp(newIdType,nextIdLocation,newIdName);
-        IdList.insert (temp);
+        IdList.push_front(temp);
         nextIdLocation += newIdType.size();
-    }
-
-    bool containsId(string name){
-        for (Id id : IdList)
-            if(id.name == name)
-                return true;
-        return false;
-    }
-
-    Id gedId(string name){
-        for (Id id : IdList)
-            if(id.name == name)
-                return id;
-        assert(0);
     }
 };
 
@@ -386,23 +365,27 @@ public:
     }
 
     function getFunction(string name){
-        for(function& fun : functions)
+        list<function> funcs = functions;
+        for(function fun = funcs.front() ; !funcs.empty() ; funcs.pop_front(), fun = funcs.front())
             if(fun.idName == name)
                 return fun;
         assert(0);
     }
 
     bool containsIdName(string name){
-        for(scope& s : scopesList)
-            for(Id& id : s.IdList)
+        list<scope> allScopes(scopesList);
+
+        for(scope s = allScopes.front(); !allScopes.empty(); allScopes.pop_front(), s = allScopes.front())
+            for (Id id = s.IdList.front(); !s.IdList.empty(); s.IdList.pop_front(), id = s.IdList.front())
                 if(id.name == name)
                     return true;
         return false;
     }
 
     bool containsFunctionName(string name){
-        for(function& f : functions)
-            if(f.idName == name)
+        list<function> funcs = functions;
+        for(function fun = funcs.front() ; !funcs.empty() ; funcs.pop_front(), fun = funcs.front())
+            if(fun.idName == name)
                 return true;
         return false;
     }
@@ -431,7 +414,7 @@ public:
         }
 
         // input check
-        if(containsFunctionName(name)) errorUndefFunc(lineno,name);
+        if(containsFunctionName(name)) {}//errorUndefFunc(lineno,name); assert
         if(name == "main" &&(returnType.kind != returnType.VOID || !functionInputTypes.empty())) {}//throw {/* appropriate exception*/};
 
         // inserting to the function list
@@ -540,7 +523,7 @@ public:
     }
 
     void verifyReturnTypeVoid(){
-        Type temp(Type::typeKind::VOID);
+        Type temp(Type::VOID);
         if(!(functions.front().return_type == temp))
         {}//throw {/*  appropriate exception */}; //function return different type
     }
@@ -558,13 +541,13 @@ public:
     }
 
     void verifyExpIsBool(parsedData expType){
-        Type temp(Type::typeKind::BOOL);
+        Type temp(Type::BOOL);
         if(!(expType.single_var.type == temp))
         {}//throw {/*  appropriate exception */}; //expected boolean type
     }
 
     void verifyFunctionCall(parsedData idInput,parsedData inputList){
-        assert(inputList.kind == inputList.LIST);
+        assert(inputList.kind == parsedData::LIST);
 
         if(!containsFunctionName(idInput.single_var.name))
         {}//throw {/*  appropriate exception */}; //no such function
@@ -572,10 +555,10 @@ public:
         list<Type> functionInputList = getFunction(idInput.single_var.name).inputTypes;
         list<VarInfo> actualInputTypes = inputList.list_of_vars;
 
-        auto funIterator = functionInputList.cbegin();
-        auto inputIterator = actualInputTypes.cbegin();
+        list<Type>::iterator funIterator = functionInputList.begin();
+        list<VarInfo>::iterator inputIterator = actualInputTypes.begin();
 
-        while(funIterator != functionInputList.cend() && (inputIterator != actualInputTypes.cend())){
+        while(funIterator != functionInputList.end() && (inputIterator != actualInputTypes.end())){
             Type tmp = *funIterator;
             if(!(tmp == inputIterator->type))
             {}//throw {/*  appropriate exception */}; //wrong function call parameters
@@ -583,7 +566,7 @@ public:
             inputIterator++;
         }
 
-        if((!(funIterator == functionInputList.cend())) || (!(inputIterator == actualInputTypes.cend())))
+        if((!(funIterator == functionInputList.end())) || (!(inputIterator == actualInputTypes.end())))
         {}//throw {/*  appropriate exception */}; //wrong function call parameters number
 
     }
