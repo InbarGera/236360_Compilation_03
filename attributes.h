@@ -7,7 +7,7 @@
 #include <string>
 #include <cassert>
 #include <stdlib.h>
-#include "output.h"
+#include "output.hpp"
 #include <sstream>
 
 using std::cout;
@@ -218,9 +218,11 @@ public:
         single_var = data1.single_var;
         switch (data2.kind){
             case SINGLE: {
-                single_var.type = Type(Type::BYTE);
-                if (data1.single_var.value > 255 || data1.single_var.value < 0)
-                    throw;      //TODO
+                single_var.type = data1.single_var.type;
+                if(single_var.type.kind == Type::BYTE) {
+                    if (data1.single_var.value > 255 || data1.single_var.value < 0)
+                        throw;      //TODO
+                }
             }break;
             case ARRAY: {
                 single_var.type =
@@ -249,6 +251,23 @@ public:
         }
         else
             throw ;     //TODO
+    }
+    parsedData(parsedData& data1, parsedData& data2, GrammerVar g_var){
+        if(g_var == IS_ARRAY){
+            kind = ARRAY;
+            Type int_t = Type(Type::INTEGER);
+            Type byte_t = Type(Type::BYTE);
+            if(data2.getType() == int_t || data2.getType() == byte_t){
+                single_var.name = data1.single_var.name;
+                single_var.type =
+                        Type(data1.single_var.type.kind, data2.single_var.value );
+           }
+            else
+                throw;      //TODO
+        }
+        else
+            throw;          //TODO
+
     }
     bool isInteger(){
         Type int_t = Type(Type::INTEGER);
@@ -613,9 +632,9 @@ public:
             removeScope();
 
         while (!functions.empty()) {
-            function func = functions.front();
+            function func = functions.back();
             printID(func.idName, 0, func.toString());
-            functions.pop_front();
+            functions.pop_back();
         }
     }
 };
