@@ -7,6 +7,7 @@
 #include <list>
 #include <string>
 #include "output.h"
+#include <assert.h>
 
 using std::cout;
 using std::endl;
@@ -14,7 +15,9 @@ using std::list;
 using std::string;
 //================================= ENUMS ===============================//
 enum parsRetType {
-    NOTHING, INT, BYTE, BOOL, VOID, STRING, STRUCT	};
+    NOTHING, INT, BYTE, BOOL, VOID, STRING
+};
+
 typedef parsRetType parsParmType;
 enum GrammerVar{
     NOT_INITIALIZED,
@@ -33,6 +36,7 @@ enum binOps {
 };
 
 enum typeKind {VOID, BOOL, INTEGER, BYTE, STRING, ARRAY};
+#define YYSTYPE parsedData	// Tell Bison to use STYPE as the stack type
 
 //=========================== HELPER FUNCTIONS =============================//
 int string_to_num(char* input){
@@ -286,7 +290,6 @@ public:
     }
 };
 
-#define YYSTYPE parsedData	// Tell Bison to use STYPE as the stack type
 
 //=============================== SCOPE HANDLING ================//
 
@@ -384,7 +387,7 @@ public:
         }
 
         // input check
-        if(containsFunctionName(name)) throw {/* appropriate exception*/};
+        if(containsFunctionName(name)) errorUndefFunc(lineno,name);
         if(name == "main" &&(returnType.kind != VOID || !functionInputTypes.empty())) throw {/* appropriate exception*/};
 
         // inserting to the function list
@@ -400,6 +403,10 @@ public:
 
         Type newType;
         if(isArray.single_var.type.kind == isArray.single_var.type.ARRAY){
+
+            if(isArray.single_var.value < 0 || isArray.single_var.value > 256)
+                throw {/* appropriate exception*/}; // array size not good
+
             newType.kind = newType.ARRAY;
             newType.arrayType = type.single_var.type.kind;
             newType.arrayLength = isArray.single_var.value;
@@ -469,7 +476,7 @@ public:
 
     void verifyAssignToArray(parsedData idInput, parsedData arrIndex, parsedData assigned){
 
-        if(!containsIdName(id.single_var.name))
+        if(!containsIdName(idInput.single_var.name))
             throw {/*  appropriate exception */}; //id not found
 
         Type idType = getId(idInput.single_var.name)->type;
