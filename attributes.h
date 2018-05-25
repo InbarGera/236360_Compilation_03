@@ -13,6 +13,7 @@ using std::cout;
 using std::endl;
 using std::list;
 using std::string;
+using namespace output;
 //================================= ENUMS ===============================//
 enum GrammerVar{
     NOT_INITIALIZED,
@@ -30,7 +31,7 @@ enum binOps {
     MATH_OP
 };
 
-enum typeKind {VOID, BOOL, INTEGER, BYTE, STRING, ARRAY};
+enum typeKind {VOID, BOOL, INTEGER, BYTE,  STRING,  ARRAY};
 
 //=========================== HELPER FUNCTIONS =============================//
 int string_to_num(char* input){
@@ -143,8 +144,8 @@ public:
     string idName;
     Type return_type;
     list<Type> inputTypes;
-
-    function(string idName, type return_type, list<Type> inputTypes) : string(string), return_type(return_type), inputTypes(inputTypes){};
+    function();
+    function(string idName, Type return_type, list<Type> inputTypes) : string(string), return_type(return_type), inputTypes(inputTypes){};
 
     string toString(){
         function temp = this;
@@ -219,6 +220,11 @@ public:
                 list_of_vars.push_front(data.single_var);
         }
     }
+    bool isInteger(){
+        Type int_t = Type(INTEGER);
+        Type byte_t = Type(BYTE);
+        return (getType()==int_t || getType()==byte_t);
+    }
 
     Type getType(){
         return single_var.type;
@@ -274,13 +280,13 @@ public:
     }
 
 
-    bool isInteger(parsedExp exp){
+    bool isInteger(){
         Type int_t = Type(INTEGER);
         Type byte_t = Type(BYTE);
-        return (exp.getType()==int_t || exp.getType()==byte_t);
+        return (getType()==int_t || getType()==byte_t);
     }
-    bool isBool(parsedExp exp){
-        return exp.getType()==Type(BOOL);
+    bool isBool(){
+        return getType()==Type(BOOL);
     }
     Type maxRange(parsedExp exp1, parsedExp exp2) {
         Type int_t = Type(INTEGER);
@@ -310,7 +316,7 @@ public:
 
     ~scope(){}
 
-    void addId(type newIdType, string newIdName){
+    void addId(Type newIdType, string newIdName){
 
         Id temp(newIdType,nextIdLocation,newIdName);
         IdList.insert (temp);
@@ -338,30 +344,30 @@ public:
     list<scope> scopesList;
 
     Id getId(string name){
-        for(scope s : scopesList)
-            for(Id id : s.IdList)
+        for(scope& s : scopesList)
+            for(Id& id : s.IdList)
                 if(id.name == name)
                     return id;
         assert(0);
     }
 
     function getFunction(string name){
-        for(function fun : functions)
+        for(function& fun : functions)
             if(fun.idName == name)
                 return fun;
         assert(0);
     }
 
     bool containsIdName(string name){
-        for(scope s : scopesList)
-            for(Id id : s.IdList)
+        for(scope& s : scopesList)
+            for(Id& id : s.IdList)
                 if(id.name == name)
                     return true;
         return false;
     }
 
     bool containsFunctionName(string name){
-        for(function f : functions)
+        for(function& f : functions)
             if(f.idName == name)
                 return true;
         return false;
@@ -392,7 +398,7 @@ public:
 
         // input check
         if(containsFunctionName(name)) errorUndefFunc(lineno,name);
-        if(name == "main" &&(returnType.kind != VOID || !functionInputTypes.empty())) {}//throw {/* appropriate exception*/};
+        if(name == "main" &&(returnType.kind != returnType.VOID || !functionInputTypes.empty())) {}//throw {/* appropriate exception*/};
 
         // inserting to the function list
         function temp(name, returnType, functionInputTypes);
@@ -473,7 +479,7 @@ public:
         if(!containsIdName(Id.single_var.name)) {}//throw {/*  appropriate exception */}; // id not found
 
         Type idType = Id.single_var.type;
-        if((!idType == exp.single_var.type) && // the types are different, and it is not a case of assign byte to int
+        if((!(idType == exp.single_var.type)) && // the types are different, and it is not a case of assign byte to int
            (!(idType.kind == idType.INTEGER) && (exp.single_var.type.kind == exp.single_var.type.BYTE)))
         {}//throw {/*  appropriate exception */}; // incompatible types
     }
@@ -483,30 +489,30 @@ public:
         if(!containsIdName(idInput.single_var.name))
         {}//throw {/*  appropriate exception */}; //id not found
 
-        Type idType = getId(idInput.single_var.name)->type;
+        Type idType = getId(idInput.single_var.name).type;
         Type indexType = arrIndex.single_var.type;
         Type assignedType = assigned.single_var.type;
 
-        if(!idType.kind == idType.ARRAY)
+        if(!(idType.kind == idType.ARRAY))
         {}//throw {/*  appropriate exception */}; // id is not array
 
-        if((!indexType.kind == indexType.BYTE) &&
-           (!indexType.kind == indexType.INTEGER))
+        if((!(indexType.kind == indexType.BYTE)) &&
+           (!(indexType.kind == indexType.INTEGER)))
         {}//throw {/*  appropriate exception */}; // array index is not of numeric type
 
-        if(!idType.arrayType == assignedType.kind && // the types are different, and it is not a case of assign byte to int
+        if(!(idType.arrayType == assignedType.kind )&& // the types are different, and it is not a case of assign byte to int
            (!(idType.arrayType == idType.INTEGER) && (assignedType.kind == assignedType.BYTE)))
         {}//throw {/*  appropriate exception */}; // array type is not compatible with exp type
     }
 
     void verifyReturnTypeVoid(){
-        Type temp(VOID);
-        if(!functions.front().return_type == temp)
+        Type temp = temp.VOID;
+        if(!(functions.front().return_type == temp))
         {}//throw {/*  appropriate exception */}; //function return different type
     }
 
     void verifyReturnType(parsedData returnType){
-        if((!functions.front().return_type == returnType.single_var.type) &&
+        if((!(functions.front().return_type == returnType.single_var.type)) &&
            !((functions.front().return_type == functions.front().return_type.INTEGER) &&
              (returnType.single_var.type == returnType.single_var.type.BYTE)))
         {}//throw {/*  appropriate exception */}; //function return different type
@@ -518,12 +524,12 @@ public:
     }
 
     void verifyExpIsBool(parsedData expType){
-        type temp(BOOL);
-        if(!expType.single_var.type == temp)
+        Type temp = temp.BOOL;
+        if(!(expType.single_var.type == temp))
         {}//throw {/*  appropriate exception */}; //expected boolean type
     }
 
-    void verityFunctionCall(parsedData idInput,parsedData inputList){
+    void verifyFunctionCall(parsedData idInput,parsedData inputList){
         assert(inputList.kind == inputList.LIST);
 
         if(!containsFunctionName(idInput.single_var.name))
@@ -535,14 +541,15 @@ public:
         auto funIterator = functionInputList.cbegin();
         auto inputIterator = actualInputTypes.cbegin();
 
-        while(funIterator != functionInputList.cend() && inputIterator != actualInputTypes.cend()){
-            if(!funIterator == inputIterator->type)
+        while(funIterator != functionInputList.cend() && (inputIterator != actualInputTypes.cend())){
+            Type tmp = *funIterator;
+            if(!(tmp == inputIterator->type))
             {}//throw {/*  appropriate exception */}; //wrong function call parameters
             funIterator++;
             inputIterator++;
         }
 
-        if((!funIterator == functionInputList.cend()) || (!inputIterator == actualInputTypes.cend()))
+        if((!(funIterator == functionInputList.cend())) || (!(inputIterator == actualInputTypes.cend())))
         {}//throw {/*  appropriate exception */}; //wrong function call parameters number
 
     }
