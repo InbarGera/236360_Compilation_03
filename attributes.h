@@ -43,7 +43,7 @@ int string_to_num(char* input){
 }
 
 char* remove_double_quotes(char* input){
-    char* res = malloc(strlen(input)* sizeof(char));
+    char* res = (char*)malloc(strlen(input)* sizeof(char));
     strcpy(res,input+1);
     res[strlen(res) - 1] = '\0';
     return res;
@@ -59,7 +59,7 @@ public:
     typeKind arrayType;
 
     Type() : kind(VOID), arrayLength(-1) {
-        arrayType = Type::typeKind::VOID;
+        arrayType = Type::VOID;
     };
 
     Type(typeKind Kind) : kind(Kind), arrayLength(-1){
@@ -127,7 +127,7 @@ public:
     int value;
     VarInfo() : value(0){};
     VarInfo(Type type): value(0),VarBase(type) {};
-    VarInfo(int val) : VarBase(string(),Type::typeKind::INTEGER) {};
+    VarInfo(int val) : VarBase(string(),Type::INTEGER) {};
     VarInfo(int val, string str, Type::typeKind kind):
             value(val), VarBase(str,kind){};
     VarInfo(int val, string str, Type::typeKind kind, int len):
@@ -155,14 +155,14 @@ public:
 
     string toString(){
         function temp = *this;
-        list<string> inputTypes;
+        vector<string> inputTypes;
         while(!temp.inputTypes.empty()){
             Type temp2 = temp.inputTypes.back();
-            inputTypes.push_front(temp2.toString());
+            inputTypes.push_back(temp2.toString());
             temp.inputTypes.pop_back();
         }
 
-        return makeFunctionType(temp.return_type.toString(),inputTypes);
+        return makeFunctionType(temp.return_type.toString(),inputTypes); // to reverse inputTypes
     }
 };
 
@@ -190,10 +190,10 @@ public:
                 single_var = VarInfo(string_to_num(tmp_yytext));
                 break;
             case IS_ID:
-                single_var = VarInfo(0,string(tmp_yytext), Type::typeKind::VOID);
+                single_var = VarInfo(0,string(tmp_yytext), Type::VOID);
                 break;
             case IS_STR:
-                single_var = VarInfo(0,string(remove_double_quotes(tmp_yytext)),Type::typeKind::STRING);
+                single_var = VarInfo(0,string(remove_double_quotes(tmp_yytext)),Type::STRING);
                 break;
             case IS_ARRAY:
                 //TODO
@@ -213,7 +213,7 @@ public:
         single_var = data1.single_var;
         switch (data2.kind){
             case SINGLE:
-                single_var.type = Type(Type::typeKind::BYTE);
+                single_var.type = Type(Type::BYTE);
                 if(data1.single_var.value > 255 || data1.single_var.value < 0)
                     throw;      //TODO
             case ARRAY:
@@ -243,8 +243,8 @@ public:
             throw ;     //TODO
     }
     bool isInteger(){
-        Type int_t = Type(Type::typeKind::INTEGER);
-        Type byte_t = Type(Type::typeKind::BYTE);
+        Type int_t = Type(Type::INTEGER);
+        Type byte_t = Type(Type::BYTE);
         return (getType()==int_t || getType()==byte_t);
     }
 
@@ -268,7 +268,7 @@ public:
     parsedExp(parsedExp exp, binOps ops){
         if(ops == BOOL_OP)
             if (exp.isBool()){
-                *this =  parsedExp(Type(Type::typeKind::BOOL));
+                *this =  parsedExp(Type(Type::BOOL));
             }
         throw;      //TODO
     }
@@ -276,13 +276,13 @@ public:
         switch (ops){
             case REL_OP:
                 if(exp1.isInteger() && exp2.isInteger()) {
-                    *this = parsedExp(Type(Type::typeKind::BOOL));
+                    *this = parsedExp(Type(Type::BOOL));
                 }
                 else
                     throw;      //TODO
             case BOOL_OP:
                 if(exp1.isBool() && exp2.isBool()) {
-                    *this = parsedExp(Type(Type::typeKind::BOOL));
+                    *this = parsedExp(Type(Type::BOOL));
                 }
                 else
                     throw;      //TODO
@@ -307,16 +307,16 @@ public:
 
 
     bool isInteger(){
-        Type int_t = Type(Type::typeKind::INTEGER);
-        Type byte_t = Type(Type::typeKind::BYTE);
+        Type int_t = Type(Type::INTEGER);
+        Type byte_t = Type(Type::BYTE);
         return (getType()==int_t || getType()==byte_t);
     }
     bool isBool(){
-        return getType()==Type(Type::typeKind::BOOL);
+        return getType()==Type(Type::BOOL);
     }
     parsedData maxRange(parsedExp exp1, parsedExp exp2) {
-        Type int_t = Type(Type::typeKind::INTEGER);
-        Type byte_t = Type(Type::typeKind::BYTE);
+        Type int_t = Type(Type::INTEGER);
+        Type byte_t = Type(Type::BYTE);
         if (exp1.getType() == int_t || exp2.getType() == int_t)
             return parsedExp(int_t);
         else if (exp1.getType() == byte_t && exp2.getType() == byte_t)
@@ -337,6 +337,11 @@ public:
     bool isWhileScope; // for the break command, make sure it is valid
 
     scope(){} // in case of the first scope scope
+
+    scope(const scope& s){
+        functions = s.functions;
+        scopesList = s.scopesList;
+    }
 
     scope(int nextIdLocation, bool isWhileScope) : nextIdLocation(nextIdLocation), isWhileScope(isWhileScope){}
 
@@ -370,10 +375,13 @@ public:
     list<scope> scopesList;
 
     Id getId(string name){
-        for(scope& s : scopesList)
-            for(Id& id : s.IdList)
-                if(id.name == name)
+        list<scope> allScopes(scopesList);
+
+        for(scope s = allScopes.front(); !allScopes.empty(); allScopes.pop_front(), s = allScopes.front()) {
+            for (Id id = s.IdList.front(); !s.IdList.empty(); s.IdList.pop_front(), id = s.IdList.front())
+                if (id.name == name)
                     return id;
+        }
         assert(0);
     }
 
