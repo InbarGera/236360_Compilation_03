@@ -37,12 +37,26 @@ break		        			return BREAK;
 (<|>|<=|>=)		 	        	return RELOP;
 [+-]					        return PLUS_MINUS;
 [\/\*]				        	return MUL_DIV;
-[a-zA-Z][a-zA-Z0-9]* 	        	{yylval = parsedData(yytext, IS_ID);  return ID;}
-(0|[1-9][0-9]*) 			        {yylval = parsedData(yytext, IS_INT); return NUM;}
-\"([^\n\r\"\\]|\\[rnt"\\])+\" 		{yylval = parsedData(yytext, IS_STR); return STRING;}
+[a-zA-Z][a-zA-Z0-9]* 	        	{yylval = new parsedData(yytext, IS_ID);  return ID;}
+(0|[1-9][0-9]*) 			        {yylval = new parsedData(yytext, IS_INT); return NUM;}
+\"([^\n\r\"\\]|\\[rnt"\\])+\" 		{yylval = new parsedData(yytext, IS_STR); return STRING;}
 \/\/[^\r\n]*[\r|\n|\r\n]?			    {}
 [ \n|\r|\t]				{}
 
 %%
+/*  MOVED TO THE H FILE
+int string_to_num(char* input){
+    int sum =0;
+    while(input[0] != '\0'){
+        sum = sum*10 + (input++[0] - '0');
+    }
+    return sum;
+}
 
-
+char* remove_double_quotes(char* input){
+    char* res = malloc(strlen(input));
+    strcpy(res,input+1);
+    res[strlen(res) - 1] = '\0';
+    return res;
+}
+ */

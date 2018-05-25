@@ -52,19 +52,19 @@ Formals	:	                    {$$ = new parsedData();}  //Lior
 Type_ID : Type ID       {$$ = new parsedData(*$1, *$2);}    //Lior
 		;
 
-FormalsList	:	FormalDecl FormalsList2         { /*$$ = { FormalDecl merge FormalsList2 } ;*/ }   //Lior
+FormalsList	:	FormalDecl FormalsList2        {  $$ = new parsedData(*$1,*$2) ;}
 			;
 
-FormalsList2 :       {/* $$ = {new empty list or retType}; */}    //Lior
-			 |	COMMA FormalsList       {/* $$ = { merge FormalsList to $$} ;*/}    //Lior
+FormalsList2 :                          { $$ = new parsedData(); }
+			 |	COMMA FormalsList       { $$ = new parsedData(*$2, IS_CALL); }
 			 ;
 
 FormalDecl :	Type_ID	FormalDecl2     { scopesList->addId(*$1,*$1,*$2);
-                                            /*$$ = new retType list with one node contains the data of $! and $2 */}     //Lior
+                                         $$ = new parsedData(*$1, *$2);}     //Lior
 			;
 
 FormalDecl2	:
-			| 	LBRACK NUM_T RBRACK     {/*add information about array  */}         //Lior
+			| 	LBRACK NUM_T RBRACK     {$$ = new parsedData(*$2,IS_ARRAY)}         //Lior
 			;
 
 NUM_T :	NUM NUM_T2  {$$ = new parsedData(*$1, *$2); /*TODO add type/byte check */	}    //Lior

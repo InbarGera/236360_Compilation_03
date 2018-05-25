@@ -172,6 +172,7 @@ class parsedData{
 public:
     enum DataKind {
         SINGLE,
+        ARRAY,
         LIST,
         UNDEF
     };
@@ -210,13 +211,21 @@ public:
         if(data2.kind != UNDEF)
             kind = data2.kind;
         single_var = data1.single_var;
-        if(data2.kind == SINGLE){   //we are in the NUM_T case
-            single_var.type = Type(Type::typeKind::BYTE);
+        switch (data2.kind){
+            case SINGLE:
+                single_var.type = Type(Type::typeKind::BYTE);
+                if(data1.single_var.value > 255 || data1.single_var.value < 0)
+                    throw;      //TODO
+            case ARRAY:
+                single_var.type =
+                        Type(data1.single_var.type.kind, data2.single_var.type.arrayLength);
+            case LIST:
+                list_of_vars = data2.list_of_vars;
+                list_of_vars.push_front(data1.single_var);
+            default:
+                throw; //TODO
         }
-        else if(data2.kind == LIST){ //we are in the EXPLIST case
-            list_of_vars = data2.list_of_vars;
-            list_of_vars.push_front(data1.single_var);
-        }
+
     }
     parsedData(parsedData& data, GrammerVar g_var){
         if (g_var == IS_CALL){
@@ -225,6 +234,13 @@ public:
             if(data.list_of_vars.size() == 0)
                 list_of_vars.push_front(data.single_var);
         }
+        else if(g_var == IS_ARRAY){
+            kind = ARRAY;
+            single_var.type =
+                    Type(data.single_var.type.kind, data.single_var.value );
+        }
+        else
+            throw ;     //TODO
     }
     bool isInteger(){
         Type int_t = Type(Type::typeKind::INTEGER);
@@ -242,6 +258,7 @@ public:
         return single_var.value;
     }
 };
+
 #define YYSTYPE parsedData*	// Tell Bison to use STYPE as the stack type
 
 class parsedExp : public parsedData {
