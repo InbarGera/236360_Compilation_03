@@ -51,10 +51,10 @@ Formals	:	                    {$$ = new parsedData();}  //Lior
 Type_ID : Type ID       {$$ = new parsedData(*$1, *$2);}    //Lior
 		;
 
-FormalsList	:	FormalDecl FormalsList2        {  $$ = new parsedData(*$1,*$2) ;}
+FormalsList	:	FormalDecl FormalsList2        { $$ = new parsedData(*$1,*$2) ;}
 			;
 
-FormalsList2 :                          { $$ = new parsedData(); }
+FormalsList2 :                          {parsedData temp; $$ = new parsedData(temp,IS_CALL); }
 			 |	COMMA FormalsList       { $$ = new parsedData(*$2, IS_CALL); }
 			 ;
 
@@ -69,8 +69,8 @@ FormalDecl2	:
 NUM_T :	NUM NUM_T2  {$$ = new parsedData(*$1, *$2); /*TODO add type/byte check */	}    //Lior
 		;
 
-NUM_T2 :                 {$$ = new parsedData();}     //Lior
-		| B              {	Type tmp; $$ = new parsedData(tmp.BYTE);}    //Lior
+NUM_T2 :                 {$$ = new parsedData(Type::INTEGER);}     //Lior
+		| B              {$$ = new parsedData(Type::BYTE);}    //Lior
 		;
 
 

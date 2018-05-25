@@ -180,8 +180,11 @@ public:
     VarInfo single_var;
     list<VarInfo> list_of_vars;
 
-    parsedData() : kind(UNDEF){};
-    parsedData(Type type):kind(SINGLE), single_var(type){ };
+    parsedData() : kind(UNDEF){
+        cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" << endl;
+    };
+
+    parsedData(Type type) : kind(SINGLE), single_var(type){};
     parsedData(char* tmp_yytext, GrammerVar g_var) {
         kind = SINGLE;
         switch (g_var) {
@@ -194,10 +197,12 @@ public:
             case IS_STR:
                 single_var = VarInfo(0,string(remove_double_quotes(tmp_yytext)),Type::STRING);
                 break;
-            case IS_ARRAY:
+            case IS_ARRAY: {
                 //TODO
-            case IS_CALL:
+            }break;
+            case IS_CALL: {
                 //TODO
+            }break;
             default:
                 throw;      //TODO
         }
@@ -206,6 +211,7 @@ public:
         single_var.type = type;
         single_var.name = data.getName();
     }
+
     parsedData(parsedData& data1, parsedData& data2){
         if(data2.kind != UNDEF)
             kind = data2.kind;
