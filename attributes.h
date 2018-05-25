@@ -138,7 +138,10 @@ class Id : public VarBase{
 public:
     int offset;
 
-    Id(Type type, int offset, string name) : VarBase(name, type), offset(offset){};
+    Id(Type type_t, int offset, string name_t) : offset(offset){
+        this->type = type_t;
+        this->name = name_t;
+    };
 };
 
 class function{
@@ -147,11 +150,11 @@ public:
     Type return_type;
     list<Type> inputTypes;
     function();
-    function(string idName, Type return_type, list<Type> inputTypes) :
-            string(string), return_type(return_type), inputTypes(inputTypes){};
+    function(string idName_t, Type return_type_t, list<Type> inputTypes_t) :
+            idName(idName_t), return_type(return_type_t), inputTypes(inputTypes_t){};
 
     string toString(){
-        function temp = this;
+        function temp = *this;
         list<string> inputTypes;
         while(!temp.inputTypes.empty()){
             Type temp2 = temp.inputTypes.back();
@@ -270,7 +273,7 @@ public:
                 try{
                     *this = maxRange(exp1, exp2);
                 }
-                catch (){
+                catch (...){
                     throw;      //TODO
                 }
             default:
@@ -294,7 +297,7 @@ public:
     bool isBool(){
         return getType()==Type(Type::typeKind::BOOL);
     }
-    Type maxRange(parsedExp exp1, parsedExp exp2) {
+    parsedData maxRange(parsedExp exp1, parsedExp exp2) {
         Type int_t = Type(Type::typeKind::INTEGER);
         Type byte_t = Type(Type::typeKind::BYTE);
         if (exp1.getType() == int_t || exp2.getType() == int_t)
