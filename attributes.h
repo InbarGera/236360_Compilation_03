@@ -328,6 +328,7 @@ public:
     }
 };
 
+
 class scopes{
 public:
     list<function> functions;
@@ -388,7 +389,7 @@ public:
 
         // input check
         if(containsFunctionName(name)) errorUndefFunc(lineno,name);
-        if(name == "main" &&(returnType.kind != VOID || !functionInputTypes.empty())) throw {/* appropriate exception*/};
+        if(name == "main" &&(returnType.kind != VOID || !functionInputTypes.empty())) {}//throw {/* appropriate exception*/};
 
         // inserting to the function list
         function temp(name, returnType, functionInputTypes);
@@ -399,13 +400,13 @@ public:
         assert(Id.kind == Id.SINGLE);
         assert(type.kind == type.SINGLE);
 
-        if(containsIdName(Id.single_var.name)) throw {/* appropriate exception*/};
+        if(containsIdName(Id.single_var.name)) {}//throw {/* appropriate exception*/};
 
         Type newType;
         if(isArray.single_var.type.kind == isArray.single_var.type.ARRAY){
 
             if(isArray.single_var.value < 0 || isArray.single_var.value > 256)
-                throw {/* appropriate exception*/}; // array size not good
+            {}//throw {/* appropriate exception*/}; // array size not good
 
             newType.kind = newType.ARRAY;
             newType.arrayType = type.single_var.type.kind;
@@ -419,7 +420,7 @@ public:
     }
 
     void addIdNotArray(parsedData type){
-        if(containsIdName(type.single_var.name)) throw {/* appropriate exception*/};
+        if(containsIdName(type.single_var.name)) {}//throw {/* appropriate exception*/};
 
         scopesList.front().addId(type.single_var.type,type.single_var.name);
     }
@@ -466,64 +467,64 @@ public:
     }
 
     void verifyAssign(parsedData Id,parsedData exp){
-        if(!containsIdName(Id.single_var.name)) throw {/*  appropriate exception */}; // id not found
+        if(!containsIdName(Id.single_var.name)) {}//throw {/*  appropriate exception */}; // id not found
 
         Type idType = Id.single_var.type;
         if((!idType == exp.single_var.type) && // the types are different, and it is not a case of assign byte to int
                 (!(idType.kind == idType.INTEGER) && (exp.single_var.type.kind == exp.single_var.type.BYTE)))
-            throw {/*  appropriate exception */}; // incompatible types
+        {}//throw {/*  appropriate exception */}; // incompatible types
     }
 
     void verifyAssignToArray(parsedData idInput, parsedData arrIndex, parsedData assigned){
 
         if(!containsIdName(idInput.single_var.name))
-            throw {/*  appropriate exception */}; //id not found
+        {}//throw {/*  appropriate exception */}; //id not found
 
         Type idType = getId(idInput.single_var.name)->type;
         Type indexType = arrIndex.single_var.type;
         Type assignedType = assigned.single_var.type;
 
         if(!idType.kind == idType.ARRAY)
-            throw {/*  appropriate exception */}; // id is not array
+        {}//throw {/*  appropriate exception */}; // id is not array
 
         if((!indexType.kind == indexType.BYTE) &&
                 (!indexType.kind == indexType.INTEGER))
-            throw {/*  appropriate exception */}; // array index is not of numeric type
+        {}//throw {/*  appropriate exception */}; // array index is not of numeric type
 
         if(!idType.arrayType == assignedType.kind && // the types are different, and it is not a case of assign byte to int
            (!(idType.arrayType == idType.INTEGER) && (assignedType.kind == assignedType.BYTE)))
-            throw {/*  appropriate exception */}; // array type is not compatible with exp type
+        {}//throw {/*  appropriate exception */}; // array type is not compatible with exp type
     }
 
     void verifyReturnTypeVoid(){
         Type temp(VOID);
         if(!functions.front().return_type == temp)
-            throw {/*  appropriate exception */}; //function return different type
+        {}//throw {/*  appropriate exception */}; //function return different type
     }
 
     void verifyReturnType(parsedData returnType){
         if((!functions.front().return_type == returnType.single_var.type) &&
                 !((functions.front().return_type == functions.front().return_type.INTEGER) &&
                         (returnType.single_var.type == returnType.single_var.type.BYTE)))
-            throw {/*  appropriate exception */}; //function return different type
+        {}//throw {/*  appropriate exception */}; //function return different type
     }
 
     void verifyBreakBlock(){
         if(!scopesList.front().isWhileScope)
-            throw {/*  appropriate exception */}; //break in middle of not while scope
+        {}//throw {/*  appropriate exception */}; //break in middle of not while scope
     }
 
     void verifyExpIsBool(parsedData expType){
         type temp(BOOL);
         if(!expType.single_var.type == temp)
-            throw {/*  appropriate exception */}; //expected boolean type
+        {}//throw {/*  appropriate exception */}; //expected boolean type
     }
 
     void verityFunctionCall(parsedData idInput,parsedData inputList){
         assert(inputList.kind == inputList.LIST);
 
         if(!containsFunctionName(idInput.single_var.name))
-            throw {/*  appropriate exception */}; //no such function
+        {}//throw {/*  appropriate exception */}; //no such function
 
         list<Type> functionInputList = getFunction(idInput.single_var.name).inputTypes;
         list<VarInfo> actualInputTypes = inputList.list_of_vars;
@@ -533,22 +534,22 @@ public:
 
         while(funIterator != functionInputList.cend() && inputIterator != actualInputTypes.cend()){
             if(!funIterator == inputIterator->type)
-                throw {/*  appropriate exception */}; //wrong function call parameters
+            {}//throw {/*  appropriate exception */}; //wrong function call parameters
             funIterator++;
             inputIterator++;
         }
 
         if((!funIterator == functionInputList.cend()) || (!inputIterator == actualInputTypes.cend()))
-            throw {/*  appropriate exception */}; //wrong function call parameters number
+        {}//throw {/*  appropriate exception */}; //wrong function call parameters number
 
     }
 
     void verifyNoParametersFunctionCall(parsedData idInput){
         if(!containsFunctionName(idInput.single_var.name))
-            throw {/*  appropriate exception */}; //no such function
+        {}//throw {/*  appropriate exception */}; //no such function
 
         if(!getFunction(idInput.single_var.name).inputTypes.empty())
-            throw {/*  appropriate exception */}; //wrong function call parameters number
+        {}//throw {/*  appropriate exception */}; //wrong function call parameters number
     }
 
    ~scopes() {
