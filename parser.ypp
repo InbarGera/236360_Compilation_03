@@ -33,12 +33,12 @@ Program	:	Funcs
 Funcs :
 		|	Function Funcs
 		;
-Function : FunctionDefinition LBRACE Statements RBRACE_t
+Function : FunctionDefinition LBRACE_t Statements RBRACE_t      {cout << "parsed function" << endl;}
         ;
 
 
 FunctionDefinition : RetType ID LPAREN Formals RPAREN {scopesList->addFunction(*$1,*$2,*$4);
-                                                        scopesList->newFunctionScope(*$2,*$4);}
+                                                        scopesList->newFunctionScope(*$2);}
                    ;
 
 RetType : Type          {$$ = $1;}      //Lior
@@ -69,15 +69,26 @@ NUM_T2 :                 {$$ = new parsedData(Type::INTEGER);}     //Lior
 
 
 Statements  :   Statement
-			|   Statement Statements    {cout << "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC" << endl;}
+			|   Statement Statements
 			;
 
 Statement : 	LBRACE_t Statements RBRACE_t
 			|	Type_ID SC          {scopesList->addIdNotArray(*$1);}
 			|	Type_ID ASSIGN Exp SC           {scopesList->addIdNotArray(*$1); scopesList->verifyAssign(*$1,*$3);}
 			|	Type_ID LBRACK NUM_T RBRACK SC      {scopesList->addIdArray(*$1,*$1,*$3);}
-			|	ID ASSIGN Exp SC        {scopesList->verifyAssign(*$1,*$3);}
-			|	ID LBRACK Exp RBRACK ASSIGN Exp SC  {scopesList->verifyAssignToArray(*$1,*$3,*$6);}
+			|	ID ASSIGN Exp SC        {if (scopesList->containsIdName($1->getName())){
+                                         		  scopesList->verifyAssign(*$1,*$3);
+                                         		  }
+                                         		  else
+                                         		    throw;  //TODO
+
+                                         		  }
+			|	ID LBRACK Exp RBRACK ASSIGN Exp SC  {if (scopesList->containsIdName($1->getName())){
+                                                         scopesList->verifyAssignToArray(*$1,*$3,*$6);
+                                                         } else
+                                                                  throw;  //TODO
+
+                                                    }
 			|	Call SC             // done
 			|	RETURN SC           {scopesList->verifyReturnTypeVoid();}
 			|	RETURN Exp SC       {scopesList->verifyReturnType(*$2);}
@@ -135,6 +146,9 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 		| 	ID                      {if (scopesList->containsIdName($1->getName())){
 		                                $$ = new parsedExp(scopesList->getId($1->getName()).type);
 		                                }
+		                                else
+		                                    throw;      //TODO
+
 		                            }
 		|	Call                    {$$ = $1;}
 		|	NUM_T	                {$$ = new parsedExp(*$1);}

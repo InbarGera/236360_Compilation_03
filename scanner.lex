@@ -42,7 +42,7 @@ break		        			return BREAK;
 (0|[1-9][0-9]*) 			        {yylval = new parsedData(yytext, IS_INT); return NUM;}
 \"([^\n\r\"\\]|\\[rnt"\\])+\" 		{yylval = new parsedData(yytext, IS_STR); return STRING;}
 \/\/[^\r\n]*[\r|\n|\r\n]?			    {}
-[ \n|\r|\t]				{}
+[ \n|\r|\t]+				{}
 .                       exit(1);
 
 %%

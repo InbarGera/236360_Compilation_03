@@ -180,9 +180,7 @@ public:
     VarInfo single_var;
     list<VarInfo> list_of_vars;
 
-    parsedData() : kind(UNDEF){
-        cout << "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" << endl;
-    };
+    parsedData() : kind(UNDEF){ };
 
     parsedData(Type type) : kind(SINGLE), single_var(type){};
     parsedData(char* tmp_yytext, GrammerVar g_var) {
@@ -264,7 +262,7 @@ public:
                 single_var.name = data1.single_var.name;
                 single_var.type =
                         Type(data1.single_var.type.kind, data2.single_var.value );
-           }
+            }
             else
                 throw;      //TODO
         }
@@ -387,17 +385,21 @@ public:
 
     Id getId(string name){
         list<scope> allScopes(scopesList);
-
+        cout << "trying to GET the  ID:  " << name << endl;
         if(allScopes.size() == 0)
             assert(0);
 
         for(scope s = allScopes.front(); allScopes.size() > 1; allScopes.pop_front(), s = allScopes.front()) {
             if (s.IdList.size() == 0)
                 continue;
-            for (Id id = s.IdList.front(); s.IdList.size() > 1; s.IdList.pop_front(), id = s.IdList.front())
+            for (Id id = s.IdList.front(); s.IdList.size() > 1; s.IdList.pop_front(), id = s.IdList.front()){
+
+                cout << "checking if " << id.name << "   ==?   " << name << endl;
+
                 if (id.name == name)
                     return id;
         }
+    }
         assert(0);
     }
 
@@ -418,14 +420,16 @@ public:
 
         if(allScopes.size() == 0)
             return false;
-
+        cout << "trying to find (bool) ID:  " << name << endl;
         for(scope s = allScopes.front(); allScopes.size() > 1; allScopes.pop_front(), s = allScopes.front()) {
             if (s.IdList.size() == 0)
                 continue;
-            for (Id id = s.IdList.front(); s.IdList.size() > 1; s.IdList.pop_front(), id = s.IdList.front())
+            for (Id id = s.IdList.front(); s.IdList.size() > 1; s.IdList.pop_front(), id = s.IdList.front()){
+                cout << "checking if " << id.name << " == " << name << endl;
                 if (id.name == name)
                     return true;
         }
+    }
         return false;
     }
 
@@ -489,12 +493,16 @@ public:
         newType.arrayLength = arraySize.single_var.value;
 
         scopesList.front().addId(newType,Id.single_var.name);
+
+        cout << "\n\n\nadded array: " << Id.single_var.name << endl;
     }
 
     void addIdNotArray(parsedData type){
         if(containsIdName(type.single_var.name)) {}//throw {/* appropriate exception*/};
 
         scopesList.front().addId(type.single_var.type,type.single_var.name);
+        cout << "\n\n\nadded ID (not array): " << type.single_var.name << endl;
+
     }
 
     void newRegularScope(bool isWhileScope){
@@ -506,10 +514,11 @@ public:
         scopesList.push_front(temp);
     }
 
-    void newFunctionScope(parsedData functionId, parsedData inputVars){
+    void newFunctionScope(parsedData inputVars){
 
         int newNextIdLocation = scopesList.front().nextIdLocation;
-        scope newScope(newNextIdLocation,false);// false because opening a function means that we are not in a while scope
+        scope temp(newNextIdLocation,false);// false because opening a function means that we are not in a while scope
+        scopesList.push_front(temp);
 
         // functions are always at the begin of the scope list, so for inserting the input values we will use a bit of
         // a hack, just manually insert the parameters to the next scope, without changing nextIdLocation.
@@ -517,12 +526,10 @@ public:
         int i = -1;
 
         while(!inputVars.list_of_vars.empty()){
-            Id temp(inputVars.list_of_vars.front().type,i,inputVars.list_of_vars.front().name);
-            newScope.IdList.push_back(temp);
+            Id temp(inputVars.list_of_vars.front().type,i--,inputVars.list_of_vars.front().name);
+            scopesList.front().IdList.push_back(temp);
             inputVars.list_of_vars.pop_front();
-            i -= inputVars.list_of_vars.front().type.size();
         }
-        scopesList.push_front(newScope);
     }
 
     void removeScope(){
