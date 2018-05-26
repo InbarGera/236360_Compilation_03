@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include "output.hpp"
 #include <sstream>
+#include <exception>
+
 
 using std::cout;
 using std::endl;
@@ -31,7 +33,7 @@ enum binOps {
     BOOL_OP,
     MATH_OP
 };
-
+extern int yylineno;
 //=========================== HELPER FUNCTIONS =============================//
 static int string_to_num(char* input){
     int sum =0;
@@ -47,6 +49,95 @@ static char* remove_double_quotes(char* input){
     res[strlen(res) - 1] = '\0';
     return res;
 }
+
+//============================================ ERROR HANDLING ===============================================//
+class parsingExceptions : std::exception {
+public:
+    enum errType {
+        ERR_LEX,
+        ERR_SYN,
+        ERR_UNDEF,
+        ERR_DEF,
+        ERR_UNDEF_FUN,
+        ERR_MISMATCH,
+        ERR_PROTOTYPE_MISMATCH,
+        ERR_UNEXPECTED_BREAK,
+        ERR_MAIN_MISSING,
+        ERR_BYTE_TOO_LARGE,
+        ERR_INVALID_ARRAY_SIZE,
+        ERR_UNKNOWN_ERROR
+    };
+    bool print_now;
+    errType err_type;
+    int lineno;
+    string id;
+    vector<string> argTypes;
+    parsingExceptions(errType err_type_t) :print_now(false), err_type(err_type_t){};
+    parsingExceptions(errType err_type_t, int lineno_t) : print_now(true),
+                                                          err_type(err_type_t), lineno(lineno_t){};
+    parsingExceptions(errType err_type_t, int lineno_t, string id_t):print_now(true),
+                                                                     err_type(err_type_t), lineno(lineno_t), id(id_t){};
+    parsingExceptions(errType err_type_t, int lineno_t, string id_t, vector<string> argTypes_t) :
+            print_now(true), err_type(err_type_t), lineno(lineno_t), argTypes(argTypes_t){};
+
+    ~parsingExceptions() throw() {
+        if (print_now) {
+            switch (err_type) {
+                case ERR_LEX: {
+                    errorLex(lineno);
+                }
+                    break;
+                case ERR_SYN: {
+                    errorSyn(lineno);
+                }
+                    break;
+                case ERR_UNDEF: {
+                    errorUndef(lineno, id);
+                }
+                    break;
+                case ERR_DEF: {
+                    errorDef(lineno, id);
+                }
+                    break;
+                case ERR_UNDEF_FUN: {
+                    errorUndefFunc(lineno, id);
+                }
+                    break;
+                case ERR_MISMATCH: {
+                    errorMismatch(lineno);
+                }
+                    break;
+                case ERR_PROTOTYPE_MISMATCH: {
+                    errorPrototypeMismatch(lineno, id, argTypes);
+                }
+                    break;
+                case ERR_UNEXPECTED_BREAK: {
+                    errorUnexpectedBreak(lineno);
+                }
+                    break;
+                case ERR_MAIN_MISSING: {
+                    errorMainMissing();
+                }
+                    break;
+                case ERR_BYTE_TOO_LARGE: {
+                    errorByteTooLarge(lineno, id);
+                }
+                    break;
+                case ERR_INVALID_ARRAY_SIZE: {
+                    errorInvalidArraySize(lineno, id);
+                }
+                    break;
+                case ERR_UNKNOWN_ERROR: {
+                    cout << "received an unknown error!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+                }
+                    break;
+            }
+        }
+
+    }
+
+};
+
 
 //=========================== DATA TYPES ===============================//
 class Type{
@@ -81,22 +172,22 @@ public:
     static string typeKindToString(typeKind kind){
         switch(kind) {
             case VOID : {
-                return "VOID";
+                return string("VOID");
             }
             case BOOL : {
-                return "BOOL";
+                return string("BOOL");
             }
             case INTEGER : {
-                return "INTEGER";
+                return string("INTEGER");
             }
             case BYTE : {
-                return "BYTE";
+                return string("BYTE");
             }
             case STRING : {
-                return "STRING";
+                return string("STRING");
             }
             case ARRAY : {
-                return "ARRAY";
+                return string("ARRAY");
             }
             default: {
                 assert(0);
@@ -186,15 +277,17 @@ public:
     parsedData(char* tmp_yytext, GrammerVar g_var) {
         kind = SINGLE;
         switch (g_var) {
-            case IS_INT:
+            case IS_INT: {
                 single_var = VarInfo(string_to_num(tmp_yytext));
-                break;
-            case IS_ID:
-                single_var = VarInfo(0,string(tmp_yytext), Type::VOID);
-                break;
-            case IS_STR:
-                single_var = VarInfo(0,string(remove_double_quotes(tmp_yytext)),Type::STRING);
-                break;
+            }break;
+            case IS_ID: {
+                single_var = VarInfo(0, string(tmp_yytext), Type::VOID);
+            }break;
+            case IS_STR: {
+                char *tmp = remove_double_quotes(tmp_yytext);
+                single_var = VarInfo(0, string(tmp), Type::STRING);
+                free(tmp);
+            }break;
             case IS_ARRAY: {
                 //TODO
             }break;
@@ -202,7 +295,7 @@ public:
                 //TODO
             }break;
             default:
-                throw;      //TODO
+                throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
         }
     }
     parsedData(Type type, parsedData& data) : kind(SINGLE){
@@ -221,8 +314,8 @@ public:
                 single_var.type = data1.single_var.type;
                 single_var.value = data1.single_var.value;
                 if(single_var.type.kind == Type::BYTE) {
-                    if (data1.single_var.value > 255 || data1.single_var.value < 0)
-                        throw;      //TODO
+                    if (data1.single_var.value > 256 || data1.single_var.value < 0)
+                        throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE);      //TODO
                 }
             }break;
             case ARRAY: {
@@ -234,7 +327,7 @@ public:
                 list_of_vars.push_front(data1.single_var);
             }break;
             default:
-                throw; //TODO
+                throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR); //TODO
         }
 
     }
@@ -251,7 +344,7 @@ public:
                     Type(data.single_var.type.kind, data.single_var.value );
         }
         else
-            throw ;     //TODO
+            throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);     //TODO
     }
     parsedData(parsedData& data1, parsedData& data2, GrammerVar g_var){
         if(g_var == IS_ARRAY){
@@ -264,10 +357,10 @@ public:
                         Type(data1.single_var.type.kind, data2.single_var.value );
             }
             else
-                throw;      //TODO
+                throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE);      //TODO
         }
         else
-            throw;          //TODO
+            throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);          //TODO
 
     }
     bool isInteger(){
@@ -297,8 +390,9 @@ public:
         if(ops == BOOL_OP)
             if (exp.isBool()){
                 *this =  parsedExp(Type(Type::BOOL));
-            }
-        throw;      //TODO
+            }else
+                throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
+        throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
     }
     parsedExp(parsedExp exp1, parsedExp exp2, binOps ops){
         switch (ops){
@@ -306,24 +400,19 @@ public:
                 if (exp1.isInteger() && exp2.isInteger()) {
                     *this = parsedExp(Type(Type::BOOL));
                 } else
-                    throw;      //TODO
+                    throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
             }break;
             case BOOL_OP: {
                 if (exp1.isBool() && exp2.isBool()) {
                     *this = parsedExp(Type(Type::BOOL));
                 } else
-                    throw;      //TODO
+                    throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
             }break;
             case MATH_OP: {
-                try {
-                    *this = maxRange(exp1, exp2);
-                }
-                catch (...) {
-                    throw;      //TODO
-                }
+                    *this = maxRange(exp1, exp2);   //maxRange already throws the compatible error
             }break;
             default:
-                throw;          //TODO
+                throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);          //TODO
         }
     }
     parsedExp(parsedData data) : parsedData(data){};
@@ -351,7 +440,7 @@ public:
         else if (exp1.getType() == byte_t && exp2.getType() == byte_t)
             return parsedExp(byte_t);
         else
-            throw;      //TODO
+            throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
     }
 };
 
@@ -469,8 +558,12 @@ public:
         }
 
         // input check
-        if(containsFunctionName(name)) {}//errorUndefFunc(lineno,name); assert
-        if(name == "main" &&(returnType.kind != returnType.VOID || !functionInputTypes.empty())) {}//throw {/* appropriate exception*/};
+        if(containsFunctionName(name)) {
+            throw parsingExceptions(parsingExceptions::ERR_DEF);
+        }//errorUndefFunc(lineno,name); assert
+        if(name == "main" &&(returnType.kind != returnType.VOID || !functionInputTypes.empty())) {
+            throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH);
+        }//throw {/* appropriate exception*/};
 
         // inserting to the function list
         function temp(name, returnType, functionInputTypes);
@@ -481,12 +574,16 @@ public:
         assert(Id.kind == Id.SINGLE);
         assert(type.kind == type.SINGLE);
 
-        if(containsIdName(Id.single_var.name)) {}//throw {/* appropriate exception*/};
+        if(containsIdName(Id.single_var.name)) {
+            throw parsingExceptions(parsingExceptions::ERR_DEF);
+        }//throw {/* appropriate exception*/};
 
         Type newType;
 
         if(arraySize.single_var.value < 0 || arraySize.single_var.value > 256)
-        {}//throw {/* appropriate exception*/}; // array size not good
+        {
+            throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE);
+        }//throw {/* appropriate exception*/}; // array size not good
 
         newType.kind = newType.ARRAY;
         newType.arrayType = type.single_var.type.kind;
@@ -498,7 +595,9 @@ public:
     }
 
     void addIdNotArray(parsedData type){
-        if(containsIdName(type.single_var.name)) {}//throw {/* appropriate exception*/};
+        if(containsIdName(type.single_var.name)) {
+            throw parsingExceptions(parsingExceptions::ERR_DEF);
+        }//throw {/* appropriate exception*/};
 
         scopesList.front().addId(type.single_var.type,type.single_var.name);
         cout << "\n\n\nadded ID (not array): " << type.single_var.name << endl;
@@ -547,64 +646,86 @@ public:
     }
 
     void verifyAssign(parsedData Id,parsedData exp){
-        if(!containsIdName(Id.single_var.name)) {}//throw {/*  appropriate exception */}; // id not found
+        if(!containsIdName(Id.single_var.name)) {
+            throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN);
+        }//throw {/*  appropriate exception */}; // id not found
 
         Type idType = Id.single_var.type;
         if((!(idType == exp.single_var.type)) && // the types are different, and it is not a case of assign byte to int
            (!(idType.kind == idType.INTEGER) && (exp.single_var.type.kind == exp.single_var.type.BYTE)))
-        {}//throw {/*  appropriate exception */}; // incompatible types
+        {
+            throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH);
+        }//throw {/*  appropriate exception */}; // incompatible types
     }
 
     void verifyAssignToArray(parsedData idInput, parsedData arrIndex, parsedData assigned){
 
         if(!containsIdName(idInput.single_var.name))
-        {}//throw {/*  appropriate exception */}; //id not found
+        {
+            throw parsingExceptions(parsingExceptions::ERR_UNDEF);
+        }//throw {/*  appropriate exception */}; //id not found
 
         Type idType = getId(idInput.single_var.name).type;
         Type indexType = arrIndex.single_var.type;
         Type assignedType = assigned.single_var.type;
 
         if(!(idType.kind == idType.ARRAY))
-        {}//throw {/*  appropriate exception */}; // id is not array
+        {
+            throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
+        }//throw {/*  appropriate exception */}; // id is not array
 
         if((!(indexType.kind == indexType.BYTE)) &&
            (!(indexType.kind == indexType.INTEGER)))
-        {}//throw {/*  appropriate exception */}; // array index is not of numeric type
+        {
+            throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE);
+        }//throw {/*  appropriate exception */}; // array index is not of numeric type
 
         if(!(idType.arrayType == assignedType.kind )&& // the types are different, and it is not a case of assign byte to int
            (!(idType.arrayType == idType.INTEGER) && (assignedType.kind == assignedType.BYTE)))
-        {}//throw {/*  appropriate exception */}; // array type is not compatible with exp type
+        {
+            throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
+        }//throw {/*  appropriate exception */}; // array type is not compatible with exp type
     }
 
     void verifyReturnTypeVoid(){
         Type temp(Type::VOID);
         if(!(functions.front().return_type == temp))
-        {}//throw {/*  appropriate exception */}; //function return different type
+        {
+            throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
+        }//throw {/*  appropriate exception */}; //function return different type
     }
 
     void verifyReturnType(parsedData returnType){
         if((!(functions.front().return_type == returnType.single_var.type)) &&
            !((functions.front().return_type == functions.front().return_type.INTEGER) &&
              (returnType.single_var.type == returnType.single_var.type.BYTE)))
-        {}//throw {/*  appropriate exception */}; //function return different type
+        {
+            throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
+        }//throw {/*  appropriate exception */}; //function return different type
     }
 
     void verifyBreakBlock(){
         if(!scopesList.front().isWhileScope)
-        {}//throw {/*  appropriate exception */}; //break in middle of not while scope
+        {
+            throw parsingExceptions(parsingExceptions::ERR_UNEXPECTED_BREAK);
+        }//throw {/*  appropriate exception */}; //break in middle of not while scope
     }
 
     void verifyExpIsBool(parsedData expType){
         Type temp(Type::BOOL);
         if(!(expType.single_var.type == temp))
-        {}//throw {/*  appropriate exception */}; //expected boolean type
+        {
+            throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
+        }//throw {/*  appropriate exception */}; //expected boolean type
     }
 
     void verifyFunctionCall(parsedData idInput,parsedData inputList){
         assert(inputList.kind == parsedData::LIST);
 
         if(!containsFunctionName(idInput.single_var.name))
-        {}//throw {/*  appropriate exception */}; //no such function
+        {
+            throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN);
+        }//throw {/*  appropriate exception */}; //no such function
 
         list<Type> functionInputList = getFunction(idInput.single_var.name).inputTypes;
         list<VarInfo> actualInputTypes = inputList.list_of_vars;
@@ -615,22 +736,30 @@ public:
         while(funIterator != functionInputList.end() && (inputIterator != actualInputTypes.end())){
             Type tmp = *funIterator;
             if(!(tmp == inputIterator->type))
-            {}//throw {/*  appropriate exception */}; //wrong function call parameters
+            {
+                throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH);
+            }//throw {/*  appropriate exception */}; //wrong function call parameters
             funIterator++;
             inputIterator++;
         }
 
         if((!(funIterator == functionInputList.end())) || (!(inputIterator == actualInputTypes.end())))
-        {}//throw {/*  appropriate exception */}; //wrong function call parameters number
+        {
+            throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH);
+        }//throw {/*  appropriate exception */}; //wrong function call parameters number
 
     }
 
     void verifyNoParametersFunctionCall(parsedData idInput){
         if(!containsFunctionName(idInput.single_var.name))
-        {}//throw {/*  appropriate exception */}; //no such function
+        {
+            throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN);
+        }//throw {/*  appropriate exception */}; //no such function
 
         if(!getFunction(idInput.single_var.name).inputTypes.empty())
-        {}//throw {/*  appropriate exception */}; //wrong function call parameters number
+        {
+            throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH);
+        }//throw {/*  appropriate exception */}; //wrong function call parameters number
     }
 
     ~scopes() {
@@ -644,5 +773,17 @@ public:
         }
     }
 };
+
+
+
+
+
+
+
+
+
+
+
+
 
 #endif
