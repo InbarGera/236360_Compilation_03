@@ -7,7 +7,7 @@
 #include <cassert>
 #include <stdlib.h>
 #include "output.hpp"
-#include <sstream>
+#include <sstream>a
 #include <exception>
 
 
@@ -350,7 +350,7 @@ public:
             Type int_t = Type(Type::INTEGER);
             Type byte_t = Type(Type::BYTE);
             if((data2.getType() == int_t || data2.getType() == byte_t)
-                    && (data2.getInteger()>0 && data2.getInteger() <256 )){
+               && (data2.getInteger()>0 && data2.getInteger() <256 )){
                 single_var.name = data1.single_var.name;
                 single_var.type =
                         Type(data1.single_var.type.kind, data2.single_var.value );
@@ -420,7 +420,7 @@ public:
                     throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
             }break;
             case MATH_OP: {
-                    *this = maxRange(exp1, exp2);   //maxRange already throws the compatible error
+                *this = maxRange(exp1, exp2);   //maxRange already throws the compatible error
             }break;
             default:
                 throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);          //TODO
@@ -492,8 +492,8 @@ public:
 
                 if (id.name == name)
                     return id;
+            }
         }
-    }
         assert(0);
     }
     function getFunction(string name){
@@ -520,8 +520,8 @@ public:
                 cout << "checking if " << id.name << " == " << name << endl;
                 if (id.name == name)
                     return true;
+            }
         }
-    }
         return false;
     }
     bool containsFunctionName(string name){
@@ -612,8 +612,7 @@ public:
     void newFunctionScope(parsedData inputVars){
 
         int newNextIdLocation = scopesList.front().nextIdLocation;
-        scope temp(newNextIdLocation,false);// false because opening a function means that we are not in a while scope
-        scopesList.push_front(temp);
+        scope newScope(newNextIdLocation,false);// false because opening a function means that we are not in a while scope
 
         // functions are always at the begin of the scope list, so for inserting the input values we will use a bit of
         // a hack, just manually insert the parameters to the next scope, without changing nextIdLocation.
@@ -621,10 +620,12 @@ public:
         int i = -1;
 
         while(!inputVars.list_of_vars.empty()){
-            Id temp_id(inputVars.list_of_vars.front().type,i--,inputVars.list_of_vars.front().name);
-            scopesList.front().IdList.push_back(temp_id);
+            Id temp(inputVars.list_of_vars.front().type,i,inputVars.list_of_vars.front().name);
+            newScope.IdList.push_back(temp);
             inputVars.list_of_vars.pop_front();
+            i -= inputVars.list_of_vars.front().type.size();
         }
+        scopesList.push_front(newScope);
     }
     void removeScope(){
         scope oldScope = scopesList.front();

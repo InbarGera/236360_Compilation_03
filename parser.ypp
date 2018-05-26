@@ -33,13 +33,13 @@ Program	:	Funcs
 Funcs :
 		|	Function Funcs
 		;
-Function : FunctionDefinition LBRACE_t Statements RBRACE_t      {cout << "parsed function" << endl;}
+Function : FunctionDefinition LBRACE Statements RBRACE_t      {cout << "parsed function" << endl;}
         ;
 
 
 FunctionDefinition : RetType ID LPAREN Formals RPAREN {try{
                                                         scopesList->addFunction(*$1,*$2,*$4);
-                                                        scopesList->newFunctionScope(*$2);
+                                                        scopesList->newFunctionScope(*$4);
                                                         }catch(parsingExceptions& e){
                                                             throw parsingExceptions(e.err_type, yylineno, $1->getName());
                                                         }
