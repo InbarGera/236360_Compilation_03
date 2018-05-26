@@ -4,7 +4,6 @@
 #include <cstring>
 #include <iostream>
 #include <list>
-#include <string>
 #include <cassert>
 #include <stdlib.h>
 #include "output.hpp"
@@ -17,7 +16,7 @@ using std::endl;
 using std::list;
 using std::string;
 using namespace output;
-//================================= ENUMS ===============================//
+//================================= ENUMS ==================================//
 enum GrammerVar{
     NOT_INITIALIZED,
     IS_BOOL,
@@ -33,7 +32,6 @@ enum binOps {
     BOOL_OP,
     MATH_OP
 };
-extern int yylineno;
 //=========================== HELPER FUNCTIONS =============================//
 static int string_to_num(char* input){
     int sum =0;
@@ -50,7 +48,7 @@ static char* remove_double_quotes(char* input){
     return res;
 }
 
-//============================================ ERROR HANDLING ===============================================//
+//============================ ERROR HANDLING ===============================//
 class parsingExceptions : std::exception {
 public:
     enum errType {
@@ -79,67 +77,67 @@ public:
                                                                      err_type(err_type_t), lineno(lineno_t), id(id_t){};
     parsingExceptions(errType err_type_t, int lineno_t, string id_t, vector<string> argTypes_t) :
             print_now(true), err_type(err_type_t), lineno(lineno_t), argTypes(argTypes_t){};
-
-    ~parsingExceptions() throw() {
-        if (print_now) {
-            switch (err_type) {
-                case ERR_LEX: {
-                    errorLex(lineno);
-                }
-                    break;
-                case ERR_SYN: {
-                    errorSyn(lineno);
-                }
-                    break;
-                case ERR_UNDEF: {
-                    errorUndef(lineno, id);
-                }
-                    break;
-                case ERR_DEF: {
-                    errorDef(lineno, id);
-                }
-                    break;
-                case ERR_UNDEF_FUN: {
-                    errorUndefFunc(lineno, id);
-                }
-                    break;
-                case ERR_MISMATCH: {
-                    errorMismatch(lineno);
-                }
-                    break;
-                case ERR_PROTOTYPE_MISMATCH: {
-                    errorPrototypeMismatch(lineno, id, argTypes);
-                }
-                    break;
-                case ERR_UNEXPECTED_BREAK: {
-                    errorUnexpectedBreak(lineno);
-                }
-                    break;
-                case ERR_MAIN_MISSING: {
-                    errorMainMissing();
-                }
-                    break;
-                case ERR_BYTE_TOO_LARGE: {
-                    errorByteTooLarge(lineno, id);
-                }
-                    break;
-                case ERR_INVALID_ARRAY_SIZE: {
-                    errorInvalidArraySize(lineno, id);
-                }
-                    break;
-                case ERR_UNKNOWN_ERROR: {
-                    cout << "received an unknown error!!!!!!!!!!!!!!!!!!!!!!!" << endl;
-                }
-                    break;
+    void printErrMsg(){
+        switch (err_type) {
+            case ERR_LEX: {
+                errorLex(lineno);
             }
+                break;
+            case ERR_SYN: {
+                errorSyn(lineno);
+            }
+                break;
+            case ERR_UNDEF: {
+                errorUndef(lineno, id);
+            }
+                break;
+            case ERR_DEF: {
+                errorDef(lineno, id);
+            }
+                break;
+            case ERR_UNDEF_FUN: {
+                errorUndefFunc(lineno, id);
+            }
+                break;
+            case ERR_MISMATCH: {
+                errorMismatch(lineno);
+            }
+                break;
+            case ERR_PROTOTYPE_MISMATCH: {
+                errorPrototypeMismatch(lineno, id, argTypes);
+            }
+                break;
+            case ERR_UNEXPECTED_BREAK: {
+                errorUnexpectedBreak(lineno);
+            }
+                break;
+            case ERR_MAIN_MISSING: {
+                errorMainMissing();
+            }
+                break;
+            case ERR_BYTE_TOO_LARGE: {
+                errorByteTooLarge(lineno, id);
+            }
+                break;
+            case ERR_INVALID_ARRAY_SIZE: {
+                errorInvalidArraySize(lineno, id);
+            }
+                break;
+            case ERR_UNKNOWN_ERROR: {
+                cout << "received an unknown error!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+            }
+                break;
         }
-
+    }
+    ~parsingExceptions() throw() {
+        if (print_now)
+            printErrMsg();
     }
 
 };
 
 
-//=========================== DATA TYPES ===============================//
+//=========================== DATA TYPES ====================================//
 class Type{
 public:
     enum typeKind {VOID, BOOL, INTEGER, BYTE, STRING, ARRAY};
@@ -256,7 +254,7 @@ public:
     }
 };
 
-//=============================== GRAMMAR VARIABLES CLASSES ================//
+//=============================== GRAMMAR VARIABLES CLASSES =================//
 
 class parsedData{
 public:
@@ -351,7 +349,8 @@ public:
             kind = ARRAY;
             Type int_t = Type(Type::INTEGER);
             Type byte_t = Type(Type::BYTE);
-            if(data2.getType() == int_t || data2.getType() == byte_t){
+            if((data2.getType() == int_t || data2.getType() == byte_t)
+                    && (data2.getInteger()>0 && data2.getInteger() <256 )){
                 single_var.name = data1.single_var.name;
                 single_var.type =
                         Type(data1.single_var.type.kind, data2.single_var.value );
@@ -363,12 +362,6 @@ public:
             throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);          //TODO
 
     }
-    bool isInteger(){
-        Type int_t = Type(Type::INTEGER);
-        Type byte_t = Type(Type::BYTE);
-        return (getType()==int_t || getType()==byte_t);
-    }
-
     Type getType(){
         return single_var.type;
     }
@@ -378,6 +371,24 @@ public:
     int getInteger(){
         return single_var.value;
     }
+    bool isInteger(){
+        Type int_t = Type(Type::INTEGER);
+        Type byte_t = Type(Type::BYTE);
+        return (getType()==int_t || getType()==byte_t);
+    }
+    bool isBool(){
+        return getType()==Type(Type::BOOL);
+    }
+    vector<string> getArgsTypes(){
+        assert(kind == LIST);
+        vector<string> tmp;
+        while(!list_of_vars.empty()){
+            tmp.push_back(list_of_vars.front().name);
+            list_of_vars.pop_front();
+        }
+        return tmp;
+    }
+
 };
 
 #define YYSTYPE parsedData*	// Tell Bison to use STYPE as the stack type
@@ -424,14 +435,7 @@ public:
     }
 
 
-    bool isInteger(){
-        Type int_t = Type(Type::INTEGER);
-        Type byte_t = Type(Type::BYTE);
-        return (getType()==int_t || getType()==byte_t);
-    }
-    bool isBool(){
-        return getType()==Type(Type::BOOL);
-    }
+
     parsedData maxRange(parsedExp exp1, parsedExp exp2) {
         Type int_t = Type(Type::INTEGER);
         Type byte_t = Type(Type::BYTE);
@@ -444,7 +448,7 @@ public:
     }
 };
 
-//=============================== SCOPE HANDLING ================//
+//=============================== SCOPE HANDLING ============================//
 
 class scope{
 public:
@@ -471,7 +475,8 @@ class scopes{
 public:
     list<function> functions;
     list<scope> scopesList;
-
+    bool need_to_print;
+    scopes() : need_to_print(true){};
     Id getId(string name){
         list<scope> allScopes(scopesList);
         cout << "trying to GET the  ID:  " << name << endl;
@@ -491,7 +496,6 @@ public:
     }
         assert(0);
     }
-
     function getFunction(string name){
         list<function> funcs = functions;
 
@@ -503,7 +507,6 @@ public:
                 return fun;
         assert(0);
     }
-
     bool containsIdName(string name){
         list<scope> allScopes(scopesList);
 
@@ -521,7 +524,6 @@ public:
     }
         return false;
     }
-
     bool containsFunctionName(string name){
         list<function> funcs = functions;
 
@@ -533,7 +535,6 @@ public:
                 return true;
         return false;
     }
-
     void addInitialFunction(Type returnType, string name, Type inputType){
         list<Type> functionInputTypes;
         functionInputTypes.push_front(inputType);
@@ -541,7 +542,6 @@ public:
         function temp(name, returnType, functionInputTypes);
         functions.push_front(temp);
     }
-
     void addFunction(parsedData retType,parsedData Id, parsedData functionInputs){
         assert(retType.kind == retType.SINGLE);
         assert(Id.kind == Id.SINGLE);
@@ -569,7 +569,6 @@ public:
         function temp(name, returnType, functionInputTypes);
         functions.push_front(temp);
     }
-
     void addIdArray(parsedData Id,parsedData type,parsedData arraySize){
         assert(Id.kind == Id.SINGLE);
         assert(type.kind == type.SINGLE);
@@ -593,7 +592,6 @@ public:
 
         cout << "\n\n\nadded array: " << Id.single_var.name << endl;
     }
-
     void addIdNotArray(parsedData type){
         if(containsIdName(type.single_var.name)) {
             throw parsingExceptions(parsingExceptions::ERR_DEF);
@@ -603,7 +601,6 @@ public:
         cout << "\n\n\nadded ID (not array): " << type.single_var.name << endl;
 
     }
-
     void newRegularScope(bool isWhileScope){
 
         int nextIdLocation = scopesList.front().nextIdLocation;
@@ -612,7 +609,6 @@ public:
         scope temp(nextIdLocation,oldIsInWhileScope | isWhileScope);
         scopesList.push_front(temp);
     }
-
     void newFunctionScope(parsedData inputVars){
 
         int newNextIdLocation = scopesList.front().nextIdLocation;
@@ -625,12 +621,11 @@ public:
         int i = -1;
 
         while(!inputVars.list_of_vars.empty()){
-            Id temp(inputVars.list_of_vars.front().type,i--,inputVars.list_of_vars.front().name);
-            scopesList.front().IdList.push_back(temp);
+            Id temp_id(inputVars.list_of_vars.front().type,i--,inputVars.list_of_vars.front().name);
+            scopesList.front().IdList.push_back(temp_id);
             inputVars.list_of_vars.pop_front();
         }
     }
-
     void removeScope(){
         scope oldScope = scopesList.front();
 
@@ -644,7 +639,6 @@ public:
 
         scopesList.pop_front();
     }
-
     void verifyAssign(parsedData Id,parsedData exp){
         if(!containsIdName(Id.single_var.name)) {
             throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN);
@@ -657,7 +651,6 @@ public:
             throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH);
         }//throw {/*  appropriate exception */}; // incompatible types
     }
-
     void verifyAssignToArray(parsedData idInput, parsedData arrIndex, parsedData assigned){
 
         if(!containsIdName(idInput.single_var.name))
@@ -686,7 +679,6 @@ public:
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
         }//throw {/*  appropriate exception */}; // array type is not compatible with exp type
     }
-
     void verifyReturnTypeVoid(){
         Type temp(Type::VOID);
         if(!(functions.front().return_type == temp))
@@ -694,7 +686,6 @@ public:
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
         }//throw {/*  appropriate exception */}; //function return different type
     }
-
     void verifyReturnType(parsedData returnType){
         if((!(functions.front().return_type == returnType.single_var.type)) &&
            !((functions.front().return_type == functions.front().return_type.INTEGER) &&
@@ -703,14 +694,12 @@ public:
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
         }//throw {/*  appropriate exception */}; //function return different type
     }
-
     void verifyBreakBlock(){
         if(!scopesList.front().isWhileScope)
         {
             throw parsingExceptions(parsingExceptions::ERR_UNEXPECTED_BREAK);
         }//throw {/*  appropriate exception */}; //break in middle of not while scope
     }
-
     void verifyExpIsBool(parsedData expType){
         Type temp(Type::BOOL);
         if(!(expType.single_var.type == temp))
@@ -718,7 +707,6 @@ public:
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
         }//throw {/*  appropriate exception */}; //expected boolean type
     }
-
     void verifyFunctionCall(parsedData idInput,parsedData inputList){
         assert(inputList.kind == parsedData::LIST);
 
@@ -749,7 +737,6 @@ public:
         }//throw {/*  appropriate exception */}; //wrong function call parameters number
 
     }
-
     void verifyNoParametersFunctionCall(parsedData idInput){
         if(!containsFunctionName(idInput.single_var.name))
         {
@@ -761,29 +748,17 @@ public:
             throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH);
         }//throw {/*  appropriate exception */}; //wrong function call parameters number
     }
-
     ~scopes() {
         while (!scopesList.empty())
             removeScope();
 
         while (!functions.empty()) {
             function func = functions.back();
-            printID(func.idName, 0, func.toString());
+            if(need_to_print)
+                printID(func.idName, 0, func.toString());
             functions.pop_back();
         }
     }
 };
-
-
-
-
-
-
-
-
-
-
-
-
 
 #endif
