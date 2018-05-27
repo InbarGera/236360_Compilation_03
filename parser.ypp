@@ -219,14 +219,11 @@ Type	:	INT              {$$ = new parsedData(parsedData(Type(Type::INTEGER)));} 
 		| 	BOOL             {$$ = new parsedData( parsedData(Type(Type::BOOL)));}
 		;
 
-Exp		:	LPAREN Exp RPAREN       {if(!($2->isInteger()))
-                                            throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE,
-                                            yylineno);
-                                       $$ = $2;
+Exp		:	LPAREN Exp RPAREN       { $$ = $2;
                                     /*delete $2;*/}      //TODO is it ok????????????????  Lior
 		| 	ID LBRACK Exp RBRACK    {if (scopesList->containsIdName($1->getName())){
 		                                if ($3->isInteger()){
-		                                    $$ = new parsedExp(scopesList->getId($1->getName()).type);
+		                                    $$ = new parsedExp(scopesList->getId($1->getName()).type.arrayType);
 				                                delete $1; delete $3;
 		                                }
 		                                else

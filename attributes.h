@@ -325,10 +325,10 @@ public:
         single_var.name = data2.single_var.name;
         switch (data2.kind){
             case SINGLE: {
-                single_var.type = data1.single_var.type;
+                single_var.type = data2.single_var.type;
                 single_var.value = data1.single_var.value;
                 if(single_var.type.kind == Type::BYTE) {
-                    if (data1.single_var.value > 256 || data1.single_var.value < 0)
+                    if (data1.single_var.value > 255 || data1.single_var.value < 0)
                         throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE);
                 }
             }break;
@@ -442,6 +442,8 @@ public:
                     throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
             }break;
             case MATH_OP: {
+                if(!exp1.isInteger() || !exp2.isInteger())
+                    throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
                 *this = maxRange(exp1, exp2);   //maxRange already throws the compatible error
             }break;
             default: {
@@ -459,7 +461,7 @@ public:
 
 
 
-    parsedData maxRange(parsedExp exp1, parsedExp exp2) {
+    parsedExp maxRange(parsedExp exp1, parsedExp exp2) {
         Type int_t = Type(Type::INTEGER);
         Type byte_t = Type(Type::BYTE);
         if (exp1.getType() == int_t || exp2.getType() == int_t)
