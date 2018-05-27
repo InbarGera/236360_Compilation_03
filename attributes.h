@@ -16,6 +16,9 @@ using std::endl;
 using std::list;
 using std::string;
 using namespace output;
+
+#define PRINT_DEBUG 0
+
 //================================= ENUMS ==================================//
 enum GrammerVar{
     NOT_INITIALIZED,
@@ -124,7 +127,7 @@ public:
             }
                 break;
             case ERR_UNKNOWN_ERROR: {
-                cout << "received an unknown error!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+                if (PRINT_DEBUG) cout << "received an unknown error!!!!!!!!!!!!!!!!!!!!!!!" << endl;
             }
                 break;
         }
@@ -176,7 +179,7 @@ public:
                 return string("BOOL");
             }
             case INTEGER : {
-                return string("INTEGER");
+                return string("INT");
             }
             case BYTE : {
                 return string("BYTE");
@@ -271,29 +274,42 @@ public:
 
     parsedData() : kind(UNDEF){ };
 
+    parsedData(GrammerVar g_var) : kind(LIST){
+        if(g_var != IS_CALL)
+            assert(0);
+    }
+
+
     parsedData(Type type) : kind(SINGLE), single_var(type){};
     parsedData(char* tmp_yytext, GrammerVar g_var) {
         kind = SINGLE;
         switch (g_var) {
             case IS_INT: {
                 single_var = VarInfo(string_to_num(tmp_yytext));
-            }break;
+            }
+                break;
             case IS_ID: {
                 single_var = VarInfo(0, string(tmp_yytext), Type::VOID);
-            }break;
+            }
+                break;
             case IS_STR: {
                 char *tmp = remove_double_quotes(tmp_yytext);
                 single_var = VarInfo(0, string(tmp), Type::STRING);
                 free(tmp);
-            }break;
+            }
+                break;
             case IS_ARRAY: {
                 //TODO
-            }break;
+            }
+                break;
             case IS_CALL: {
                 //TODO
-            }break;
-            default:
+            }
+                break;
+            default: {
+                if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(char*,GrammarVar)" << endl;
                 throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+            }
         }
     }
     parsedData(Type type, parsedData& data) : kind(SINGLE){
@@ -313,7 +329,7 @@ public:
                 single_var.value = data1.single_var.value;
                 if(single_var.type.kind == Type::BYTE) {
                     if (data1.single_var.value > 256 || data1.single_var.value < 0)
-                        throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE);      //TODO
+                        throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE);
                 }
             }break;
             case ARRAY: {
@@ -324,25 +340,27 @@ public:
                 list_of_vars = data2.list_of_vars;
                 list_of_vars.push_front(data1.single_var);
             }break;
-            default:
-                throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR); //TODO
+            default: {
+                if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData, parsedData)" << endl;
+                throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+            }
         }
 
     }
-    parsedData(parsedData& data, GrammerVar g_var){
-        if (g_var == IS_CALL){
+    parsedData(parsedData& data, GrammerVar g_var) {
+        if (g_var == IS_CALL) {
             kind = LIST;
             list_of_vars = data.list_of_vars;
-            if(data.list_of_vars.size() == 0)
+            if (data.list_of_vars.size() == 0)
                 list_of_vars.push_front(data.single_var);
-        }
-        else if(g_var == IS_ARRAY){
+        } else if (g_var == IS_ARRAY) {
             kind = ARRAY;
             single_var.type =
-                    Type(data.single_var.type.kind, data.single_var.value );
+                    Type(data.single_var.type.kind, data.single_var.value);
+        } else {
+            if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData,GrammerVar)" << endl;
+            throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
         }
-        else
-            throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);     //TODO
     }
     parsedData(parsedData& data1, parsedData& data2, GrammerVar g_var){
         if(g_var == IS_ARRAY){
@@ -358,9 +376,10 @@ public:
             else
                 throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE);      //TODO
         }
-        else
-            throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);          //TODO
-
+        else {
+            if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData,parsedData,GrammerVar)" << endl;
+            throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+        }
     }
     Type getType(){
         return single_var.type;
@@ -397,13 +416,16 @@ class parsedExp : public parsedData {
 public:
     parsedExp();
     parsedExp(Type type) : parsedData(type){};
-    parsedExp(parsedExp exp, binOps ops){
-        if(ops == BOOL_OP)
-            if (exp.isBool()){
-                *this =  parsedExp(Type(Type::BOOL));
-            }else
+    parsedExp(parsedExp exp, binOps ops) {
+        if (ops == BOOL_OP) {
+            if (exp.isBool()) {
+                *this = parsedExp(Type(Type::BOOL));
+            } else
                 throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
-        throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+        } else {
+            if (PRINT_DEBUG) cout << "reached a default case in constructor parsedExp(parsedExp,binOps)" << endl;
+            throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+        }
     }
     parsedExp(parsedExp exp1, parsedExp exp2, binOps ops){
         switch (ops){
@@ -422,9 +444,10 @@ public:
             case MATH_OP: {
                 *this = maxRange(exp1, exp2);   //maxRange already throws the compatible error
             }break;
-            default:
-                throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);          //TODO
-        }
+            default: {
+                if (PRINT_DEBUG) cout << "reached a default case in constructor parsedExp(parsedExp,parsedExp,binOps)" << endl;
+                throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+            }        }
     }
     parsedExp(parsedData data) : parsedData(data){};
     parsedExp(parsedData data1, parsedData data2, binOps ops){
@@ -479,19 +502,17 @@ public:
     scopes() : need_to_print(true){};
     Id getId(string name){
         list<scope> allScopes(scopesList);
-        cout << "trying to GET the  ID:  " << name << endl;
+        if (PRINT_DEBUG) cout << "trying to GET the  ID:  " << name << endl;
         if(allScopes.size() == 0)
             assert(0);
 
-        for(scope s = allScopes.front(); allScopes.size() > 1; allScopes.pop_front(), s = allScopes.front()) {
-            if (s.IdList.size() == 0)
+        for(list<scope>::iterator s = allScopes.begin(); s != allScopes.end() ; s++) {
+            if((*s).IdList.size() == 0)
                 continue;
-            for (Id id = s.IdList.front(); s.IdList.size() > 1; s.IdList.pop_front(), id = s.IdList.front()){
-
-                cout << "checking if " << id.name << "   ==?   " << name << endl;
-
-                if (id.name == name)
-                    return id;
+            for (list<Id>::iterator id = (*s).IdList.begin(); id !=(*s).IdList.end() ; id++){
+                if (PRINT_DEBUG) cout << "checking if " << (*id).name << " == " << name << endl;
+                if ((*id).name == name)
+                    return *id;
             }
         }
         assert(0);
@@ -502,9 +523,10 @@ public:
         if(funcs.size() == 0)
             assert(0);
 
-        for(function fun = funcs.front() ; funcs.size() > 1; funcs.pop_front(), fun = funcs.front())
-            if(fun.idName == name)
-                return fun;
+        for(list<function>::iterator fun = funcs.begin(); fun != funcs.end(); fun ++)
+            if((*fun).idName == name)
+                return *fun;
+
         assert(0);
     }
     bool containsIdName(string name){
@@ -512,13 +534,13 @@ public:
 
         if(allScopes.size() == 0)
             return false;
-        cout << "trying to find (bool) ID:  " << name << endl;
-        for(scope s = allScopes.front(); allScopes.size() > 1; allScopes.pop_front(), s = allScopes.front()) {
-            if (s.IdList.size() == 0)
+        if (PRINT_DEBUG) cout << "trying to find (bool) ID:  " << name << endl;
+        for(list<scope>::iterator s = allScopes.begin(); s != allScopes.end() ; s++) {
+            if((*s).IdList.size() == 0)
                 continue;
-            for (Id id = s.IdList.front(); s.IdList.size() > 1; s.IdList.pop_front(), id = s.IdList.front()){
-                cout << "checking if " << id.name << " == " << name << endl;
-                if (id.name == name)
+            for (list<Id>::iterator id = (*s).IdList.begin(); id !=(*s).IdList.end() ; id++){
+                if (PRINT_DEBUG) cout << "checking if " << (*id).name << " == " << name << endl;
+                if ((*id).name == name)
                     return true;
             }
         }
@@ -529,9 +551,8 @@ public:
 
         if(funcs.size() == 0)
             return false;
-
-        for(function fun = funcs.front() ; funcs.size() > 1; funcs.pop_front(), fun = funcs.front())
-            if(fun.idName == name)
+        for(list<function>::iterator fun = funcs.begin(); fun != funcs.end(); fun ++)
+            if((*fun).idName == name)
                 return true;
         return false;
     }
@@ -590,7 +611,7 @@ public:
 
         scopesList.front().addId(newType,Id.single_var.name);
 
-        cout << "\n\n\nadded array: " << Id.single_var.name << endl;
+        if (PRINT_DEBUG) cout << "\n\n\nadded array: " << Id.single_var.name << endl;
     }
     void addIdNotArray(parsedData type){
         if(containsIdName(type.single_var.name)) {
@@ -598,7 +619,7 @@ public:
         }//throw {/* appropriate exception*/};
 
         scopesList.front().addId(type.single_var.type,type.single_var.name);
-        cout << "\n\n\nadded ID (not array): " << type.single_var.name << endl;
+        if (PRINT_DEBUG) cout << "\n\n\nadded ID (not array): " << type.single_var.name << endl;
 
     }
     void newRegularScope(bool isWhileScope){
@@ -750,14 +771,15 @@ public:
         }//throw {/*  appropriate exception */}; //wrong function call parameters number
     }
     ~scopes() {
-        while (!scopesList.empty())
-            removeScope();
+        if(need_to_print) {
+            while (!scopesList.empty())
+                removeScope();
 
-        while (!functions.empty()) {
-            function func = functions.back();
-            if(need_to_print)
+            while (!functions.empty()) {
+                function func = functions.back();
                 printID(func.idName, 0, func.toString());
-            functions.pop_back();
+                functions.pop_back();
+            }
         }
     }
 };

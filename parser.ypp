@@ -33,7 +33,7 @@ Program	:	Funcs
 Funcs :
 		|	Function Funcs
 		;
-Function : FunctionDefinition LBRACE Statements RBRACE_t      {cout << "parsed function" << endl;}
+Function : FunctionDefinition LBRACE Statements RBRACE_t      {if(PRINT_DEBUG) if(PRINT_DEBUG) cout << "parsed function" << endl;}
         ;
 
 
@@ -44,7 +44,7 @@ FunctionDefinition : RetType ID LPAREN Formals RPAREN {try{
                                                             throw parsingExceptions(e.err_type, yylineno, $1->getName());
                                                         }
                                                         delete $1; delete $2; delete $4;
-                                                        cout <<"added a new function " << $2->getName() << endl;}
+                                                        if(PRINT_DEBUG) cout <<"added a new function " << $2->getName() << endl;}
                    ;
 
 RetType : Type          {$$ = $1;
@@ -209,7 +209,7 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
 ExpList:    Exp ExpList2 {  $$ = new parsedData(*$1,*$2) ;
 		                                delete $1; delete $2;}
 
-ExpList2 :                  { $$ = new parsedData(); }
+ExpList2 :                  { $$ = new parsedData(IS_CALL); }
          | COMMA ExpList    { $$ = new parsedData(*$2, IS_CALL);
          		                                delete $2;}
          ;
@@ -256,7 +256,8 @@ Exp		:	LPAREN Exp RPAREN       {if(!($2->isInteger()))
 		                                delete $1;
 		                                }
 		                                else
-		                                    throw;      //TODO
+		                                    throw parsingExceptions(parsingExceptions::ERR_UNDEF,
+		                                                            yylineno, $1->getName());      //TODO
 
 		                            }
 		|	Call                    {$$ = $1;
@@ -328,13 +329,10 @@ int main()
 	    yyparse();
 	}catch(parsingExceptions& e){
 	    scopesList->need_to_print = false;
-	    cout << "\n\n caught an exception while parsing!" << endl;
-	    e.printErrMsg();
-	    cout << "printed the error\n\n" << endl;
 	}
 	catch(...){
 	    scopesList->need_to_print = false;
-        cout << "Something wierd happened!!!" << endl;
+        if(PRINT_DEBUG) cout << "Something wierd happened!!!" << endl;
 	}
 	if(!scopesList->containsFunctionName("main")){
 	    if(scopesList->need_to_print){
