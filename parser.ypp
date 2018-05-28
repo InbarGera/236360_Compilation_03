@@ -330,12 +330,20 @@ int main()
 	    scopesList->need_to_print = false;
         if(PRINT_DEBUG) cout << "Something wierd happened!!!" << endl;
 	}
-	if(!scopesList->containsFunctionName("main")){
-	    if(scopesList->need_to_print){
-	        scopesList->need_to_print = false;
+	if(scopesList->need_to_print){      //check valid main function in the scopelist
+	    if(!scopesList->containsFunctionName("main")){
+   	        scopesList->need_to_print = false;
             errorMainMissing();
-	    }
-	}
+    	}else{
+    	    function main_func = scopesList->getFunction("main");
+    	    if((main_func.return_type.kind != main_func.return_type.VOID ||
+    	            !main_func.inputTypes.empty())){
+                scopesList->need_to_print = false;
+                errorMainMissing();
+                if(PRINT_DEBUG) cout <<"in the if to check the main function" << endl;
+            }
+        }
+    }
 	delete scopesList;
 }
 

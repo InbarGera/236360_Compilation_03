@@ -16,7 +16,7 @@ using std::list;
 using std::string;
 using namespace output;
 
-#define PRINT_DEBUG 1
+#define PRINT_DEBUG 0
 
 //================================= ENUMS ==================================//
 enum GrammerVar{
@@ -642,9 +642,9 @@ public:
         if(containsFunctionName(name)) {
             throw parsingExceptions(parsingExceptions::ERR_DEF,name);
         }//errorUndefFunc(lineno,name); assert
-        if(name == "main" &&(returnType.kind != returnType.VOID || !functionInputTypes.empty())) {
+     /*   if(name == "main" &&(returnType.kind != returnType.VOID || !functionInputTypes.empty())) {
             throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH,Id.getName());
-        }//throw {/* appropriate exception*/};
+        } */ //throw {/* appropriate exception*/};
 
         // inserting to the function list
         function temp(name, returnType, functionInputTypes);
