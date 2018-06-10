@@ -99,8 +99,8 @@ public:
             mod*=10;
         mod /= 10;
         while(mod){
-           retVal[i++] = (char)((val/mod % 10) +'0');
-           mod /= 10;
+            retVal[i++] = (char)((val/mod % 10) +'0');
+            mod /= 10;
         }
         retVal[i]='\0';
         if(PRINT_DEBUG) cout << " in num translation, original num is : " << val << "translation is: " << retVal << endl;
@@ -642,9 +642,9 @@ public:
         if(containsFunctionName(name)) {
             throw parsingExceptions(parsingExceptions::ERR_DEF,name);
         }//errorUndefFunc(lineno,name); assert
-     /*   if(name == "main" &&(returnType.kind != returnType.VOID || !functionInputTypes.empty())) {
-            throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH,Id.getName());
-        } */ //throw {/* appropriate exception*/};
+        /*   if(name == "main" &&(returnType.kind != returnType.VOID || !functionInputTypes.empty())) {
+               throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH,Id.getName());
+           } */ //throw {/* appropriate exception*/};
 
         // inserting to the function list
         function temp(name, returnType, functionInputTypes);
@@ -761,7 +761,7 @@ public:
         if((!(indexType.kind == Type::BYTE)) &&
            (!(indexType.kind == Type::INTEGER)))
         {
-            throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE);
+            throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
         }//throw {/*  appropriate exception */}; // array index is not of numeric type
 
         if(!(idType.arrayType == assignedType.kind )&& // the types are different, and it is not a case of assign byte to int
@@ -826,7 +826,7 @@ public:
             Type actualInputType = inputIterator->type;
 
             if(!(funExpectedType == actualInputType) &&
-                    !(funExpectedType.kind == Type::INTEGER && actualInputType.kind == Type::BYTE))
+               !(funExpectedType.kind == Type::INTEGER && actualInputType.kind == Type::BYTE))
             {
 
                 throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH,idInput.getName());
