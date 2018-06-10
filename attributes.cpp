@@ -334,7 +334,7 @@ parsedData::parsedData(parsedData& data1, parsedData& data2, GrammerVar g_var){
                 single_var.type = Type(data1.single_var.type.kind, data2.single_var.value );
             }
             else
-                throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE);      //TODO
+                throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE, data1.single_var.name);      //TODO
         }
         else {
             if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData,parsedData,GrammerVar)" << endl;
