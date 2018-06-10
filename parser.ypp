@@ -6,7 +6,7 @@
 	using namespace std;
     extern int yylineno;
 	extern int yylex();		// do they both need to be extern?
-    void yyerror(char * message);
+    void yyerror(const char * message);
 	scopes* scopesList;
 %}
 
@@ -347,7 +347,7 @@ int main()
 	delete scopesList;
 }
 
-void yyerror(char * message)
+void yyerror(const char * message)
 {
     throw parsingExceptions(parsingExceptions::ERR_SYN, yylineno);
 }
