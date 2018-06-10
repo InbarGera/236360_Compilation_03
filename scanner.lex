@@ -2,10 +2,10 @@
 
 #include "attributes.h"
 #include "parser.tab.hpp"
+// %option yylineno was above noyywrap
 
 %}
 
-%option yylineno
 %option noyywrap
 
 %%
@@ -43,6 +43,6 @@ break		        			return BREAK;
 \"([^\n\r\"\\]|\\[rnt"\\])+\" 		{yylval = new parsedData(yytext, IS_STR); return STRING;}
 \/\/[^\r\n]*[\r|\n|\r\n]?			    {}
 [ \n|\r|\t]+				{}
-.                       {throw parsingExceptions(parsingExceptions::ERR_LEX,yylineno);     /* TODO*/ };
+.                       {throw parsingExceptions(parsingExceptions::ERR_LEX);     /* TODO*/ };
 
 %%

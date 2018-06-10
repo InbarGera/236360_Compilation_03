@@ -16,6 +16,7 @@ using std::list;
 using std::string;
 using namespace output;
 
+extern int yylineno;
 #define PRINT_DEBUG 0
 
 //================================= ENUMS ==================================//
@@ -73,15 +74,16 @@ public:
     string id;
     vector<string> argTypes;
 
-    parsingExceptions(errType err_type_t) :print_now(false), err_type(err_type_t){};
-    parsingExceptions(errType err_type_t,string idName) :print_now(false), id(idName), err_type(err_type_t){};
-    parsingExceptions(errType err_type_t, int lineno_t) : print_now(true),
-                                                          err_type(err_type_t), lineno(lineno_t){};
-    parsingExceptions(errType err_type_t, int lineno_t, string id_t):print_now(true),
-                                                                     err_type(err_type_t), lineno(lineno_t), id(id_t){};
-
-    parsingExceptions(errType err_type_t, int lineno_t, string id_t, vector<string> args) :
-            print_now(true), err_type(err_type_t), id(id_t), lineno(lineno_t), argTypes(args){};
+    parsingExceptions(errType err_type_t) :print_now(true), err_type(err_type_t), lineno(yylineno){};
+    parsingExceptions(errType err_type_t,string idName) :
+            print_now(true), id(idName), err_type(err_type_t), lineno(yylineno){};
+ /*   parsingExceptions(errType err_type_t) :
+            print_now(true), err_type(err_type_t), lineno(yylineno){};
+    parsingExceptions(errType err_type_t,  string id_t):
+            print_now(true), err_type(err_type_t), lineno(yylineno), id(id_t){};
+*/
+    parsingExceptions(errType err_type_t, string id_t, vector<string> args) :
+            print_now(true), err_type(err_type_t), id(id_t), lineno(yylineno), argTypes(args){};
 
     static string intToString(int val){
         int i=0;
@@ -329,11 +331,17 @@ public:
             }
                 break;
             case IS_ARRAY: {
-                //TODO
+                //TODO - not supposed to get here
+                if (PRINT_DEBUG) cout << "something wierd happend!!!"
+                                      << " constructor yytext, g_var , IS_ARRAY"
+                                      << endl;
             }
                 break;
             case IS_CALL: {
-                //TODO
+                //TODO - not supposed to get here
+                if (PRINT_DEBUG) cout << "something wierd happend!!!"
+                                      << " constructor yytext, g_var , IS_CALL"
+                                      << endl;
             }
                 break;
             default: {
@@ -661,7 +669,8 @@ public:
 
         if(arraySize.single_var.value < 1 || arraySize.single_var.value > 255)
         {
-            throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE);
+            throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE,
+                                    Id.single_var.name);
         }//throw {/* appropriate exception*/}; // array size not good
 
         newType.kind = Type::ARRAY;
@@ -731,7 +740,7 @@ public:
 
     void verifyAssign(parsedData Id,parsedData exp){
         if(!containsIdName(Id.single_var.name)) {
-            throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN);
+            throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN, Id.single_var.name);
         }//throw {/*  appropriate exception */}; // id not found
 
         Type idType = getId(Id.single_var.name).type;
@@ -746,7 +755,7 @@ public:
 
         if(!containsIdName(idInput.single_var.name))
         {
-            throw parsingExceptions(parsingExceptions::ERR_UNDEF);
+            throw parsingExceptions(parsingExceptions::ERR_UNDEF, idInput.single_var.name);
         }//throw {/*  appropriate exception */}; //id not found
 
         Type idType = getId(idInput.single_var.name).type;
@@ -803,7 +812,7 @@ public:
 
         if(!containsFunctionName(idInput.single_var.name))
         {
-            throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN);
+            throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN, idInput.single_var.name);
         }//throw {/*  appropriate exception */}; //no such function
 
         list<Type> functionInputList = getFunction(idInput.single_var.name).inputTypes;
@@ -844,7 +853,7 @@ public:
     void verifyNoParametersFunctionCall(parsedData idInput){
         if(!containsFunctionName(idInput.single_var.name))
         {
-            throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN);
+            throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN, idInput.single_var.name);
         }//throw {/*  appropriate exception */}; //no such function
 
         if(!getFunction(idInput.single_var.name).inputTypes.empty())

@@ -2,11 +2,12 @@
 	#include "attributes.h"
 	#include <iostream>
 	#include <stdlib.h>
-
 	using namespace std;
+
     extern int yylineno;
-	extern int yylex();		// do they both need to be extern?
-    int yyerror(char * message);
+	extern int yylex();
+	extern int yylex_destroy();
+    void yyerror(const char * message);
 	scopes* scopesList;
 %}
 
@@ -37,12 +38,9 @@ Function : FunctionDefinition LBRACE Statements RBRACE_t      {if(PRINT_DEBUG) c
         ;
 
 
-FunctionDefinition : RetType ID LPAREN Formals RPAREN {try{
+FunctionDefinition : RetType ID LPAREN Formals RPAREN {
                                                         scopesList->addFunction(*$1,*$2,*$4);
                                                         scopesList->newFunctionScope(*$4);
-                                                        }catch(parsingExceptions& e){
-                                                            throw parsingExceptions(e.err_type, yylineno, e.id);
-                                                        }
                                                         delete $1; delete $2; delete $4;
                                                         if(PRINT_DEBUG) cout <<"added a new function " << $2->getName() << endl;}
                    ;
@@ -56,7 +54,7 @@ Formals	:	                    {$$ = new parsedData();}  //Lior
 		;
 
 Type_ID : Type ID       {if(scopesList->containsIdName($2->getName()))
-                            throw parsingExceptions(parsingExceptions::ERR_DEF, yylineno, $2->getName());
+                            throw parsingExceptions(parsingExceptions::ERR_DEF,  $2->getName());
                             $$ = new parsedData($1->single_var.type, $2->single_var.name);
                             delete $1; delete $2;}    //Lior
 		;
@@ -67,23 +65,16 @@ FormalsList :   FormalDecl {$$ = new parsedData(*$1, IS_CALL);
                                               delete $1; delete $3;}
             ;
 
-FormalDecl  :   Type_ID                     {try{
+FormalDecl  :   Type_ID                     {
                                                 $$ = new parsedData(*$1);
-                                             }
-                                             catch(parsingExceptions& e){
-                                                  throw parsingExceptions(e.err_type, yylineno, $1->getName());
-                                             }
+
                                              delete $1; }
-            |   Type_ID LBRACK NUM_T RBRACK {try{
-                                                $$ = new parsedData(*$1, *$3, IS_ARRAY);
-                                             }catch(parsingExceptions& e){
-                                                throw parsingExceptions(e.err_type, yylineno, $1->getName());
-                                             }
-                                             delete $1; delete $3;}
+            |   Type_ID LBRACK NUM_T RBRACK { $$ = new parsedData(*$1, *$3, IS_ARRAY);
+                                              delete $1; delete $3;}
             ;
 
-NUM_T :	NUM NUM_T2  {try{$$ = new parsedData($2->single_var.type, $1->single_var.value);delete $1; delete $2;}
-                     catch(parsingExceptions& e){throw parsingExceptions(e.err_type, yylineno, e.id);}}
+NUM_T :	NUM NUM_T2  {$$ = new parsedData($2->single_var.type, $1->single_var.value);
+                        delete $1; delete $2;}
 		;
 
 NUM_T2 :                 {$$ = new parsedData(Type(Type::INTEGER));}     //Lior
@@ -96,74 +87,45 @@ Statements  :   Statement
 			;
 
 Statement : 	LBRACE_t Statements RBRACE_t
-			|	Type_ID SC          {try{
+			|	Type_ID SC          {
 			                            scopesList->addIdNotArray(*$1);
-			                         }catch(parsingExceptions& e){
-                                         throw parsingExceptions(e.err_type, yylineno, $1->getName());
-                                     }
+
 			                         delete $1;}
-			|	Type_ID ASSIGN Exp SC           {try{
+			|	Type_ID ASSIGN Exp SC           {
 			                                        scopesList->addIdNotArray(*$1);
 			                                        scopesList->verifyAssign(*$1,*$3);
-						                         }catch(parsingExceptions& e){
-                                                    throw parsingExceptions(e.err_type, yylineno, $1->getName());
-                                                 }
+
 						                            delete $1; delete $3; }
-			|	Type_ID LBRACK NUM_T RBRACK SC      {try{
+			|	Type_ID LBRACK NUM_T RBRACK SC      {
 			                                      //   if(PRINT_DEBUG) cout << "in rule Statement -> Type_ID LBRACK NUM_T RBRACK SC, Type_ID->type.single_var.type = "  $1->single_var.type.toString() << endl;
 			                                            scopesList->addIdArray(*$1,*$1,*$3);
-			                                          }
-			                                          catch(parsingExceptions& e){
-                                                          throw parsingExceptions(e.err_type, yylineno, $1->getName());
-                                                      }
 			                                         delete $1; delete $3; }
 			|	ID ASSIGN Exp SC        {if (scopesList->containsIdName($1->getName())){
-                                                  try{
-                                             		  scopesList->verifyAssign(*$1,*$3);
-                                                  }
-                                                  catch(parsingExceptions& e){
-                                                    throw parsingExceptions(e.err_type, yylineno, $1->getName());
-                                                  }
+                                             	  scopesList->verifyAssign(*$1,*$3);
                                                   delete $1; delete $3;
                                             }
                                          	else
                                          	   throw parsingExceptions(parsingExceptions::ERR_UNDEF,
-                                         	                          yylineno, $1->getName() );  //TODO
+                                         	                           $1->getName() );  //TODO
                                          }
 			|	ID LBRACK Exp RBRACK ASSIGN Exp SC  {if (scopesList->containsIdName($1->getName())){
-                                                         try{
                                                             scopesList->verifyAssignToArray(*$1,*$3,*$6);
-                                                         }
-                                                         catch(parsingExceptions& e){
-                                                            throw parsingExceptions(e.err_type, yylineno, $1->getName());
-                                                         }
-
                                                          delete $1; delete $3; delete $6;
                                                       } else
                                                          throw parsingExceptions(parsingExceptions::ERR_UNDEF,
-                                                                            yylineno, $1->getName());  //TODO
+                                                                             $1->getName());  //TODO
                                                     }
 			|	Call SC             {delete $1;}
-			|	RETURN SC           {try{
-			                            scopesList->verifyReturnTypeVoid();}
-			                            catch(parsingExceptions& e){
-                                           throw parsingExceptions(e.err_type, yylineno);
-                                        }
-			                        }
-			|	RETURN Exp SC       {   try{
+			|	RETURN SC           { scopesList->verifyReturnTypeVoid();}
+			|	RETURN Exp SC       {
 			                                scopesList->verifyReturnType(*$2);
-					                        }catch(parsingExceptions& e){
-					                            throw parsingExceptions(e.err_type, yylineno);
-					                        }
 					                     delete $2;}
-
             | If_Begin If_Continue
            	|	While_Statement
-			|	BREAK SC            {try{scopesList->verifyBreakBlock();}
-			                         catch(parsingExceptions& e){ throw parsingExceptions(e.err_type, yylineno);}}
+			|	BREAK SC            {scopesList->verifyBreakBlock();}
 			;
 
-If_Begin    :  IF LPAREN Exp {if(!$3->isBool()) throw parsingExceptions(parsingExceptions::ERR_MISMATCH,yylineno); delete $3;}
+If_Begin    :  IF LPAREN Exp {if(!$3->isBool()) throw parsingExceptions(parsingExceptions::ERR_MISMATCH); delete $3;}
             ;
 
 If_Continue :   RPAREN Open_Scope Statement {scopesList->removeScope();}
@@ -181,8 +143,7 @@ CloseScope : { scopesList->removeScope(); }
 While_Statement : While_Open Statement {scopesList->removeScope();}
             ;
 
-While_Open : WHILE LPAREN Exp RPAREN {try{scopesList->verifyExpIsBool(*$3);scopesList->newRegularScope(true);delete $3;}
-                                      catch(parsingExceptions& e){ throw parsingExceptions(e.err_type,yylineno);}}
+While_Open : WHILE LPAREN Exp RPAREN {scopesList->verifyExpIsBool(*$3);scopesList->newRegularScope(true);delete $3;}
         ;
 
 //end of need to fix if
@@ -192,10 +153,10 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
                                             catch(parsingExceptions& e){
                                             if(e.err_type == parsingExceptions::ERR_PROTOTYPE_MISMATCH)
                                                 throw parsingExceptions(e.err_type,
-                                                yylineno, $1->getName(),scopes::listToVector(scopesList->getFunction($1->getName()).inputTypes));
+                                                 $1->getName(),scopes::listToVector(scopesList->getFunction($1->getName()).inputTypes));
                                             else
                                                 throw parsingExceptions(e.err_type,
-                                                yylineno, $1->getName());
+                                                 $1->getName());
                                             }
                                          $$ = new parsedExp((scopesList->getFunction($1->getName())).return_type);
                                          delete $1; delete $3;}
@@ -203,8 +164,8 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
 		                                    }catch(parsingExceptions& e){
 		                                        if(e.err_type == parsingExceptions::ERR_PROTOTYPE_MISMATCH)
                                                     throw parsingExceptions(e.err_type,
-                                                    yylineno, $1->getName(), scopes::listToVector(scopesList->getFunction($1->getName()).inputTypes));
-                                                else throw parsingExceptions(e.err_type,yylineno, $1->getName());
+                                                     $1->getName(), scopes::listToVector(scopesList->getFunction($1->getName()).inputTypes));
+                                                else throw parsingExceptions(e.err_type, $1->getName());
                                         }
 		                                 $$ = new parsedExp((scopesList->getFunction($1->getName())).return_type);
 		                                 delete $1;}
@@ -230,25 +191,17 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 		                                }
 		                                else
 		                                    throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE,
-		                                                            yylineno, $1->getName());  //TODO Exp not an inteeger!
+		                                                             $1->getName());  //TODO Exp not an inteeger!
                                       }
 		                                else
 		                                    throw parsingExceptions(parsingExceptions::ERR_UNDEF,
-                                                  		            yylineno, $1->getName());      //TODO ID doesn't exist!
+                                                  		             $1->getName());      //TODO ID doesn't exist!
 		                             }
-		| 	Exp PLUS_MINUS Exp      {try{$$ = new parsedExp(*$1,*$3, MATH_OP);
+		| 	Exp PLUS_MINUS Exp      {$$ = new parsedExp(*$1,*$3, MATH_OP);
                                         delete $1; delete $3;
-                                        }       // make sure Exp and Exp are COMPATIABLE types
-                                    catch(parsingExceptions& e){
-                                       	throw parsingExceptions(e.err_type, yylineno);
-                                      	}
                                     }
-		|	Exp MUL_DIV Exp         {try{$$ = new parsedExp(*$1,*$3, MATH_OP);
+		|	Exp MUL_DIV Exp         {$$ = new parsedExp(*$1,*$3, MATH_OP);
                                          delete $1; delete $3;
-                                         }       // make sure Exp and Exp are COMPATIABLE types
-                                     catch(parsingExceptions& e){
-                                          	throw parsingExceptions(e.err_type, yylineno);
-                                          	}
                                     }
 		| 	ID                      {if (scopesList->containsIdName($1->getName())){
 		                                $$ = new parsedExp(scopesList->getId($1->getName()).type);
@@ -256,52 +209,37 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 		                                }
 		                                else
 		                                    throw parsingExceptions(parsingExceptions::ERR_UNDEF,
-		                                                            yylineno, $1->getName());      //TODO
-
+		                                                             $1->getName());      //TODO
 		                            }
 		|	Call                    {$$ = $1;}
 
 		|	NUM_T	                {$$ = $1;
 		                            if(PRINT_DEBUG) {cout << "in exp-> NUM_T, NUM_T type = "; printID("",0,$1->single_var.type.toString());}}
-		|	STRING                  {$$ = new parsedExp(Type(Type::STRING));} // return string type
+		|	STRING                  {$$ = new parsedExp(Type(Type::STRING)); delete $1;} // return string type
 		|	TRUE	                {$$ = new parsedExp(Type(Type::BOOL));} // return bool type
 		|	FALSE	                {$$ = new parsedExp(Type(Type::BOOL));} // return bool type
-		|	NOT Exp	                {try{$$ = new parsedExp(*$2, BOOL_OP);
+		|	NOT Exp	                {$$ = new parsedExp(*$2, BOOL_OP);
 		 		                                delete $2;
-		 		                          }  // make sure Exp type is bool
-		 		                     catch(parsingExceptions& e){
-                                       	throw parsingExceptions(e.err_type, yylineno);
-		 		                            }
+
 		 		                     }
-		|	Exp OR Exp              {try{$$ = new parsedExp(*$1,*$3, BOOL_OP);
+		|	Exp OR Exp              {$$ = new parsedExp(*$1,*$3, BOOL_OP);
                                       	 delete $1; delete $3;
-                                      	}       // make sure Exp and Exp are COMPATIABLE types
-                                    catch(parsingExceptions& e){
-                                       	throw parsingExceptions(e.err_type, yylineno);
-                                       	}
+
                                     }  // make sure Exp and Exp are of type bool
-		|	Exp AND Exp	            {try{$$ = new parsedExp(*$1,*$3, BOOL_OP);
+		|	Exp AND Exp	            {$$ = new parsedExp(*$1,*$3, BOOL_OP);
                                     	 delete $1; delete $3;
-                                    	}       // make sure Exp and Exp are COMPATIABLE types
-                                    catch(parsingExceptions& e){
-                                    	throw parsingExceptions(e.err_type, yylineno);
-                                    	}
                                    }     // make sure Exp and Exp are of type bool
-		|	Exp EQ_OP Exp           {try{$$ = new parsedExp(*$1,*$3, REL_OP);
+		|	Exp EQ_OP Exp           {$$ = new parsedExp(*$1,*$3, REL_OP);
+		                                if(PRINT_DEBUG)
+		                                    cout << "parsed eq_op expression: " << $1->getName()
+		                                        << " " << $3->getName() << endl;
                                      	 delete $1; delete $3;
                                      	}       // make sure Exp and Exp are COMPATIABLE types
-                                     catch(parsingExceptions& e){
-                                     	throw parsingExceptions(e.err_type, yylineno);
-                                     	}
-                                     }     // For ambiguity reasons!!!!!!!!!
-		|	Exp RELOP Exp           {try{
+                                         // For ambiguity reasons!!!!!!!!!
+		|	Exp RELOP Exp           {
 		                                 $$ = new parsedExp(*$1,*$3, REL_OP);
 		                                 delete $1; delete $3;
 		                                 }       // make sure Exp and Exp are COMPATIABLE types
-		                             catch(parsingExceptions& e){
-		                                    throw parsingExceptions(e.err_type, yylineno);
-		                                 }
-		                             }
 		;
 
 LBRACE_t : LBRACE { scopesList->newRegularScope(false); }
@@ -344,10 +282,11 @@ int main()
             }
         }
     }
+    yylex_destroy();
 	delete scopesList;
 }
 
-int yyerror(char * message)
+void yyerror(const char  * message)
 {
-    throw parsingExceptions(parsingExceptions::ERR_SYN, yylineno);
+    throw parsingExceptions(parsingExceptions::ERR_SYN);
 }
