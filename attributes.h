@@ -6,13 +6,9 @@
 #include <list>
 #include <cassert>
 #include <stdlib.h>
+#include "output.hpp"
 #include <sstream>
 #include <exception>
-
-#include "output.hpp"
-#include "regAlloc.hpp"
-#include "utills.hpp"
-
 
 using std::cout;
 using std::endl;
@@ -20,7 +16,7 @@ using std::list;
 using std::string;
 using namespace output;
 
-#define PRINT_DEBUG 1
+#define PRINT_DEBUG 0
 
 //================================= ENUMS ==================================//
 enum GrammerVar{
@@ -38,6 +34,10 @@ enum binOps {
     BOOL_OP,
     MATH_OP
 };
+//=========================== HELPER FUNCTIONS =============================//
+static int string_to_num(char* input);
+
+static char* remove_double_quotes(char* input);
 
 //============================ ERROR HANDLING ===============================//
 class parsingExceptions : std::exception {

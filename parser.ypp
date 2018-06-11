@@ -21,17 +21,18 @@
 %token B
 %token BYTE BOOL INT VOID TRUE FALSE RETURN WHILE BREAK SC COMMA ID NUM STRING
 %right IF
-%nonassoc RPAREN
-%nonassoc ELSE
 %right ASSIGN
-%nonassoc RELOP
-%left EQ_OP
 %left OR
 %left AND
+%left EQ_OP
+%nonassoc RELOP
 %left PLUS_MINUS
 %left MUL_DIV
-%left NOT
-%left LBRACE LBRACK LPAREN RBRACE RBRACK
+%right NOT
+%left LPAREN
+%left RPAREN
+%nonassoc ELSE
+%left LBRACE LBRACK RBRACE RBRACK
 
 %%
 
@@ -225,18 +226,35 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 		 		                                delete $2;
 		 		                     }
 		|	Exp OR Exp              {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, BOOL_OP));
-                                      	 delete $1; delete $3;
+                                        if(PRINT_DEBUG)
+        		                            cout << "parsed exp OR exp: "
+        		                            << $1->getName() << " " << $3->getName()
+        		                            << endl;
+        		                            delete $1; delete $3;
                                     }  // make sure Exp and Exp are of type bool
 		|	Exp AND Exp	            {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, BOOL_OP));
-                                    	 delete $1; delete $3;
+                                        if(PRINT_DEBUG)
+        		                            cout << "parsed exp AND exp: "
+        		                            << $1->getName() << " " << $3->getName()
+        		                            << endl;
+        		                            delete $1; delete $3;
                                     }     // make sure Exp and Exp are of type bool
 		|	Exp EQ_OP Exp           {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, REL_OP));
+		                                if(PRINT_DEBUG)
+		                                    cout << "parsed exp EQ_OP exp: "
+		                                     << $1->getName() << " " << $3->getName()
+		                                     << endl;
                                      	 delete $1; delete $3;
                                      }     // For ambiguity reasons!!!!!!!!!
 		|	Exp RELOP Exp           {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, REL_OP));
+		                                if(PRINT_DEBUG)
+        		                             cout << "parsed exp RELOP exp: "
+        		                             << $1->getName() << " " << $3->getName()
+        		                             << endl;
 		                                 delete $1; delete $3;
 		                             }
 		;
+
 
 LBRACE_t : LBRACE { scopesList->newRegularScope(false); }
          ;

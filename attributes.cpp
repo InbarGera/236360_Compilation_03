@@ -1,6 +1,22 @@
 
 #include "attributes.h"
 
+//=========================== HELPER FUNCTIONS =============================//
+static int string_to_num(char* input){
+    int sum =0;
+    while(input[0] != '\0'){
+        sum = sum*10 + (input++[0] - '0');
+    }
+    return sum;
+}
+
+static char* remove_double_quotes(char* input){
+    char* res = (char*)malloc(strlen(input)* sizeof(char));
+    strcpy(res,input+1);
+    res[strlen(res) - 1] = '\0';
+    return res;
+}
+
 //============================ ERROR HANDLING ===============================//
 
 parsingExceptions::parsingExceptions(errType err_type_t)
@@ -645,16 +661,16 @@ scopes::scopes() : need_to_print(true){};
         }//throw {/*  appropriate exception */}; // array type is not compatible with exp type
     }
     void scopes::verifyReturnTypeVoid(){
-        if(!(functions.front().return_type.kind == Type::VOID))
+        Type temp(Type::VOID);
+        if(!(functions.front().return_type == temp))
         {
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
         }//throw {/*  appropriate exception */}; //function return different type
     }
     void scopes::verifyReturnType(parsedData returnType){
-        if(PRINT_DEBUG) cout << "in verifyReturnType " << endl;
         if((!(functions.front().return_type == returnType.single_var.type)) &&
-           !((functions.front().return_type == Type::INTEGER) &&
-             (returnType.single_var.type == Type::BYTE)))
+           !((functions.front().return_type == functions.front().return_type.INTEGER) &&
+             (returnType.single_var.type == returnType.single_var.type.BYTE)))
         {
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
         }//throw {/*  appropriate exception */}; //function return different type

@@ -34,7 +34,7 @@ break		        			return BREAK;
 \[ 			            		return LBRACK;
 \] 			            		return RBRACK;
 = 				                return ASSIGN;
-(==|!=)			        		return EQ_OP;
+(==|!=)			        		{if (PRINT_DEBUG) cout << "scanned == or !=" << endl; return EQ_OP;}
 (<|>|<=|>=)		 	        	return RELOP;
 [+-]					        return PLUS_MINUS;
 [\/\*]				        	return MUL_DIV;
