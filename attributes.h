@@ -6,9 +6,12 @@
 #include <list>
 #include <cassert>
 #include <stdlib.h>
-#include "output.hpp"
 #include <sstream>
 #include <exception>
+
+#include "output.hpp"
+#include "regAlloc.hpp"
+#include "utills.hpp"
 
 using std::cout;
 using std::endl;
@@ -16,7 +19,7 @@ using std::list;
 using std::string;
 using namespace output;
 
-#define PRINT_DEBUG 0
+#define PRINT_DEBUG 1
 
 //================================= ENUMS ==================================//
 enum GrammerVar{
@@ -34,12 +37,8 @@ enum binOps {
     BOOL_OP,
     MATH_OP
 };
-//=========================== HELPER FUNCTIONS =============================//
-static int string_to_num(char* input);
 
-static char* remove_double_quotes(char* input);
-
-//============================ ERROR HANDLING ===============================//
+//====================== ERROR HANDLING CLASS ===============================//
 class parsingExceptions : std::exception {
 public:
     enum errType {
@@ -73,7 +72,6 @@ public:
     ~parsingExceptions() throw();
 
 };
-
 
 //=========================== DATA TYPES ====================================//
 class Type{
@@ -137,8 +135,7 @@ public:
     string toString();
 };
 
-//=============================== GRAMMAR VARIABLES CLASSES =================//
-
+//========================= GRAMMAR VARIABLES CLASSES =======================//
 class parsedData{
 public:
     enum DataKind {
@@ -174,7 +171,6 @@ public:
     vector<string> getArgsTypes();
 
 };
-
 #define YYSTYPE parsedData*	// Tell Bison to use STYPE as the stack type
 
 class parsedExp : public parsedData {
@@ -191,8 +187,57 @@ public:
     parsedExp maxRange(parsedExp exp1, parsedExp exp2);
 };
 
-//=============================== SCOPE HANDLING ============================//
+//========================= Code Generator CLASSES ==========================//
+class codeGenerator : public parsedExp{
+public:
+    enum byValByRef{
+        NONE,
+        VALUE,
+        REFERENCE
+    };
+    // TODO should these enums be united?
+    enum cgAritOp{  //cg for code generator
+        CG_PLUS,
+        CG_MINUS,
+        CG_MUL,
+        CG_DIV
+    };
+    enum cgBoolOp{
+        CG_AND,
+        CG_OR,
+        CG_NOT
+    };
+    enum cgRelOp{
+        CG_EQ,     // ==
+        CG_NEQ,    // !=
+        CG_GT,     // >
+        CG_GEQ,    // >=
+        CG_LT,     // <
+        CG_LEQ     // <=
+    };
+    byValByRef val_or_ref;
+    reg my_reg;
+    string cmd_to_gen;
+    /* //TODO
+     list<> trueList;
+     list<> falseList;
+     list<> nextList;
+     */
+    codeGenerator() : val_or_ref(NONE){};
+    codeGenerator(parsedData& data);
+    codeGenerator(parsedExp& exp);
+    codeGenerator(codeGenerator& cg1, codeGenerator cg2, cgAritOp aritOp);
+    codeGenerator(codeGenerator& cg1, codeGenerator cg2, cgBoolOp boolOp);
+    codeGenerator(codeGenerator& cg1, codeGenerator cg2, cgRelOp relOp);
 
+    ~codeGenerator();
+
+    string cgOpToString(cgAritOp op);
+    string cgOpToString(cgBoolOp op);
+    string cgOpToString(cgRelOp op);
+};
+
+//=============================== SCOPE HANDLING ============================//
 class scope{
 public:
     int nextIdLocation;

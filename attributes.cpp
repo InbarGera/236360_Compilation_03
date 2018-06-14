@@ -1,24 +1,8 @@
-
 #include "attributes.h"
 
-//=========================== HELPER FUNCTIONS =============================//
-static int string_to_num(char* input){
-    int sum =0;
-    while(input[0] != '\0'){
-        sum = sum*10 + (input++[0] - '0');
-    }
-    return sum;
-}
-
-static char* remove_double_quotes(char* input){
-    char* res = (char*)malloc(strlen(input)* sizeof(char));
-    strcpy(res,input+1);
-    res[strlen(res) - 1] = '\0';
-    return res;
-}
-
-//============================ ERROR HANDLING ===============================//
-
+//===========================================================================//
+//====================== ERROR HANDLING CLASS ===============================//
+//===========================================================================//
 parsingExceptions::parsingExceptions(errType err_type_t)
         :print_now(false), err_type(err_type_t){};
 parsingExceptions::parsingExceptions(errType err_type_t,string idName)
@@ -27,10 +11,8 @@ parsingExceptions::parsingExceptions(errType err_type_t, int lineno_t)
         : print_now(true), err_type(err_type_t), lineno(lineno_t){};
 parsingExceptions::parsingExceptions(errType err_type_t, int lineno_t, string id_t)
         :print_now(true), err_type(err_type_t), lineno(lineno_t), id(id_t){};
-
 parsingExceptions::parsingExceptions(errType err_type_t, int lineno_t, string id_t, vector<string> args) :
             print_now(true), err_type(err_type_t), id(id_t), lineno(lineno_t), argTypes(args){};
-
 string parsingExceptions::intToString(int val){
         int i=0;
         int mod =1;
@@ -112,30 +94,28 @@ parsingExceptions::~parsingExceptions() throw() {
         if (print_now)
             printErrMsg();
     }
+//===========================================================================//
 //=========================== DATA TYPES ====================================//
+//===========================================================================//
 
+//=========================== TYPE CLASS ====================================//
 Type::Type() : kind(UNDEF), arrayLength(-1) {
         arrayType = Type::UNDEF;
     };
-
 Type::Type(typeKind Kind) : kind(Kind), arrayLength(-1){
         if(kind == ARRAY) assert(0); // this constructor should get only basic types
     }
-
 Type::Type(typeKind Kind, int len) : kind(ARRAY), arrayLength(len), arrayType(Kind){
         if (Kind == ARRAY) assert(0);
     }
-
 bool Type::operator==(const Type& toCompare){
         if(kind != ARRAY) return kind == toCompare.kind;
         return arrayLength == toCompare.arrayLength && arrayType == toCompare.arrayType;
     }
-
 int Type::size(){
         return kind == ARRAY ? arrayLength:1;
     }
-
- string Type::typeKindToString(typeKind kind){
+string Type::typeKindToString(typeKind kind){
         switch(kind) {
             case VOID : {
                 return string("VOID");
@@ -160,18 +140,19 @@ int Type::size(){
             }
         }
     }
-
- string Type::toString(){
+string Type::toString(){
         if(kind == ARRAY)
             return makeArrayType(typeKindToString(arrayType),arrayLength);
         return typeKindToString(kind);
     }
 
+//=========================== VarBase CLASS =================================//
 VarBase::VarBase(){};
 VarBase::VarBase(Type type_t) : name(), type(type_t){};
 VarBase::VarBase(string str,Type::typeKind kind): name(str), type(kind){};
 VarBase::VarBase(string str, Type::typeKind kind, int len):name(str), type(kind, len){};
 
+//=========================== VarInfo CLASS =================================//
 VarInfo::VarInfo() : value(0){};
 VarInfo::VarInfo(Type type): value(0),VarBase(type) {};
 VarInfo::VarInfo(int val) : value(val), VarBase(string(),Type::INTEGER) {};
@@ -180,15 +161,15 @@ VarInfo::VarInfo(int val, string str, Type::typeKind kind):
 VarInfo::VarInfo(int val, string str, Type::typeKind kind, int len):
             value(val), VarBase(str, kind, len){};
 
-
+//============================= ID CLASS ====================================//
 Id::Id(Type type_t, int offset, string name_t) : offset(offset){
         this->type = type_t;
         this->name = name_t;
     };
 
+//=========================== FUNCTION CLASS ================================//
 function::function(string idName_t, Type return_type_t, list<Type> inputTypes_t) :
             idName(idName_t), return_type(return_type_t), inputTypes(inputTypes_t){};
-
 string function::toString(){
         function temp = *this;
         vector<string> inputTypes;
@@ -201,18 +182,16 @@ string function::toString(){
         return makeFunctionType(temp.return_type.toString(),inputTypes); // to reverse inputTypes
     }
 
+//===========================================================================//
+//========================== GRAMMAR VARIABLES CLASSES ======================//
+//===========================================================================//
 
-//=============================== GRAMMAR VARIABLES CLASSES =================//
-
-
+//=========================== ParsedData Class ==============================//
 parsedData::parsedData() : kind(UNDEF){ };
-
 parsedData::parsedData(GrammerVar g_var) : kind(LIST){
         if(g_var != IS_CALL)
             assert(0);
     }
-
-
 parsedData::parsedData(Type type) : single_var(type){
         kind = type.kind == Type::ARRAY ? ARRAY:SINGLE;
     };
@@ -272,7 +251,6 @@ parsedData::parsedData(Type type, int value){
         single_var.value = value;
         single_var.type = type;
     }
-
 parsedData::parsedData(parsedData& data1, parsedData& data2){
         if(data2.kind != UNDEF)
             kind = data2.kind;
@@ -368,7 +346,7 @@ vector<string> parsedData::getArgsTypes(){
         return tmp;
     }
 
-
+//=========================== ParsedExp Class ===============================//
 parsedExp::parsedExp(Type::typeKind kind): parsedData(Type(kind)){}
 parsedExp::parsedExp(Type type) : parsedData(type){};
 parsedExp::parsedExp(parsedExp exp, binOps ops) {
@@ -413,7 +391,6 @@ parsedExp::parsedExp(parsedData data1, parsedData data2, binOps ops){
 parsedExp::parsedExp(parsedData data, binOps ops){
         *this = parsedExp(parsedExp(data), ops);
     }
-
 parsedExp parsedExp::maxRange(parsedExp exp1, parsedExp exp2) {
         Type int_t = Type(Type::INTEGER);
         Type byte_t = Type(Type::BYTE);
@@ -424,20 +401,111 @@ parsedExp parsedExp::maxRange(parsedExp exp1, parsedExp exp2) {
         else
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
     }
+//========================= Code Generator Class ============================//
+codeGenerator::codeGenerator(parsedData &data) : parsedExp(data) {
+    my_reg = regAlloc();
+    val_or_ref =  (data.kind == parsedData::SINGLE ? VALUE : REFERENCE);
+}
+codeGenerator::codeGenerator(parsedExp &exp) : parsedExp(exp) {
+    my_reg = regAlloc();
+    val_or_ref =  (exp.kind == parsedData::SINGLE ? VALUE : REFERENCE);
+    //TODO assign value to reg????
+}
+codeGenerator::codeGenerator(codeGenerator &cg1, codeGenerator cg2, cgAritOp aritOp) :
+        parsedExp(cg1,cg2,MATH_OP){
+    my_reg = regAlloc();
+    if(cg1.val_or_ref != VALUE || cg2.val_or_ref != VALUE)
+        throw;      //TODO aritmethic operators are defined only for VALUES
+    // practically, it uses 3 registers because how can we make sure that
+    // the one that we want will be taken by regAlloc after we free it?
+    cmd_to_gen = cgOpToString(aritOp) + " " + my_reg.toString() +   \
+                    " ," + cg1.my_reg.toString() +                  \
+                    " ," + cg2.my_reg.toString();
 
+}
+codeGenerator::codeGenerator(codeGenerator &cg1, codeGenerator cg2, cgBoolOp boolOp) :
+        parsedExp(cg1,cg2,BOOL_OP){
+    my_reg = regAlloc();
+    if(cg1.val_or_ref != VALUE || cg2.val_or_ref != VALUE)
+        throw;      //TODO boolean operators are defined only for VALUES
+    // practically, it uses 3 registers because how can we make sure that
+    // the one that we want will be taken by regAlloc after we free it?
+    cmd_to_gen = cgOpToString(boolOp) + " " + my_reg.toString() +   \
+                    " ," + cg1.my_reg.toString() +                  \
+                    " ," + cg2.my_reg.toString();
+    // update trueList and falseList
+
+}
+codeGenerator::codeGenerator(codeGenerator &cg1, codeGenerator cg2, cgRelOp relOp) :
+        parsedExp(cg1,cg2,REL_OP){
+    my_reg = regAlloc();
+    if(cg1.val_or_ref != VALUE || cg2.val_or_ref != VALUE)
+        throw;      //TODO relative operators are defined only for VALUES
+    // practically, it uses 3 registers because how can we make sure that
+    // the one that we want will be taken by regAlloc after we free it?
+    cmd_to_gen = cgOpToString(relOp) + " " + my_reg.toString() +   \
+                    " ," + cg1.my_reg.toString() +                  \
+                    " ," + cg2.my_reg.toString();
+    //update trueList and falseList
+    //need to add label
+}
+codeGenerator::~codeGenerator() {
+    regFree(my_reg);
+}
+
+string codeGenerator::cgOpToString(cgAritOp op){
+    switch(op){
+        case CG_PLUS:
+            return string("add");
+        case CG_MINUS:
+            return string("sub");
+        case CG_MUL:
+            return string("mul");
+        case CG_DIV:
+            return string("div");
+    }
+}
+string codeGenerator::cgOpToString(cgBoolOp op){
+    switch (op){
+        case CG_AND:
+            return string("and");
+        case CG_OR:
+            return string("or");
+        case CG_NOT:
+            break;
+            //TODO
+    }
+
+}
+string codeGenerator::cgOpToString(cgRelOp op){
+    switch (op){
+        case CG_EQ:
+            return  string("beq");
+        case CG_NEQ:
+            return  string("bne");
+        case CG_GT:
+            return  string("bgt");
+        case CG_GEQ:
+            return  string("bge");
+        case CG_LT:
+            return  string("blt");
+        case CG_LEQ:
+            return  string("ble");
+    }
+}
+//===========================================================================//
 //=============================== SCOPE HANDLING ============================//
+//===========================================================================//
 
+//=============================== SCOPE CLASS ===============================//
 scope::scope(){} // in case of the first scope scope
-
 scope::scope(int nextIdLocation, bool isWhileScope) : nextIdLocation(nextIdLocation), isWhileScope(isWhileScope){}
-
 void scope::addId(Type newIdType, string newIdName){
 
         Id temp(newIdType,nextIdLocation,newIdName);
         IdList.push_front(temp);
         nextIdLocation += newIdType.size();
     }
-
 bool scope::containsId(string name){
         list<Id> IdNames = IdList;
         while(!IdNames.empty()){
@@ -448,9 +516,9 @@ bool scope::containsId(string name){
         return false;
     }
 
-
+//============================== SCOPES CLASS ===============================//
 scopes::scopes() : need_to_print(true){};
-    Id scopes::getId(string name){
+Id scopes::getId(string name){
         list<scope> allScopes(scopesList);
         if (PRINT_DEBUG) cout << "trying to GET the  ID:  " << name << endl;
         if(allScopes.size() == 0)
@@ -467,7 +535,7 @@ scopes::scopes() : need_to_print(true){};
         }
         assert(0);
     }
-    function scopes::getFunction(string name){
+function scopes::getFunction(string name){
         list<function> funcs = functions;
 
         if(funcs.size() == 0)
@@ -479,7 +547,7 @@ scopes::scopes() : need_to_print(true){};
 
         assert(0);
     }
-    bool scopes::containsIdName(string name){
+bool scopes::containsIdName(string name){
         list<scope> allScopes(scopesList);
 
         if(allScopes.size() == 0)
@@ -496,7 +564,7 @@ scopes::scopes() : need_to_print(true){};
         }
         return false;
     }
-    bool scopes::containsFunctionName(string name){
+bool scopes::containsFunctionName(string name){
         list<function> funcs = functions;
 
         if(funcs.size() == 0)
@@ -506,14 +574,14 @@ scopes::scopes() : need_to_print(true){};
                 return true;
         return false;
     }
-    void scopes::addInitialFunction(Type returnType, string name, Type inputType){
+void scopes::addInitialFunction(Type returnType, string name, Type inputType){
         list<Type> functionInputTypes;
         functionInputTypes.push_front(inputType);
 
         function temp(name, returnType, functionInputTypes);
         functions.push_front(temp);
     }
-    void scopes::addFunction(parsedData retType,parsedData Id, parsedData functionInputs){
+void scopes::addFunction(parsedData retType,parsedData Id, parsedData functionInputs){
         assert(retType.kind == retType.SINGLE);
         assert(Id.kind == Id.SINGLE);
 
@@ -539,8 +607,7 @@ scopes::scopes() : need_to_print(true){};
         function temp(name, returnType, functionInputTypes);
         functions.push_front(temp);
     }
-
-    void scopes::addIdArray(parsedData Id,parsedData type,parsedData arraySize){
+void scopes::addIdArray(parsedData Id,parsedData type,parsedData arraySize){
 
         if(containsIdName(Id.single_var.name) || containsFunctionName(Id.single_var.name)) {
             throw parsingExceptions(parsingExceptions::ERR_DEF,Id.single_var.name);
@@ -562,8 +629,7 @@ scopes::scopes() : need_to_print(true){};
 
         if (PRINT_DEBUG) cout << "\n\n\nadded array: " << Id.single_var.name << endl;
     }
-
-    void scopes::addIdNotArray(parsedData type){
+void scopes::addIdNotArray(parsedData type){
         if(containsIdName(type.single_var.name) || containsFunctionName(type.single_var.name) ) {
             throw parsingExceptions(parsingExceptions::ERR_DEF,type.single_var.name);
         }//throw {/* appropriate exception*/};
@@ -572,8 +638,7 @@ scopes::scopes() : need_to_print(true){};
         if (PRINT_DEBUG) cout << "\n\n\nadded ID (not array): " << type.single_var.name << endl;
 
     }
-
-    void scopes::newRegularScope(bool isWhileScope){
+void scopes::newRegularScope(bool isWhileScope){
 
         int nextIdLocation = scopesList.front().nextIdLocation;
         bool oldIsInWhileScope = scopesList.front().isWhileScope;
@@ -581,7 +646,7 @@ scopes::scopes() : need_to_print(true){};
         scope temp(nextIdLocation,oldIsInWhileScope | isWhileScope);
         scopesList.push_front(temp);
     }
-    void scopes::newFunctionScope(parsedData inputVars){
+void scopes::newFunctionScope(parsedData inputVars){
 
         int newNextIdLocation = scopesList.front().nextIdLocation;
         scope newScope(newNextIdLocation,false);// false because opening a function means that we are not in a while scope
@@ -605,7 +670,7 @@ scopes::scopes() : need_to_print(true){};
         }
         scopesList.push_front(newScope);
     }
-    void scopes::removeScope(){
+void scopes::removeScope(){
         scope oldScope = scopesList.front();
 
         // print the scope
@@ -618,8 +683,7 @@ scopes::scopes() : need_to_print(true){};
 
         scopesList.pop_front();
     }
-
-    void scopes::verifyAssign(parsedData Id,parsedData exp){
+void scopes::verifyAssign(parsedData Id,parsedData exp){
         if(!containsIdName(Id.single_var.name)) {
             throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN, Id.single_var.name);
         }//throw {/*  appropriate exception */}; // id not found
@@ -631,8 +695,7 @@ scopes::scopes() : need_to_print(true){};
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
         }//throw {/*  appropriate exception */}; // incompatible types
     }
-
-    void scopes::verifyAssignToArray(parsedData idInput, parsedData arrIndex, parsedData assigned){
+void scopes::verifyAssignToArray(parsedData idInput, parsedData arrIndex, parsedData assigned){
 
         if(!containsIdName(idInput.single_var.name))
         {
@@ -660,35 +723,35 @@ scopes::scopes() : need_to_print(true){};
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
         }//throw {/*  appropriate exception */}; // array type is not compatible with exp type
     }
-    void scopes::verifyReturnTypeVoid(){
-        Type temp(Type::VOID);
-        if(!(functions.front().return_type == temp))
+void scopes::verifyReturnTypeVoid(){
+        if(!(functions.front().return_type.kind == Type::VOID))
         {
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
         }//throw {/*  appropriate exception */}; //function return different type
     }
-    void scopes::verifyReturnType(parsedData returnType){
+void scopes::verifyReturnType(parsedData returnType){
+        if(PRINT_DEBUG) cout << "in verifyReturnType " << endl;
         if((!(functions.front().return_type == returnType.single_var.type)) &&
-           !((functions.front().return_type == functions.front().return_type.INTEGER) &&
-             (returnType.single_var.type == returnType.single_var.type.BYTE)))
+           !((functions.front().return_type == Type::INTEGER) &&
+             (returnType.single_var.type == Type::BYTE)))
         {
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
         }//throw {/*  appropriate exception */}; //function return different type
     }
-    void scopes::verifyBreakBlock(){
+void scopes::verifyBreakBlock(){
         if(!scopesList.front().isWhileScope)
         {
             throw parsingExceptions(parsingExceptions::ERR_UNEXPECTED_BREAK);
         }//throw {/*  appropriate exception */}; //break in middle of not while scope
     }
-    void scopes::verifyExpIsBool(parsedData expType){
+void scopes::verifyExpIsBool(parsedData expType){
         Type temp(Type::BOOL);
         if(!(expType.single_var.type == temp))
         {
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
         }//throw {/*  appropriate exception */}; //expected boolean type
     }
-    void scopes::verifyFunctionCall(parsedData idInput,parsedData inputList){
+void scopes::verifyFunctionCall(parsedData idInput,parsedData inputList){
         assert(inputList.kind == parsedData::LIST);
 
         if(!containsFunctionName(idInput.single_var.name))
@@ -731,7 +794,7 @@ scopes::scopes() : need_to_print(true){};
         }
 
     }
-    void scopes::verifyNoParametersFunctionCall(parsedData idInput){
+void scopes::verifyNoParametersFunctionCall(parsedData idInput){
         if(!containsFunctionName(idInput.single_var.name))
         {
             throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN, idInput.single_var.name);
@@ -742,8 +805,7 @@ scopes::scopes() : need_to_print(true){};
             throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH);
         }//throw {/*  appropriate exception */}; //wrong function call parameters number
     }
-
-     vector<string> scopes::listToVector(list<Type> list){
+vector<string> scopes::listToVector(list<Type> list){
         vector<string> res;
         while(!list.empty()){
             res.push_back(list.front().toString());
@@ -753,7 +815,6 @@ scopes::scopes() : need_to_print(true){};
         if(PRINT_DEBUG) cout << " in listToVector, res front is : " << res.front() << endl;
         return res;
     }
-
 scopes::~scopes() {
         if(need_to_print) {
             while (!scopesList.empty())
