@@ -34,10 +34,10 @@ break		        			return BREAK;
 \[ 			            		return LBRACK;
 \] 			            		return RBRACK;
 = 				                return ASSIGN;
-(==|!=)			        		{if (PRINT_DEBUG) cout << "scanned == or !=" << endl; return EQ_OP;}
-(<|>|<=|>=)		 	        	return RELOP;
-[+-]					        return PLUS_MINUS;
-[\/\*]				        	return MUL_DIV;
+(==|!=)			        			{yylval = new parsedData(yytext, IS_OP);  return EQ_OP;}
+(<|>|<=|>=)		 	        		{yylval = new parsedData(yytext, IS_OP);  return RELOP;}
+[+-]					        	{yylval = new parsedData(yytext, IS_OP);  return PLUS_MINUS;}
+[\/\*]				        		{yylval = new parsedData(yytext, IS_OP);  return MUL_DIV;}
 [a-zA-Z][a-zA-Z0-9]* 	        	{yylval = new parsedData(yytext, IS_ID);  return ID;}
 (0|[1-9][0-9]*) 			        {yylval = new parsedData(yytext, IS_INT); return NUM;}
 \"([^\n\r\"\\]|\\[rnt"\\])+\" 		{yylval = new parsedData(yytext, IS_STR); return STRING;}

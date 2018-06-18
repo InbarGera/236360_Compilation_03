@@ -29,7 +29,8 @@ enum GrammerVar{
     IS_ID,
     IS_STR,
     IS_CALL,
-    IS_ARRAY
+    IS_ARRAY,
+    IS_OP
 };
 
 enum binOps {
@@ -139,14 +140,31 @@ public:
 class parsedData{
 public:
     enum DataKind {
-        SINGLE,
-        ARRAY,
-        LIST,
-        UNDEF
+        DK_OP,
+        DK_SINGLE,
+        DK_ARRAY,
+        DK_LIST,
+        DK_UNDEF
     };
-
+    enum PDOp{
+        PD_NO_OP,
+        PD_PLUS,
+        PD_MINUS,
+        PD_MUL,
+        PD_DIV,
+        PD_AND,
+        PD_OR,
+        PD_NOT,
+        PD_EQ,     // ==
+        PD_NEQ,    // !=
+        PD_GT,     // >
+        PD_GEQ,    // >=
+        PD_LT,     // <
+        PD_LEQ     // <=
+    };
     DataKind kind;
     VarInfo single_var;
+    PDOp pd_op;
     list<VarInfo> list_of_vars;
 
     parsedData();
@@ -159,6 +177,7 @@ public:
     parsedData(Type type, parsedData& data);
     parsedData(Type type, string id);
     parsedData(Type type, int value);
+    parsedData(PDOp pd_op_t) : kind(DK_OP), pd_op(pd_op_t){};
 
     parsedData(parsedData& data1, parsedData& data2);
     parsedData(parsedData& data, GrammerVar g_var) ;
@@ -169,6 +188,19 @@ public:
     bool isInteger();
     bool isBool();
     vector<string> getArgsTypes();
+    PDOp stringToOp(string parsed_op_t);
+    bool isAritOp( ){
+        assert(kind == DK_OP);
+        return  (pd_op >= PD_PLUS && pd_op <= PD_DIV);
+    }
+    bool isBoolOp(){
+        assert(kind == DK_OP);
+        return  (pd_op >= PD_AND && pd_op <= PD_NOT);
+    }
+    bool isRelOp(){
+        assert(kind == DK_OP);
+        return  (pd_op >= PD_EQ && pd_op <= PD_LEQ);
+    }
 
 };
 #define YYSTYPE parsedData*	// Tell Bison to use STYPE as the stack type
@@ -197,18 +229,18 @@ public:
     };
     // TODO should these enums be united?
     enum cgAritOp{  //cg for code generator
-        CG_PLUS,
+        CG_PLUS = 0,
         CG_MINUS,
         CG_MUL,
         CG_DIV
     };
     enum cgBoolOp{
-        CG_AND,
+        CG_AND = 10,
         CG_OR,
         CG_NOT
     };
     enum cgRelOp{
-        CG_EQ,     // ==
+        CG_EQ = 20,     // ==
         CG_NEQ,    // !=
         CG_GT,     // >
         CG_GEQ,    // >=
@@ -218,7 +250,7 @@ public:
     byValByRef val_or_ref;
     reg my_reg;
     string cmd_to_gen;
-    /* //TODO
+    /* TODO
      list<> trueList;
      list<> falseList;
      list<> nextList;
@@ -226,10 +258,10 @@ public:
     codeGenerator() : val_or_ref(NONE){};
     codeGenerator(parsedData& data);
     codeGenerator(parsedExp& exp);
-    codeGenerator(codeGenerator& cg1, codeGenerator cg2, cgAritOp aritOp);
-    codeGenerator(codeGenerator& cg1, codeGenerator cg2, cgBoolOp boolOp);
-    codeGenerator(codeGenerator& cg1, codeGenerator cg2, cgRelOp relOp);
-
+    codeGenerator(codeGenerator cg1, codeGenerator cg2, cgAritOp aritOp);
+    codeGenerator(codeGenerator cg1, codeGenerator cg2, cgBoolOp boolOp);
+    codeGenerator(codeGenerator cg1, codeGenerator cg2, cgRelOp relOp);
+    codeGenerator(parsedExp exp1, parsedData parsed_op, parsedExp exp2);
     ~codeGenerator();
 
     string cgOpToString(cgAritOp op);

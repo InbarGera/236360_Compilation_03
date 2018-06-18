@@ -187,16 +187,16 @@ string function::toString(){
 //===========================================================================//
 
 //=========================== ParsedData Class ==============================//
-parsedData::parsedData() : kind(UNDEF){ };
-parsedData::parsedData(GrammerVar g_var) : kind(LIST){
+parsedData::parsedData() : kind(DK_UNDEF){ };
+parsedData::parsedData(GrammerVar g_var) : kind(DK_LIST), pd_op(PD_NO_OP){
         if(g_var != IS_CALL)
             assert(0);
     }
-parsedData::parsedData(Type type) : single_var(type){
-        kind = type.kind == Type::ARRAY ? ARRAY:SINGLE;
+parsedData::parsedData(Type type) : single_var(type), pd_op(PD_NO_OP){
+        kind = type.kind == Type::ARRAY ? DK_ARRAY : DK_SINGLE;
     };
-parsedData::parsedData(char* tmp_yytext, GrammerVar g_var) {
-        kind = SINGLE;
+parsedData::parsedData(char* tmp_yytext, GrammerVar g_var) : pd_op(PD_NO_OP){
+        kind = DK_SINGLE;
         switch (g_var) {
             case IS_INT: {
                 single_var = VarInfo(string_to_num(tmp_yytext));
@@ -226,39 +226,44 @@ parsedData::parsedData(char* tmp_yytext, GrammerVar g_var) {
                                       << endl;
             }
                 break;
+            case IS_OP:{
+                kind = DK_OP;
+                pd_op = stringToOp(string(tmp_yytext));
+            }
+                break;
             default: {
                 if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(char*,GrammarVar)" << endl;
                 throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
             }
         }
     }
-parsedData::parsedData(Type type, parsedData& data) : kind(SINGLE){
+parsedData::parsedData(Type type, parsedData& data) : kind(DK_SINGLE),pd_op(PD_NO_OP){
         single_var.type = type;
         single_var.name = data.getName();
     }
-parsedData::parsedData(Type type, string id){ // for TYPE_ID -> TYPE ID
+parsedData::parsedData(Type type, string id): pd_op(PD_NO_OP){ // for TYPE_ID -> TYPE ID
         single_var = VarInfo(type);
         single_var.name = id;
     }
-parsedData::parsedData(Type type, int value){
+parsedData::parsedData(Type type, int value): pd_op(PD_NO_OP){
 
         if(PRINT_DEBUG) cout << "inside parsedData(Type type, int value, value = " << value << endl;
 
 
         if(type.kind == Type::BYTE && (value<0||value>255))
             throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE,parsingExceptions::intToString(value));
-        kind = SINGLE;
+        kind = DK_SINGLE;
         single_var.value = value;
         single_var.type = type;
     }
-parsedData::parsedData(parsedData& data1, parsedData& data2){
-        if(data2.kind != UNDEF)
+parsedData::parsedData(parsedData& data1, parsedData& data2): pd_op(PD_NO_OP){
+        if(data2.kind != DK_UNDEF)
             kind = data2.kind;
 
         single_var = data1.single_var;
         single_var.name = data2.single_var.name;
         switch (data2.kind){
-            case SINGLE: {
+            case DK_SINGLE: {
                 single_var.type = data2.single_var.type;
                 single_var.value = data1.single_var.value;
                 if(single_var.type.kind == Type::BYTE) {
@@ -266,11 +271,11 @@ parsedData::parsedData(parsedData& data1, parsedData& data2){
                         throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE,parsingExceptions::intToString(single_var.value));
                 }
             }break;
-            case ARRAY: {
+            case DK_ARRAY: {
                 single_var.type =
                         Type(data1.single_var.type.kind, data2.single_var.type.arrayLength);
             }break;
-            case LIST: {
+            case DK_LIST: {
                 list_of_vars = data2.list_of_vars;
                 list_of_vars.push_front(data1.single_var);
             }break;
@@ -281,14 +286,14 @@ parsedData::parsedData(parsedData& data1, parsedData& data2){
         }
 
     }
-parsedData::parsedData(parsedData& data, GrammerVar g_var) {
+parsedData::parsedData(parsedData& data, GrammerVar g_var): pd_op(PD_NO_OP) {
         if (g_var == IS_CALL) {
-            kind = LIST;
+            kind = DK_LIST;
             list_of_vars = data.list_of_vars;
             if (data.list_of_vars.size() == 0)
                 list_of_vars.push_front(data.single_var);
         } else if (g_var == IS_ARRAY) {
-            kind = ARRAY;
+            kind = DK_ARRAY;
             single_var.type =
                     Type(data.single_var.type.kind, data.single_var.value);
         } else {
@@ -296,9 +301,9 @@ parsedData::parsedData(parsedData& data, GrammerVar g_var) {
             throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
         }
     }
-parsedData::parsedData(parsedData& data1, parsedData& data2, GrammerVar g_var){
+parsedData::parsedData(parsedData& data1, parsedData& data2, GrammerVar g_var): pd_op(PD_NO_OP){
         if(g_var == IS_ARRAY){
-            kind = ARRAY;
+            kind = DK_ARRAY;
             Type int_t = Type(Type::INTEGER);
             Type byte_t = Type(Type::BYTE);
 
@@ -337,7 +342,7 @@ bool parsedData::isBool(){
         return getType().kind == Type::BOOL;
     }
 vector<string> parsedData::getArgsTypes(){
-        assert(kind == LIST);
+        assert(kind == DK_LIST);
         vector<string> tmp;
         while(!list_of_vars.empty()){
             tmp.push_back(list_of_vars.front().name);
@@ -346,6 +351,35 @@ vector<string> parsedData::getArgsTypes(){
         return tmp;
     }
 
+parsedData::PDOp parsedData::stringToOp(string parsed_op_t){
+    if (parsed_op_t == "+")
+        return PD_PLUS;
+    if (parsed_op_t == "-")
+        return PD_MINUS;
+    if(parsed_op_t == "*")
+        return PD_MUL;
+    if(parsed_op_t == "/")
+        return PD_DIV;
+    if(parsed_op_t == "and")
+        return PD_AND;
+    if(parsed_op_t == "or")
+        return PD_OR;
+    if(parsed_op_t == "not")
+        return  PD_NOT;
+    if(parsed_op_t == "==")
+        return PD_EQ;
+    if(parsed_op_t == "!=")
+        return PD_NEQ;
+    if(parsed_op_t == ">")
+        return PD_GT;
+    if(parsed_op_t == ">=")
+        return PD_GEQ;
+    if(parsed_op_t == "<")
+        return PD_LT;
+    if(parsed_op_t == "<=")
+        return PD_LEQ;
+    assert(0);   // NOT SUPPOSED TO GET HERE!!!!!!!
+}
 //=========================== ParsedExp Class ===============================//
 parsedExp::parsedExp(Type::typeKind kind): parsedData(Type(kind)){}
 parsedExp::parsedExp(Type type) : parsedData(type){};
@@ -404,14 +438,14 @@ parsedExp parsedExp::maxRange(parsedExp exp1, parsedExp exp2) {
 //========================= Code Generator Class ============================//
 codeGenerator::codeGenerator(parsedData &data) : parsedExp(data) {
     my_reg = regAlloc();
-    val_or_ref =  (data.kind == parsedData::SINGLE ? VALUE : REFERENCE);
+    val_or_ref =  (data.kind == parsedData::DK_SINGLE ? VALUE : REFERENCE);
 }
 codeGenerator::codeGenerator(parsedExp &exp) : parsedExp(exp) {
     my_reg = regAlloc();
-    val_or_ref =  (exp.kind == parsedData::SINGLE ? VALUE : REFERENCE);
+    val_or_ref =  (exp.kind == parsedData::DK_SINGLE ? VALUE : REFERENCE);
     //TODO assign value to reg????
 }
-codeGenerator::codeGenerator(codeGenerator &cg1, codeGenerator cg2, cgAritOp aritOp) :
+codeGenerator::codeGenerator(codeGenerator cg1, codeGenerator cg2, cgAritOp aritOp) :
         parsedExp(cg1,cg2,MATH_OP){
     my_reg = regAlloc();
     if(cg1.val_or_ref != VALUE || cg2.val_or_ref != VALUE)
@@ -421,9 +455,8 @@ codeGenerator::codeGenerator(codeGenerator &cg1, codeGenerator cg2, cgAritOp ari
     cmd_to_gen = cgOpToString(aritOp) + " " + my_reg.toString() +   \
                     " ," + cg1.my_reg.toString() +                  \
                     " ," + cg2.my_reg.toString();
-
 }
-codeGenerator::codeGenerator(codeGenerator &cg1, codeGenerator cg2, cgBoolOp boolOp) :
+codeGenerator::codeGenerator(codeGenerator cg1, codeGenerator cg2, cgBoolOp boolOp) :
         parsedExp(cg1,cg2,BOOL_OP){
     my_reg = regAlloc();
     if(cg1.val_or_ref != VALUE || cg2.val_or_ref != VALUE)
@@ -436,7 +469,7 @@ codeGenerator::codeGenerator(codeGenerator &cg1, codeGenerator cg2, cgBoolOp boo
     // update trueList and falseList
 
 }
-codeGenerator::codeGenerator(codeGenerator &cg1, codeGenerator cg2, cgRelOp relOp) :
+codeGenerator::codeGenerator(codeGenerator cg1, codeGenerator cg2, cgRelOp relOp) :
         parsedExp(cg1,cg2,REL_OP){
     my_reg = regAlloc();
     if(cg1.val_or_ref != VALUE || cg2.val_or_ref != VALUE)
@@ -448,6 +481,56 @@ codeGenerator::codeGenerator(codeGenerator &cg1, codeGenerator cg2, cgRelOp relO
                     " ," + cg2.my_reg.toString();
     //update trueList and falseList
     //need to add label
+}
+codeGenerator::codeGenerator(parsedExp exp1, parsedData parsed_op, parsedExp exp2) {
+    if (parsed_op.isAritOp()) {
+        cgAritOp art_op_t;
+        switch (parsed_op.pd_op){
+            case PD_PLUS:
+                art_op_t = CG_PLUS;
+            case PD_MINUS:
+                art_op_t = CG_MINUS;
+            case PD_MUL:
+                art_op_t = CG_MUL;
+            case PD_DIV:
+                art_op_t = CG_DIV;
+        }
+        *this = codeGenerator(codeGenerator(exp1),
+                              codeGenerator(exp2), art_op_t);
+    }
+    else if (parsed_op.isBoolOp()){
+        cgBoolOp bool_op_t;
+        switch (parsed_op.pd_op){
+            case PD_AND:
+                bool_op_t = CG_AND;
+            case PD_OR:
+                bool_op_t = CG_OR;
+            case PD_NOT:
+                bool_op_t = CG_NOT;
+        }
+        *this = codeGenerator(codeGenerator(exp1),
+                              codeGenerator(exp2), bool_op_t);
+    }
+    else if (parsed_op.isRelOp()){
+        cgRelOp rel_op_t;
+        switch (parsed_op.pd_op){
+            case PD_EQ:
+                rel_op_t = CG_EQ;
+            case PD_NEQ:
+                rel_op_t = CG_NEQ;
+            case PD_GT:
+                rel_op_t = CG_GT;
+            case PD_GEQ:
+                rel_op_t = CG_GEQ;
+            case PD_LT:
+                rel_op_t = CG_LT;
+            case PD_LEQ:
+                rel_op_t = CG_LEQ;
+        }
+        *this = codeGenerator(codeGenerator(exp1),
+                              codeGenerator(exp2), rel_op_t);
+    }
+    assert(0);
 }
 codeGenerator::~codeGenerator() {
     regFree(my_reg);
@@ -582,8 +665,8 @@ void scopes::addInitialFunction(Type returnType, string name, Type inputType){
         functions.push_front(temp);
     }
 void scopes::addFunction(parsedData retType,parsedData Id, parsedData functionInputs){
-        assert(retType.kind == retType.SINGLE);
-        assert(Id.kind == Id.SINGLE);
+        assert(retType.kind == retType.DK_SINGLE);
+        assert(Id.kind == Id.DK_SINGLE);
 
         //extracting the variables from the parsed data
         string name = Id.single_var.name;
@@ -752,7 +835,7 @@ void scopes::verifyExpIsBool(parsedData expType){
         }//throw {/*  appropriate exception */}; //expected boolean type
     }
 void scopes::verifyFunctionCall(parsedData idInput,parsedData inputList){
-        assert(inputList.kind == parsedData::LIST);
+        assert(inputList.kind == parsedData::DK_LIST);
 
         if(!containsFunctionName(idInput.single_var.name))
         {
