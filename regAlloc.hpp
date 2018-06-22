@@ -4,7 +4,7 @@
 #include <cassert>
 #include "utills.hpp"
 
-class reg{
+class regClass{
     int myIndex;
 public:
     reg(int i);
@@ -12,7 +12,7 @@ public:
     int index();
 };
 
-reg regAlloc();
+regClass regAlloc();
 void regFree(reg toFree);
 void assertAllRegistersAreFree();
 

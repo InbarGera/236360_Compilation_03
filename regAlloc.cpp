@@ -7,20 +7,20 @@
 static bool status[REG_NUM];
 static bool initiated = false;
 
-reg::reg(int i) {
+regClass::regClass(int i) {
     assert(i >= 0 && i < REG_NUM);
     myIndex = i;
 }
 
-std::string reg::toString(){
+std::string regClass::toString(){
     return "$" + num_to_string(myIndex + 8); // 8  is due to mips reg names convention
 }
 
-int reg::index(){
+int regClass::index(){
     return myIndex;
 }
 
-reg regAlloc(){
+regClass regAlloc(){
     if(!initiated) {
         for (int i = 0; i < REG_NUM; i++)
             status[i] = FREE;
@@ -35,7 +35,7 @@ reg regAlloc(){
     assert(0); // should always be a free register
 }
 
-void regFree(reg toFree){
+void regFree(regClass toFree){
     assert(status[toFree.index()] == ALLOCATED && initiated);
     status[toFree.index()] = FREE;
 }
