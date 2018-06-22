@@ -30,7 +30,7 @@ regClass regAlloc(){
     for(int i=0; i<REG_NUM ;i++)
         if(status[i] == FREE) {
             status[i] == ALLOCATED;
-            return reg(i);
+            return regClass(i);
         }
     assert(0); // should always be a free register
 }

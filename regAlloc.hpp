@@ -7,13 +7,14 @@
 class regClass{
     int myIndex;
 public:
-    reg(int i);
+    regClass() : myIndex(-1) {};
+    regClass(int i);
     std::string toString();
     int index();
 };
 
 regClass regAlloc();
-void regFree(reg toFree);
+void regFree(regClass toFree);
 void assertAllRegistersAreFree();
 
 #endif //COMPILATION_03_REGALLOC_HPP

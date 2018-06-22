@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <sstream>
 #include <exception>
+#include <string>
 
 #include "output.hpp"
 #include "regAlloc.hpp"
@@ -208,7 +209,7 @@ public:
 
 class parsedExp : public parsedData {
 public:
-    // add register
+    regClass reg;
     parsedExp();
     parsedExp(Type::typeKind kind);
     parsedExp(Type type) ;
@@ -261,8 +262,8 @@ public:
     void newFunctionScope(parsedData inputVars);
     void removeScope();
 
-    void verifyAssign(parsedData Id,parsedData exp);
-    void verifyAssignToArray(parsedData idInput, parsedExp arrIndex, parsedData assigned);
+    void verifyAssign(parsedData Id,parsedExp exp);
+    void verifyAssignToArray(parsedData idInput, parsedExp arrIndex, parsedExp assigned);
     void verifyReturnTypeVoid();
     void verifyReturnType(parsedData returnType);
     void verifyBreakBlock();

@@ -567,7 +567,7 @@ void scopes::addIdArray(parsedData Id,parsedData type,parsedData arraySize) {
     if (PRINT_DEBUG) cout << "\n\n\nadded array: " << Id.single_var.name << endl;
     // HW5 addition
     string var_offset = \
-        std::to_string(scopesList.getId(Id.single_var.name).offset*4*newType.arrayLength);
+        string(num_to_string((getId(Id.single_var.name).offset+(newType.arrayLength))*4));
     buffer.emit(string("subu $sp, $sp, "+var_offset));
     // HW5 addition
 }
@@ -580,7 +580,7 @@ void scopes::addIdNotArray(parsedData type) {
     if (PRINT_DEBUG) cout << "\n\n\nadded ID (not array): " << type.single_var.name << endl;
 
     // HW5 addition
-    string var_offset = std::to_string(scopesList.getId(type.single_var.name).offset*4);
+    string var_offset = string(num_to_string(getId(type.single_var.name).offset*4));
     buffer.emit(string("subu $sp, $sp, "+var_offset));
     // HW5 addition
 }
@@ -629,13 +629,13 @@ void scopes::removeScope() {
 
     scopesList.pop_front();
 }
-void scopes::verifyAssign(parsedData Id,parsedData exp) {
-    if (!containsIdName(Id.single_var.name)) {
-        throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN, Id.single_var.name);
+void scopes::verifyAssign(parsedData id_t,parsedExp exp) {
+    if (!containsIdName(id_t.single_var.name)) {
+        throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN, id_t.single_var.name);
     }//throw {/*  appropriate exception */}; // id not found
 
     //HW5 addition
-    Id id = getId(Id.single_var.name);
+    Id id = getId(id_t.single_var.name);
     //HW5 addition
     Type idType = id.type;
     if (!(idType == exp.single_var.type) && // the types are different, and it is not a case of assign byte to int
@@ -644,15 +644,15 @@ void scopes::verifyAssign(parsedData Id,parsedData exp) {
     }//throw {/*  appropriate exception */}; // incompatible types
 
     //HW5 addition
-    string reg_to_sw = std::to_string(exp.reg);     //TODO add register to expression
-    string offset_str = std::to_string(id.offset*4);
+    string reg_to_sw = exp.reg.toString();
+    string offset_str = string(num_to_string(id.offset*4));
     string to_emit = (id.offset == 0 ?                                  \
                             string("sw $"+reg_to_sw+", ($sp)") :        \
                             string("sw $"+reg_to_sw+", "+offset_str+"($sp)" ));
     buffer.emit(to_emit);
     //HW5 addition
 }
-void scopes::verifyAssignToArray(parsedData idInput, parsedExp arrIndex, parsedData assigned) {
+void scopes::verifyAssignToArray(parsedData idInput, parsedExp arrIndex, parsedExp assigned) {
 
     if (!containsIdName(idInput.single_var.name)) {
         throw parsingExceptions(parsingExceptions::ERR_UNDEF, idInput.single_var.name);
@@ -679,10 +679,10 @@ void scopes::verifyAssignToArray(parsedData idInput, parsedExp arrIndex, parsedD
     }//throw {/*  appropriate exception */}; // array type is not compatible with exp type
 
     //HW5 addition
-    string reg_to_sw = std::to_string(assigned.reg);     //TODO add register to expression
-    string offset_str = std::to_string(id.offset*4+arrIndex.single_var.value*4);
-    string to_emit = (id.offset == 0 ?                                  \
-                            string("sw $"+reg_to_sw+", ($sp)") :        \
+    string reg_to_sw = assigned.reg.toString();     //TODO add register to expression
+    string offset_str = string(num_to_string(id.offset*4+arrIndex.single_var.value*4));
+    string to_emit = ((id.offset == 0 && arrIndex.single_var.value == 0 )?      \
+                            string("sw $"+reg_to_sw+", ($sp)") :                \
                             string("sw $"+reg_to_sw+", "+offset_str+"($sp)" ));
     buffer.emit(to_emit);
     //HW5 addition
