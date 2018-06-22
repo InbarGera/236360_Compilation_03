@@ -12,6 +12,7 @@
 #include "output.hpp"
 #include "regAlloc.hpp"
 #include "utills.hpp"
+#include "bp.hpp"
 
 using std::cout;
 using std::endl;
@@ -207,6 +208,7 @@ public:
 
 class parsedExp : public parsedData {
 public:
+    // add register
     parsedExp();
     parsedExp(Type::typeKind kind);
     parsedExp(Type type) ;
@@ -217,56 +219,6 @@ public:
     parsedExp(parsedData data, binOps ops);
 
     parsedExp maxRange(parsedExp exp1, parsedExp exp2);
-};
-
-//========================= Code Generator CLASSES ==========================//
-class codeGenerator : public parsedExp{
-public:
-    enum byValByRef{
-        NONE,
-        VALUE,
-        REFERENCE
-    };
-    // TODO should these enums be united?
-    enum cgAritOp{  //cg for code generator
-        CG_PLUS = 0,
-        CG_MINUS,
-        CG_MUL,
-        CG_DIV
-    };
-    enum cgBoolOp{
-        CG_AND = 10,
-        CG_OR,
-        CG_NOT
-    };
-    enum cgRelOp{
-        CG_EQ = 20,     // ==
-        CG_NEQ,    // !=
-        CG_GT,     // >
-        CG_GEQ,    // >=
-        CG_LT,     // <
-        CG_LEQ     // <=
-    };
-    byValByRef val_or_ref;
-    reg my_reg;
-    string cmd_to_gen;
-    /* TODO
-     list<> trueList;
-     list<> falseList;
-     list<> nextList;
-     */
-    codeGenerator() : val_or_ref(NONE){};
-    codeGenerator(parsedData& data);
-    codeGenerator(parsedExp& exp);
-    codeGenerator(codeGenerator cg1, codeGenerator cg2, cgAritOp aritOp);
-    codeGenerator(codeGenerator cg1, codeGenerator cg2, cgBoolOp boolOp);
-    codeGenerator(codeGenerator cg1, codeGenerator cg2, cgRelOp relOp);
-    codeGenerator(parsedExp exp1, parsedData parsed_op, parsedExp exp2);
-    ~codeGenerator();
-
-    string cgOpToString(cgAritOp op);
-    string cgOpToString(cgBoolOp op);
-    string cgOpToString(cgRelOp op);
 };
 
 //=============================== SCOPE HANDLING ============================//
@@ -293,6 +245,7 @@ public:
     list<function> functions;
     list<scope> scopesList;
     bool need_to_print;
+    CodeBuffer buffer;  //addition for hw5
     scopes();
     Id getId(string name);
     function getFunction(string name);
@@ -302,7 +255,6 @@ public:
     void addFunction(parsedData retType,parsedData Id, parsedData functionInputs);
 
     void addIdArray(parsedData Id,parsedData type,parsedData arraySize);
-
     void addIdNotArray(parsedData type);
 
     void newRegularScope(bool isWhileScope);
@@ -310,8 +262,7 @@ public:
     void removeScope();
 
     void verifyAssign(parsedData Id,parsedData exp);
-
-    void verifyAssignToArray(parsedData idInput, parsedData arrIndex, parsedData assigned);
+    void verifyAssignToArray(parsedData idInput, parsedExp arrIndex, parsedData assigned);
     void verifyReturnTypeVoid();
     void verifyReturnType(parsedData returnType);
     void verifyBreakBlock();
@@ -321,7 +272,10 @@ public:
 
     static vector<string> listToVector(list<Type> list);
 
-    ~scopes() ;
+    ~scopes();
+
+
 };
+
 
 #endif

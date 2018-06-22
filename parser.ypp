@@ -62,8 +62,11 @@ Formals	:	                    {$$ = new parsedData();}  //Lior
 
 Type_ID : Type ID       {if(scopesList->containsIdName($2->getName()))
                             throw parsingExceptions(parsingExceptions::ERR_DEF, yylineno, $2->getName());
-                            $$ = new parsedData($1->single_var.type, $2->single_var.name);
-                            delete $1; delete $2;}    //Lior
+                         $$ = new parsedData($1->single_var.type, $2->single_var.name);
+                         delete $1; delete $2;
+
+
+                         }    //Lior
 		;
 
 FormalsList :   FormalDecl {$$ = new parsedData(*$1, IS_CALL);
@@ -89,7 +92,7 @@ NUM_T2 :                 {$$ = new parsedData(Type(Type::INTEGER));}     //Lior
 
 
 Statements  :   Statement
-			|   Statement Statements        //TODO update next-list
+			|   Statement Statements
 			;
 
 Statement : 	LBRACE_t Statements RBRACE_t
@@ -123,12 +126,10 @@ Statement : 	LBRACE_t Statements RBRACE_t
 
             | If_Begin If_Continue
            	|	While_Statement
-			|	BREAK SC            {TRY_AND_CATCH(scopesList->verifyBreakBlock());}    //nextList break = nextList while
+			|	BREAK SC            {TRY_AND_CATCH(scopesList->verifyBreakBlock());}
 			;
 
-If_Begin    :  IF LPAREN Exp {if(!$3->isBool())
-                                throw parsingExceptions(parsingExceptions::ERR_MISMATCH,yylineno);
-                              delete $3;}
+If_Begin    :  IF LPAREN Exp {if(!$3->isBool()) throw parsingExceptions(parsingExceptions::ERR_MISMATCH,yylineno); delete $3;}
             ;
 
 If_Continue :   RPAREN Open_Scope Statement {scopesList->removeScope();}
@@ -153,6 +154,7 @@ While_Open : WHILE LPAREN Exp RPAREN {TRY_AND_CATCH(scopesList->verifyExpIsBool(
 
 //end of need to fix if
 
+//TODO Inbar call returns type
 Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3);}
                                             catch(parsingExceptions& e){
                                             if(e.err_type == parsingExceptions::ERR_PROTOTYPE_MISMATCH)
@@ -174,7 +176,7 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
 		                                 $$ = new parsedExp((scopesList->getFunction($1->getName())).return_type);
 		                                 delete $1;}
 		;
-
+//TODO Lior
 ExpList:    Exp ExpList2 {  $$ = new parsedData(*$1,*$2) ;
 		                                delete $1; delete $2;}
 
@@ -201,12 +203,12 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 		                                    throw parsingExceptions(parsingExceptions::ERR_UNDEF,
                                                   		            yylineno, $1->getName());      //TODO ID doesn't exist!
 		                             }
-		| 	Exp PLUS_MINUS Exp      {TRY_AND_CATCH($$ = new codeGenerator(*$1,*$2,*$3));
-                                           delete $1; delete $2; delete $3;
-                                    }
-		|	Exp MUL_DIV Exp         {TRY_AND_CATCH($$ = new codeGenerator(*$1,*$2,*$3));
-                                           delete $1; delete $2; delete $3;
-                                    }
+		| 	Exp PLUS_MINUS Exp      {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, MATH_OP));
+                                        delete $1; delete $3;
+                                     }
+		|	Exp MUL_DIV Exp         {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, MATH_OP));
+                                         delete $1; delete $3;
+                                     }
 		| 	ID                      {if (scopesList->containsIdName($1->getName())){
 		                                $$ = new parsedExp(scopesList->getId($1->getName()).type);
 		                                delete $1;
@@ -226,18 +228,34 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 		|	NOT Exp	                {TRY_AND_CATCH($$ = new parsedExp(*$2, BOOL_OP));
 		 		                                delete $2;
 		 		                     }
-		|	Exp OR Exp              {TRY_AND_CATCH($$ = new codeGenerator(*$1,*$2,*$3));
-        		                            delete $1; delete $2; delete $3;
-                                    }
-		|	Exp AND Exp	            {TRY_AND_CATCH($$ = new codeGenerator(*$1,*$2,*$3));
-                                            delete $1; delete $2; delete $3;
-                                    }
-        |	Exp EQ_OP Exp           {TRY_AND_CATCH($$ = new codeGenerator(*$1,*$2,*$3));
-                                            delete $1; delete $2; delete $3;
-                                    }     // For ambiguity reasons!!!!!!!!!
-		|	Exp RELOP Exp           {TRY_AND_CATCH($$ = new codeGenerator(*$1,*$2,*$3));
-                                            delete $1; delete $2; delete $3;
-                                    }
+		|	Exp OR Exp              {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, BOOL_OP));
+                                        if(PRINT_DEBUG)
+        		                            cout << "parsed exp OR exp: "
+        		                            << $1->getName() << " " << $3->getName()
+        		                            << endl;
+        		                            delete $1; delete $3;
+                                    }  // make sure Exp and Exp are of type bool
+		|	Exp AND Exp	            {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, BOOL_OP));
+                                        if(PRINT_DEBUG)
+        		                            cout << "parsed exp AND exp: "
+        		                            << $1->getName() << " " << $3->getName()
+        		                            << endl;
+        		                            delete $1; delete $3;
+                                    }     // make sure Exp and Exp are of type bool
+		|	Exp EQ_OP Exp           {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, REL_OP));
+		                                if(PRINT_DEBUG)
+		                                    cout << "parsed exp EQ_OP exp: "
+		                                     << $1->getName() << " " << $3->getName()
+		                                     << endl;
+                                     	 delete $1; delete $3;
+                                     }     // For ambiguity reasons!!!!!!!!!
+		|	Exp RELOP Exp           {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, REL_OP));
+		                                if(PRINT_DEBUG)
+        		                             cout << "parsed exp RELOP exp: "
+        		                             << $1->getName() << " " << $3->getName()
+        		                             << endl;
+		                                 delete $1; delete $3;
+		                             }
 		;
 
 
