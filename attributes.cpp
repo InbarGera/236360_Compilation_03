@@ -380,10 +380,22 @@ parsedData::PDOp parsedData::stringToOp(string parsed_op_t){
         return PD_LEQ;
     assert(0);   // NOT SUPPOSED TO GET HERE!!!!!!!
 }
+
+//=========================== BPInfo Class ===============================//
+
+BPInfo::BPInfo(){
+    beginLabel = buffer.genLabel();
+}
+
 //=========================== ParsedExp Class ===============================//
-parsedExp::parsedExp(Type::typeKind kind): parsedData(Type(kind)){}
-parsedExp::parsedExp(Type type) : parsedData(type){};
-parsedExp::parsedExp(parsedExp exp, binOps ops) {
+
+parsedExp::~parsedExp(){
+    if(regType != undef)
+        regFree(reg);
+}
+parsedExp::parsedExp(Type::typeKind kind): parsedData(Type(kind)), regType(undef){}
+parsedExp::parsedExp(Type type) : parsedData(type), regType(undef){};
+parsedExp::parsedExp(parsedExp exp, binOps ops): regType(undef) {
         if (ops == BOOL_OP) {
             if (exp.isBool()) {
                 *this = parsedExp(Type(Type::BOOL));
@@ -394,7 +406,7 @@ parsedExp::parsedExp(parsedExp exp, binOps ops) {
             throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
         }
     }
-parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops){
+parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops): regType(undef){
         switch (ops){
             case REL_OP: {
                 if (exp1.isInteger() && exp2.isInteger()) {
@@ -418,11 +430,11 @@ parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops){
                 throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
             }        }
     }
-parsedExp::parsedExp(parsedData data) : parsedData(data){};
-parsedExp::parsedExp(parsedData data1, parsedData data2, binOps ops){
+parsedExp::parsedExp(parsedData data) : parsedData(data), regType(undef){};
+parsedExp::parsedExp(parsedData data1, parsedData data2, binOps ops): regType(undef){
         *this = parsedExp(parsedExp(data1), parsedExp(data2), ops);
     }
-parsedExp::parsedExp(parsedData data, binOps ops){
+parsedExp::parsedExp(parsedData data, binOps ops): regType(undef){
         *this = parsedExp(parsedExp(data), ops);
     }
 parsedExp parsedExp::maxRange(parsedExp exp1, parsedExp exp2) {
@@ -785,4 +797,72 @@ scopes::~scopes() {
 
 }
 
+//============================== codeGenerator CLASS ===============================//
 
+static void codeGenerator::initiateKnownConstants(){
+    static bool initiated = false;
+    if(initiated)
+        return;
+
+    buffer.emitData("byteMask: .word 0x000000ff");
+
+    initiated = true;
+}
+
+static string codeGenerator::opToBranchString(parsedData::PDOp op){
+    switch(op){
+        case PD_EQ :{  // ==
+            return "beq ";
+        }break;
+        case PD_NEQ :{  // !=
+            return "bne ";
+        }break;
+        case PD_GT :{  // >
+            return "bgt ";
+        }break;
+        case PD_GEQ :{  // >=
+            return "bge ";
+        }break;
+        case PD_LT :{  // <
+            return "blt ";
+        }break;
+        case PD_LEQ :{  // <=
+            return "ble ";
+        }break;
+        default:{
+            assert(0);
+        }
+    }
+    assert(0);
+}
+
+static string codeGenerator::arithmeticOpToString(parsedData::PDOp op){
+    switch(op) {
+        case PD_PLUS : {
+            return "add ";
+        }break;
+        case PD_MINUS : {
+            return "sub ";
+        }break;
+        case PD_MUL : {
+            return "mul ";
+        }break;
+        case PD_DIV : {
+            return "div ";
+        }break;
+        default:{
+            assert(0);
+        }
+    }
+    assert(0);
+}
+
+static string codeGenerator::byteArithmeticMasking(regClass reg){
+    string res = "and ";
+    res += reg.toString();
+    res += ", ";
+    res += reg.toString();
+    res += ", ";
+    res += byteMask;
+    return res;
+}

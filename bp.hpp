@@ -44,6 +44,7 @@ public:
 	//print the content of the data buffer to stdout including a .data header
 	void printDataBuffer();
 
+    std::string genDataLabel();
 };
 
 #endif

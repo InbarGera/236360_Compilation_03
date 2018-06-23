@@ -15,6 +15,14 @@
              throw parsingExceptions(e.err_type, yylineno, e.id);       \
         }
 
+    #define EMIT_TEXT(string) scopes->buffer.emit(string);
+    #define EMIT_DATA(string) scopes->buffer.emitData(string);
+
+    #define MERGE(destination,l1,l2)      \
+    l1.sort();                \
+    l2.sort();                \
+    destination = l1.merge(l2);
+
 	scopes* scopesList;
 %}
 
@@ -190,72 +198,198 @@ Type	:	INT              {$$ = new parsedData(Type(Type::INTEGER));}
 		;
 
 Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
-		| 	ID LBRACK Exp RBRACK    {if (scopesList->containsIdName($1->getName())){
-		                                if ($3->isInteger() && scopesList->getId($1->getName()).type.kind == Type::ARRAY){
-		                                    $$ = new parsedExp(scopesList->getId($1->getName()).type.arrayType);
-				                                delete $1; delete $3;
-		                                }
-		                                else
-		                                    throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE,
-		                                                            yylineno, $1->getName());  //TODO Exp not an inteeger!
-                                      }
-		                                else
-		                                    throw parsingExceptions(parsingExceptions::ERR_UNDEF,
-                                                  		            yylineno, $1->getName());      //TODO ID doesn't exist!
-		                             }
+		| 	ID LBRACK Exp RBRACK    {if (!scopesList->containsIdName($1->getName()))  //ID doesn't exist
+                                        throw parsingExceptions(parsingExceptions::ERR_UNDEF,yylineno, $1->getName());
+                                     if(!(scopesList->getId($1->getName()).type.kind == Type::ARRAY)) //ID is not an array
+                                        throw parsingExceptions(parsingExceptions::ERR_MISMATCH,yylineno);
+                                     if (!($3->isInteger())) // Exp is not a numeric type
+                                        throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE, yylineno, $1->getName());
+
+                                     $$ = new parsedExp(scopesList->getId($1->getName()).type.arrayType);
+
+                                     $$->reg = regAlloc();
+                                     $$->regType = value;
+
+                                     // runtime check that Exp value is smaller than array size
+                                     string s1 = "lw ";
+
+
+
+                                     delete $1; delete $3;
+		                            }
 		| 	Exp PLUS_MINUS Exp      {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, MATH_OP));
-                                        delete $1; delete $3;
+		                             $$->reg = regAlloc();
+                                     $$->regType = value;
+
+                                     string s1 = codeGenerator::arithmeticOpToString($2->pd_op);
+                                     string s2 = $$->reg.toString();  //destination
+                                     string s3 = ", ";
+                                     string s4 = $3->reg.toString();
+                                     string s5 = ", ";
+                                     string s6 = $1->reg.toString();
+
+                                     EMIT_TEXT(s1 + s2 + s3 + s4 + s5 + s6);
+                                     if($$->single_var.type.kind == Type::BYTE){
+                                        EMIT_TEXT(codeGenerator::byteArithmeticMasking($$->reg));
+                                     }
+                                     delete $1; delete $3;
                                      }
 		|	Exp MUL_DIV Exp         {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, MATH_OP));
-                                         delete $1; delete $3;
+		                             $$->reg = regAlloc();
+		                             $$->regType = value;
+
+		                             string s1 = codeGenerator::arithmeticOpToString($2->pd_op);
+
+		                             if(s1 == "div "){
+		                                EMIT_TEXT(codeGenerator::divisionByZeroCheck($3->reg));
+		                             }
+
+		                             string s2 = $$->reg.toString();  //destination
+		                             string s3 = ", ";
+                                     string s4 = $3->reg.toString();
+                                     string s5 = ", ";
+                                     string s6 = $1->reg.toString();
+
+                                     EMIT_TEXT(s1 + s2 + s3 + s4 + s5 + s6);
+                                     if($$->single_var.type.kind == Type::BYTE){
+                                        EMIT_TEXT(codeGenerator::byteArithmeticMasking($$->reg));
                                      }
-		| 	ID                      {if (scopesList->containsIdName($1->getName())){
-		                                $$ = new parsedExp(scopesList->getId($1->getName()).type);
-		                                delete $1;
-		                                }
-		                                else
-		                                    throw parsingExceptions(parsingExceptions::ERR_UNDEF,
-		                                                            yylineno, $1->getName());      //TODO
+                                     delete $1; delete $3;
+                                     }
+		| 	ID                      {if (!scopesList->containsIdName($1->getName()))
+		                                throw parsingExceptions(parsingExceptions::ERR_UNDEF,yylineno, $1->getName());
 
+		                             $$ = new parsedExp(scopesList->getId($1->getName()).type);
+		                             $$->reg = regAlloc();
+
+                                     string s1 = "move ";
+                                     string s2 = $$->reg.toString();
+                                     string s3 = ", ";
+		                             string s4;
+
+		                             if($$->kind == parsedData::DK_ARRAY){
+		                                $$->regType = reference;
+		                                s4 =  codeGenerator::idLocation($1->getName()); // debug : make sure there are no too much/too little dereferences
+		                             }
+		                             else{
+                                        $$->regType = value;
+
+                                        string temp1 = "(", temp2 = ")";
+                                        s4 =  temp1 + codeGenerator::idLocation($1->getName()) + temp2;
+		                             }
+
+		                             EMIT_TEXT(s1 + s2 + s3 + s4);
+
+		                             delete $1;
 		                            }
-		|	Call                    {$$ = $1;}
 
-		|	NUM_T	                {$$ = $1;
-		                            if(PRINT_DEBUG) {cout << "in exp-> NUM_T, NUM_T type = "; printID("",0,$1->single_var.type.toString());}}
-		|	STRING                  {$$ = new parsedExp(Type(Type::STRING));} // return string type
-		|	TRUE	                {$$ = new parsedExp(Type(Type::BOOL));} // return bool type
-		|	FALSE	                {$$ = new parsedExp(Type(Type::BOOL));} // return bool type
+		|	Call                    {$$ = new parsedExp($1);
+                                     $$->reg =  regAlloc();
+                                     $$->regType = value;
+                                     // calling the function code
+                                     string s1 = "move $r0, ";
+                                     string s2 = $$->reg.toString;
+                                     EMIT_TEXT(s1 + s2);
+                                    }
+
+        |	NUM_T	                {$$ = new parsedExp($1);
+                                    $$->reg =  regAlloc();
+                                    $$->regType = value;
+                                    string s1 = "li " // load immediate
+                                    string s2 = $$->reg.toString();
+                                    string s3 = ", ";
+                                    string s4 = numToString($$.singleVar.value);
+                                    EMIT_TEXT(s1 + s2 + s3 + s4);
+                                    }
+
+        |	STRING                  {$$ = new parsedExp(Type(Type::STRING));    // return string type
+                                     $$->reg =  regAlloc();
+                                     $$->regType = reference;
+
+                                     // create string in .data segment
+                                     string s1 = genDataLabel();
+                                     string s2 = ".asciiz \"";
+                                     string s3 = $1->single_var.name;
+                                     string s4 = "\"";
+                                     EMIT_DATA(s1 + s2 + s3 + s4);
+
+                                     // generate code " la  $$->reg, <string location label>"
+                                     string s12 = "la "; // load address, need to verify it works with labels
+                                     string s22 = $$->reg.toString();
+                                     string s32 = ", ";
+                                     string s42 = s1;
+                                     EMIT_TEXT(s12 + s22 + s32 + s42);
+
+                                    }
+        |	TRUE	                {$$ = new parsedExp(Type(Type::BOOL)); // return bool type
+                                     $$->trueList.pushFront(EMIT_TEXT("j "));
+                                    }
+
+		|	FALSE	                {$$ = new parsedExp(Type(Type::BOOL)); // return bool type
+		                             $$->falseList.pushFront(EMIT_TEXT("j "));
+                                    }
+
 		|	NOT Exp	                {TRY_AND_CATCH($$ = new parsedExp(*$2, BOOL_OP));
-		 		                                delete $2;
-		 		                     }
+		 		                     $$->trueList = $2->falseList;
+		 		                     $$->falseList = $2->trueList;
+		 		                     delete $2;
+		 		                    }
 		|	Exp OR Exp              {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, BOOL_OP));
                                         if(PRINT_DEBUG)
         		                            cout << "parsed exp OR exp: "
         		                            << $1->getName() << " " << $3->getName()
         		                            << endl;
-        		                            delete $1; delete $3;
+
+                                     buffer.bpatch($1->falseList,$3->beginLabel);
+                                     $$->falseList = $3->falseList;
+                                     MERGE($$->trueList,$3->trueList,$1->trueList);
+
+        		                     delete $1; delete $3;
                                     }  // make sure Exp and Exp are of type bool
 		|	Exp AND Exp	            {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, BOOL_OP));
                                         if(PRINT_DEBUG)
         		                            cout << "parsed exp AND exp: "
         		                            << $1->getName() << " " << $3->getName()
         		                            << endl;
-        		                            delete $1; delete $3;
+
+        		                     buffer.bpatch($1->trueList,$3->beginLabel);
+                                    $$->trueList = $3->trueList;
+                                    MERGE($$->falseList,$3->falseList,$1->falseList);
+
+        		                     delete $1; delete $3;
                                     }     // make sure Exp and Exp are of type bool
 		|	Exp EQ_OP Exp           {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, REL_OP));
 		                                if(PRINT_DEBUG)
 		                                    cout << "parsed exp EQ_OP exp: "
 		                                     << $1->getName() << " " << $3->getName()
 		                                     << endl;
-                                     	 delete $1; delete $3;
-                                     }     // For ambiguity reasons!!!!!!!!!
+
+                                     string s1 = codeGenerator::opToBranchString($2->pd_op); // branch type
+                                     string s2 = $1->reg.toString();
+                                     string s3 = ", ";
+                                     string s4 = $3->reg.toString();
+                                     string s5 = ", ";
+                                     $$->trueList.pushFront(EMIT_TEXT(s1 + s2 + s3 + s4 + s5));
+                                     $$->falseList.pushFront(EMIT_TEXT("j "));
+
+                                     delete $1; delete $3;
+                                     }
 		|	Exp RELOP Exp           {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, REL_OP));
 		                                if(PRINT_DEBUG)
         		                             cout << "parsed exp RELOP exp: "
         		                             << $1->getName() << " " << $3->getName()
         		                             << endl;
-		                                 delete $1; delete $3;
-		                             }
+
+		                             string s1 = codeGenerator::opToBranchString($2->pd_op); // branch type
+                                     string s2 = $1->reg.toString();
+                                     string s3 = ", ";
+                                     string s4 = $3->reg.toString();
+                                     string s5 = ", ";
+                                     $$->trueList.pushFront(EMIT_TEXT(s1 + s2 + s3 + s4 + s5));
+                                     $$->falseList.pushFront(EMIT_TEXT("j "));
+
+		                             delete $1; delete $3;
+		                            }
 		;
 
 

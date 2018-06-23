@@ -21,6 +21,7 @@ using std::list;
 using std::string;
 using namespace output;
 
+CodeBuffer buffer;
 #define PRINT_DEBUG 1
 
 //================================= ENUMS ==================================//
@@ -191,6 +192,7 @@ public:
     bool isBool();
     vector<string> getArgsTypes();
     PDOp stringToOp(string parsed_op_t);
+
     bool isAritOp( ){
         assert(kind == DK_OP);
         return  (pd_op >= PD_PLUS && pd_op <= PD_DIV);
@@ -207,9 +209,24 @@ public:
 };
 #define YYSTYPE parsedData*	// Tell Bison to use STYPE as the stack type
 
-class parsedExp : public parsedData {
+class BPInfo {
 public:
+    string beginLabel;
+    std::list<int> trueList;
+    std::list<int> falseList;
+    std::list<int> nextList;
+    std::list<int> breakList;
+
+    BPInfo();
+    ~BPInfo() = default;
+};
+
+class parsedExp : public parsedData, public BPInfo {
+public:
+    enum registerType{value,reference,undef};
     regClass reg;
+    registerType regType;
+    ~parsedExp();
     parsedExp();
     parsedExp(Type::typeKind kind);
     parsedExp(Type type) ;
@@ -220,6 +237,12 @@ public:
     parsedExp(parsedData data, binOps ops);
 
     parsedExp maxRange(parsedExp exp1, parsedExp exp2);
+};
+
+class parsedStatement : public parsedData, public BPInfo {
+public:
+    parsedStatement();
+
 };
 
 //=============================== SCOPE HANDLING ============================//
@@ -274,8 +297,16 @@ public:
     static vector<string> listToVector(list<Type> list);
 
     ~scopes();
+};
 
-
+class codeGenerator{
+    codeGenerator() = default;
+    ~codeGenerator() = default;
+    static void initiateKnownConstants();
+    static string opToBranchString(parsedData::PDOp op);
+    static string idLocation(Id id);
+    static string arithmeticOpToString(parsedData::PDOp op);
+    static string byteArithmeticMasking(regClass reg);
 };
 
 
