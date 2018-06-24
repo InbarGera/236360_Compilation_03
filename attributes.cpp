@@ -387,12 +387,13 @@ BPInfo::BPInfo(){
     beginLabel = buffer.genLabel();
 }
 
+BPInfo::BPInfo(string label){
+    beginLabel = label;
+}
+
+
 //=========================== ParsedExp Class ===============================//
 
-parsedExp::~parsedExp(){
-    if(regType != undef)
-        regFree(reg);
-}
 parsedExp::parsedExp(Type::typeKind kind): parsedData(Type(kind)), regType(undef){}
 parsedExp::parsedExp(Type type) : parsedData(type), regType(undef){};
 parsedExp::parsedExp(parsedExp exp, binOps ops): regType(undef) {
@@ -447,6 +448,18 @@ parsedExp parsedExp::maxRange(parsedExp exp1, parsedExp exp2) {
         else
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
     }
+
+//=========================== ParsedStatement Class ===============================//
+
+parsedStatement::parsedStatement(){
+    BPInfo();
+}
+parsedStatement::parsedStatement(parsedExp exp){
+    trueList = exp.trueList;
+    falseList = exp.falseList;
+    nextList = exp.nextList;
+    breakList = exp.breakList;
+}
 
 //===========================================================================//
 //=============================== SCOPE HANDLING ============================//
@@ -799,7 +812,7 @@ scopes::~scopes() {
 
 //============================== codeGenerator CLASS ===============================//
 
-static void codeGenerator::initiateKnownConstants(){
+void codeGenerator::initiateKnownConstants(){
     static bool initiated = false;
     if(initiated)
         return;
@@ -809,24 +822,24 @@ static void codeGenerator::initiateKnownConstants(){
     initiated = true;
 }
 
-static string codeGenerator::opToBranchString(parsedData::PDOp op){
+string codeGenerator::opToBranchString(parsedData::PDOp op){
     switch(op){
-        case PD_EQ :{  // ==
+        case parsedData::PD_EQ :{  // ==
             return "beq ";
         }break;
-        case PD_NEQ :{  // !=
+        case parsedData::PD_NEQ :{  // !=
             return "bne ";
         }break;
-        case PD_GT :{  // >
+        case parsedData::PD_GT :{  // >
             return "bgt ";
         }break;
-        case PD_GEQ :{  // >=
+        case parsedData::PD_GEQ :{  // >=
             return "bge ";
         }break;
-        case PD_LT :{  // <
+        case parsedData::PD_LT :{  // <
             return "blt ";
         }break;
-        case PD_LEQ :{  // <=
+        case parsedData::PD_LEQ :{  // <=
             return "ble ";
         }break;
         default:{
@@ -836,18 +849,18 @@ static string codeGenerator::opToBranchString(parsedData::PDOp op){
     assert(0);
 }
 
-static string codeGenerator::arithmeticOpToString(parsedData::PDOp op){
+string codeGenerator::arithmeticOpToString(parsedData::PDOp op){
     switch(op) {
-        case PD_PLUS : {
+        case parsedData::PD_PLUS : {
             return "add ";
         }break;
-        case PD_MINUS : {
+        case parsedData::PD_MINUS : {
             return "sub ";
         }break;
-        case PD_MUL : {
+        case parsedData::PD_MUL : {
             return "mul ";
         }break;
-        case PD_DIV : {
+        case parsedData::PD_DIV : {
             return "div ";
         }break;
         default:{
@@ -857,12 +870,37 @@ static string codeGenerator::arithmeticOpToString(parsedData::PDOp op){
     assert(0);
 }
 
-static string codeGenerator::byteArithmeticMasking(regClass reg){
+string codeGenerator::byteArithmeticMasking(regClass reg){
     string res = "and ";
     res += reg.toString();
     res += ", ";
     res += reg.toString();
     res += ", ";
-    res += byteMask;
+    res += "byteMask";
     return res;
 }
+
+string codeGenerator::divisionByZeroCheck(regClass reg){
+    string res = "beq ";
+    res += reg.toString();
+    res += ", $0, ";
+    res += "_____TODO_____"; //code for reporting division by 0 and exit;
+}
+
+string codeGenerator::arrayOverflowCheck(int arrayLen,regClass reg){
+    string res = "bge ";
+    res += reg.toString();
+    res += ", ";
+    res += num_to_string(arrayLen);
+    res += ", ";
+    res += "_____TODO_____"; //code for reporting array access overflow and exit;
+}
+
+string codeGenerator::array_A_at_location_n(Id id, regClass reg){
+    // need to implement.
+    return "_____TODO_____";
+}
+
+string codeGenerator::idLocation(Id id){
+    return "_____toImplement_____" ;
+};

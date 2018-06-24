@@ -212,13 +212,16 @@ public:
 class BPInfo {
 public:
     string beginLabel;
-    std::list<int> trueList;
-    std::list<int> falseList;
-    std::list<int> nextList;
-    std::list<int> breakList;
+    std::vector<int> trueList;
+    std::vector<int> falseList;
+    std::vector<int> nextList;
+    std::vector<int> breakList;
 
-    BPInfo();
-    ~BPInfo() = default;
+    string ifTrueLabel; //relevant only for if statements
+    string ifFalseLabel; //relevant only for if statements
+
+    BPInfo(); // generate new label
+    BPInfo(string label); // copying input label
 };
 
 class parsedExp : public parsedData, public BPInfo {
@@ -226,7 +229,6 @@ public:
     enum registerType{value,reference,undef};
     regClass reg;
     registerType regType;
-    ~parsedExp();
     parsedExp();
     parsedExp(Type::typeKind kind);
     parsedExp(Type type) ;
@@ -241,7 +243,8 @@ public:
 
 class parsedStatement : public parsedData, public BPInfo {
 public:
-    parsedStatement();
+    parsedStatement(); // create new label
+    parsedStatement(parsedExp exp); // copying exp's label
 
 };
 
@@ -269,7 +272,7 @@ public:
     list<function> functions;
     list<scope> scopesList;
     bool need_to_print;
-    CodeBuffer buffer;  //addition for hw5
+    //CodeBuffer buffer;  //addition for hw5
     scopes();
     Id getId(string name);
     function getFunction(string name);
@@ -300,13 +303,15 @@ public:
 };
 
 class codeGenerator{
-    codeGenerator() = default;
-    ~codeGenerator() = default;
+public:
     static void initiateKnownConstants();
     static string opToBranchString(parsedData::PDOp op);
     static string idLocation(Id id);
     static string arithmeticOpToString(parsedData::PDOp op);
     static string byteArithmeticMasking(regClass reg);
+    static string divisionByZeroCheck(regClass reg);
+    static string arrayOverflowCheck(int arrayLen,regClass reg);
+    static string array_A_at_location_n(Id id, regClass reg);
 };
 
 
