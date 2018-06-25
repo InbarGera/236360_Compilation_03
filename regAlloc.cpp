@@ -36,6 +36,8 @@ regClass regAlloc(){
 }
 
 void regFree(regClass toFree){
+    if(toFree.index()<0)
+        return;
     assert(status[toFree.index()] == ALLOCATED && initiated);
     status[toFree.index()] = FREE;
 }

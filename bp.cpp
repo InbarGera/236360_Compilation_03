@@ -70,12 +70,12 @@ void CodeBuffer::printDataBuffer()
 	}
 }
 
-string CodeBuffer::genDataLabel(){
-    static int n=1;
-    std::stringstream label;
-    label << "labelData_";
-    label << n++;
-    std::string ret(label.str());
-    label << ":";
-    return ret;
+string CodeBuffer::genDataLabel() {
+	static int n = 1;
+	std::stringstream label;
+	label << "labelData_";
+	label << n++;
+	std::string ret(label.str());
+	label << ":";
+	return ret;
 }

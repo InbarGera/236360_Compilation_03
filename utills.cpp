@@ -1,5 +1,4 @@
 #include "utills.hpp"
-#include <vector> // ????
 
 int string_to_num(char* input){
     int sum =0;
@@ -34,7 +33,7 @@ std::string num_to_string(int input){
 }
 
 std::vector<int> mergeVectors(const std::vector<int> &l1,const std::vector<int> &l2) { // copy paste from bp.cpp
-    std::vector<int> newList(l1.begin(),l1.end());
-    newList.insert(newList.end(),l2.begin(),l2.end());
+    std::vector<int> newList(l1.begin(), l1.end());
+    newList.insert(newList.end(), l2.begin(), l2.end());
     return newList;
 }

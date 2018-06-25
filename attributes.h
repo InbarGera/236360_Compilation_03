@@ -21,7 +21,7 @@ using std::list;
 using std::string;
 using namespace output;
 
-CodeBuffer buffer;
+CodeBuffer buffer;  //hw5 addition
 #define PRINT_DEBUG 1
 
 //================================= ENUMS ==================================//
@@ -192,7 +192,6 @@ public:
     bool isBool();
     vector<string> getArgsTypes();
     PDOp stringToOp(string parsed_op_t);
-
     bool isAritOp( ){
         assert(kind == DK_OP);
         return  (pd_op >= PD_PLUS && pd_op <= PD_DIV);
@@ -208,7 +207,6 @@ public:
 
 };
 #define YYSTYPE parsedData*	// Tell Bison to use STYPE as the stack type
-
 class BPInfo {
 public:
     string beginLabel;
@@ -226,28 +224,27 @@ public:
 
 class parsedExp : public parsedData, public BPInfo {
 public:
-    enum registerType{value,reference,undef};
+    enum registerType {
+        value, reference, undef
+    };
     regClass reg;
     registerType regType;
     parsedExp();
     parsedExp(Type::typeKind kind);
-    parsedExp(Type type) ;
+    parsedExp(Type type);
     parsedExp(parsedExp exp, binOps ops);
     parsedExp(parsedExp exp1, parsedExp exp2, binOps ops);
     parsedExp(parsedData data);
     parsedExp(parsedData data1, parsedData data2, binOps ops);
     parsedExp(parsedData data, binOps ops);
-
     parsedExp maxRange(parsedExp exp1, parsedExp exp2);
 };
 
 class parsedStatement : public parsedData, public BPInfo {
 public:
-    parsedStatement(); // create new label
+    parsedStatement();
     parsedStatement(parsedExp exp); // copying exp's label
-
 };
-
 //=============================== SCOPE HANDLING ============================//
 class scope{
 public:
@@ -272,7 +269,6 @@ public:
     list<function> functions;
     list<scope> scopesList;
     bool need_to_print;
-    //CodeBuffer buffer;  //addition for hw5
     scopes();
     Id getId(string name);
     function getFunction(string name);
@@ -294,15 +290,17 @@ public:
     void verifyReturnType(parsedData returnType);
     void verifyBreakBlock();
     void verifyExpIsBool(parsedData expType);
-    void verifyFunctionCall(parsedData idInput,parsedData inputList);
+    void verifyFunctionCall(parsedData idInput,parsedExp inputList);
     void verifyNoParametersFunctionCall(parsedData idInput);
 
     static vector<string> listToVector(list<Type> list);
 
     ~scopes();
+
+
 };
 
-class codeGenerator{
+class codeGenerator {
 public:
     static void initiateKnownConstants();
     static string opToBranchString(parsedData::PDOp op);
@@ -310,9 +308,20 @@ public:
     static string arithmeticOpToString(parsedData::PDOp op);
     static string byteArithmeticMasking(regClass reg);
     static string divisionByZeroCheck(regClass reg);
-    static string arrayOverflowCheck(int arrayLen,regClass reg);
+    static string arrayOverflowCheck(int arrayLen, regClass reg);
     static string array_A_at_location_n(Id id, regClass reg);
 };
 
+//======================================== HW5 ===========================================//
+scopes* scopesList;
+int getIdOffset(string name);
+void pushExpList(parsedExp input_list);
+void pushVarArray(VarInfo exp_array);
+void pushSingleVar(VarInfo exp);
+void pushString(VarInfo var_string);
+void callerSaveRegisters();
+void callerRestoreRegisters();
+void callFunction(string func_name, parsedExp input_list);
+string IntToReg(int reg_to_save);
 
 #endif
