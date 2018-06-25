@@ -1,5 +1,6 @@
-#include "attributes.h"
+#include "attributes.hpp"
 
+CodeBuffer buffer;
 //===========================================================================//
 //====================== ERROR HANDLING CLASS ===============================//
 //===========================================================================//
@@ -13,139 +14,138 @@ parsingExceptions::parsingExceptions(errType err_type_t, int lineno_t, string id
         :print_now(true), err_type(err_type_t), lineno(lineno_t), id(id_t){};
 parsingExceptions::parsingExceptions(errType err_type_t, int lineno_t, string id_t, vector<string> args) :
             print_now(true), err_type(err_type_t), id(id_t), lineno(lineno_t), argTypes(args){};
-string parsingExceptions::intToString(int val) {
-    int i = 0;
-    int mod = 1;
-    char retVal[100];
+string parsingExceptions::intToString(int val){
+        int i=0;
+        int mod =1;
+        char retVal[100];
 
-    if (val == 0) {
-        retVal[0] = '0';
-        retVal[1] = '\0';
-        if (PRINT_DEBUG)
-            cout << " in num translation, original num is : " << val << "translation is: " << retVal << endl;
+        if(val == 0){
+            retVal[0] = '0';
+            retVal [1] = '\0';
+            if(PRINT_DEBUG) cout << " in num translation, original num is : " << val << "translation is: " << retVal << endl;
+            return string(retVal);
+        }
+
+        while(val/mod)
+            mod*=10;
+        mod /= 10;
+        while(mod){
+            retVal[i++] = (char)((val/mod % 10) +'0');
+            mod /= 10;
+        }
+        retVal[i]='\0';
+        if(PRINT_DEBUG) cout << " in num translation, original num is : " << val << "translation is: " << retVal << endl;
         return string(retVal);
     }
-
-    while (val / mod)
-        mod *= 10;
-    mod /= 10;
-    while (mod) {
-        retVal[i++] = (char) ((val / mod % 10) + '0');
-        mod /= 10;
+void parsingExceptions::printErrMsg(){
+        switch (err_type) {
+            case ERR_LEX: {
+                errorLex(lineno);
+            }
+                break;
+            case ERR_SYN: {
+                errorSyn(lineno);
+            }
+                break;
+            case ERR_UNDEF: {
+                errorUndef(lineno, id);
+            }
+                break;
+            case ERR_DEF: {
+                errorDef(lineno, id);
+            }
+                break;
+            case ERR_UNDEF_FUN: {
+                errorUndefFunc(lineno, id);
+            }
+                break;
+            case ERR_MISMATCH: {
+                errorMismatch(lineno);
+            }
+                break;
+            case ERR_PROTOTYPE_MISMATCH: {
+                //if(PRINT_DEBUG) cout << "in ERR_PROTOTYPE_MISMATCH, argTypes.front() = " << argTypes.front() << endl;
+                errorPrototypeMismatch(lineno, id, argTypes);
+            }
+                break;
+            case ERR_UNEXPECTED_BREAK: {
+                errorUnexpectedBreak(lineno);
+            }
+                break;
+            case ERR_MAIN_MISSING: {
+                errorMainMissing();
+            }
+                break;
+            case ERR_BYTE_TOO_LARGE: {
+                if(PRINT_DEBUG) cout << "got into the case, id = " << id << endl;
+                errorByteTooLarge(lineno,id);
+            }
+                break;
+            case ERR_INVALID_ARRAY_SIZE: {
+                errorInvalidArraySize(lineno, id);
+            }
+                break;
+            case ERR_UNKNOWN_ERROR: {
+                if (PRINT_DEBUG) cout << "received an unknown error!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+            }
+                break;
+        }
     }
-    retVal[i] = '\0';
-    if (PRINT_DEBUG) cout << " in num translation, original num is : " << val << "translation is: " << retVal << endl;
-    return string(retVal);
-}
-void parsingExceptions::printErrMsg() {
-    switch (err_type) {
-        case ERR_LEX: {
-            errorLex(lineno);
-        }
-            break;
-        case ERR_SYN: {
-            errorSyn(lineno);
-        }
-            break;
-        case ERR_UNDEF: {
-            errorUndef(lineno, id);
-        }
-            break;
-        case ERR_DEF: {
-            errorDef(lineno, id);
-        }
-            break;
-        case ERR_UNDEF_FUN: {
-            errorUndefFunc(lineno, id);
-        }
-            break;
-        case ERR_MISMATCH: {
-            errorMismatch(lineno);
-        }
-            break;
-        case ERR_PROTOTYPE_MISMATCH: {
-            //if(PRINT_DEBUG) cout << "in ERR_PROTOTYPE_MISMATCH, argTypes.front() = " << argTypes.front() << endl;
-            errorPrototypeMismatch(lineno, id, argTypes);
-        }
-            break;
-        case ERR_UNEXPECTED_BREAK: {
-            errorUnexpectedBreak(lineno);
-        }
-            break;
-        case ERR_MAIN_MISSING: {
-            errorMainMissing();
-        }
-            break;
-        case ERR_BYTE_TOO_LARGE: {
-            if (PRINT_DEBUG) cout << "got into the case, id = " << id << endl;
-            errorByteTooLarge(lineno, id);
-        }
-            break;
-        case ERR_INVALID_ARRAY_SIZE: {
-            errorInvalidArraySize(lineno, id);
-        }
-            break;
-        case ERR_UNKNOWN_ERROR: {
-            if (PRINT_DEBUG) cout << "received an unknown error!!!!!!!!!!!!!!!!!!!!!!!" << endl;
-        }
-            break;
-    }
-}
 parsingExceptions::~parsingExceptions() throw() {
-    if (print_now)
-        printErrMsg();
-}
+        if (print_now)
+            printErrMsg();
+    }
 //===========================================================================//
 //=========================== DATA TYPES ====================================//
 //===========================================================================//
 
 //=========================== TYPE CLASS ====================================//
 Type::Type() : kind(UNDEF), arrayLength(-1) {
-    arrayType = Type::UNDEF;
-};
-Type::Type(typeKind Kind) : kind(Kind), arrayLength(-1) {
-    if (kind == ARRAY) assert(0); // this constructor should get only basic types
-}
-Type::Type(typeKind Kind, int len) : kind(ARRAY), arrayLength(len), arrayType(Kind) {
-    if (Kind == ARRAY) assert(0);
-}
-bool Type::operator==(const Type& toCompare) {
-    if (kind != ARRAY) return kind == toCompare.kind;
-    return arrayLength == toCompare.arrayLength && arrayType == toCompare.arrayType;
-}
-int Type::size() {
-    return kind == ARRAY ? arrayLength : 1;
-}
-string Type::typeKindToString(typeKind kind) {
-    switch (kind) {
-        case VOID : {
-            return string("VOID");
-        }
-        case BOOL : {
-            return string("BOOL");
-        }
-        case INTEGER : {
-            return string("INT");
-        }
-        case BYTE : {
-            return string("BYTE");
-        }
-        case STRING : {
-            return string("STRING");
-        }
-        case ARRAY : {
-            return string("ARRAY");
-        }
-        default: {
-            assert(0);
+        arrayType = Type::UNDEF;
+    };
+Type::Type(typeKind Kind) : kind(Kind), arrayLength(-1){
+        if(kind == ARRAY) assert(0); // this constructor should get only basic types
+    }
+Type::Type(typeKind Kind, int len) : kind(ARRAY), arrayLength(len), arrayType(Kind){
+        if (Kind == ARRAY) assert(0);
+    }
+bool Type::operator==(const Type& toCompare){
+        if(kind != ARRAY) return kind == toCompare.kind;
+        return arrayLength == toCompare.arrayLength && arrayType == toCompare.arrayType;
+    }
+int Type::size(){
+        return kind == ARRAY ? arrayLength:1;
+    }
+string Type::typeKindToString(typeKind kind){
+        switch(kind) {
+            case VOID : {
+                return string("VOID");
+            }
+            case BOOL : {
+                return string("BOOL");
+            }
+            case INTEGER : {
+                return string("INT");
+            }
+            case BYTE : {
+                return string("BYTE");
+            }
+            case STRING : {
+                return string("STRING");
+            }
+            case ARRAY : {
+                return string("ARRAY");
+            }
+            default: {
+                assert(0);
+            }
         }
     }
-}
-string Type::toString() {
-    if (kind == ARRAY)
-        return makeArrayType(typeKindToString(arrayType), arrayLength);
-    return typeKindToString(kind);
-}
+string Type::toString(){
+        if(kind == ARRAY)
+            return makeArrayType(typeKindToString(arrayType),arrayLength);
+        return typeKindToString(kind);
+    }
 
 //=========================== VarBase CLASS =================================//
 VarBase::VarBase(){};
@@ -163,25 +163,25 @@ VarInfo::VarInfo(int val, string str, Type::typeKind kind, int len):
             value(val), VarBase(str, kind, len){};
 
 //============================= ID CLASS ====================================//
-Id::Id(Type type_t, int offset, string name_t) : offset(offset) {
-    this->type = type_t;
-    this->name = name_t;
-};
+Id::Id(Type type_t, int offset, string name_t) : offset(offset){
+        this->type = type_t;
+        this->name = name_t;
+    };
 
 //=========================== FUNCTION CLASS ================================//
 function::function(string idName_t, Type return_type_t, list<Type> inputTypes_t) :
             idName(idName_t), return_type(return_type_t), inputTypes(inputTypes_t){};
-string function::toString() {
-    function temp = *this;
-    vector <string> inputTypes;
-    while (!temp.inputTypes.empty()) {
-        Type temp2 = temp.inputTypes.front();
-        inputTypes.push_back(temp2.toString());
-        temp.inputTypes.pop_front();
-    }
+string function::toString(){
+        function temp = *this;
+        vector<string> inputTypes;
+        while(!temp.inputTypes.empty()){
+            Type temp2 = temp.inputTypes.front();
+            inputTypes.push_back(temp2.toString());
+            temp.inputTypes.pop_front();
+        }
 
-    return makeFunctionType(temp.return_type.toString(), inputTypes); // to reverse inputTypes
-}
+        return makeFunctionType(temp.return_type.toString(),inputTypes); // to reverse inputTypes
+    }
 
 //===========================================================================//
 //========================== GRAMMAR VARIABLES CLASSES ======================//
@@ -189,174 +189,168 @@ string function::toString() {
 
 //=========================== ParsedData Class ==============================//
 parsedData::parsedData() : kind(DK_UNDEF){ };
-parsedData::parsedData(GrammerVar g_var) : kind(DK_LIST), pd_op(PD_NO_OP) {
-    if (g_var != IS_CALL)
-        assert(0);
-}
-parsedData::parsedData(Type type) : single_var(type), pd_op(PD_NO_OP) {
-    kind = type.kind == Type::ARRAY ? DK_ARRAY : DK_SINGLE;
-};
-parsedData::parsedData(char* tmp_yytext, GrammerVar g_var) : pd_op(PD_NO_OP) {
-    kind = DK_SINGLE;
-    switch (g_var) {
-        case IS_INT: {
-            single_var = VarInfo(string_to_num(tmp_yytext));
-        }
-            break;
-        case IS_ID: {
-            single_var = VarInfo(0, string(tmp_yytext), Type::VOID);
-        }
-            break;
-        case IS_STR: {
-            char *tmp = remove_double_quotes(tmp_yytext);
-            single_var = VarInfo(0, string(tmp), Type::STRING);
-            free(tmp);
-        }
-            break;
-        case IS_ARRAY: {
-            //TODO - not supposed to get here
-            if (PRINT_DEBUG)
-                cout << "something wierd happend!!!"
-                     << " constructor yytext, g_var , IS_ARRAY"
-                     << endl;
-        }
-            break;
-        case IS_CALL: {
-            //TODO - not supposed to get here
-            if (PRINT_DEBUG)
-                cout << "something wierd happend!!!"
-                     << " constructor yytext, g_var , IS_CALL"
-                     << endl;
-        }
-            break;
-        case IS_OP: {
-            kind = DK_OP;
-            pd_op = stringToOp(string(tmp_yytext));
-        }
-            break;
-        default: {
-            if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(char*,GrammarVar)" << endl;
-            throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
-        }
+parsedData::parsedData(GrammerVar g_var) : kind(DK_LIST), pd_op(PD_NO_OP){
+        if(g_var != IS_CALL)
+            assert(0);
     }
-}
-parsedData::parsedData(Type type, parsedData& data) : kind(DK_SINGLE),pd_op(PD_NO_OP) {
-    single_var.type = type;
-    single_var.name = data.getName();
-}
-parsedData::parsedData(Type type, string id): pd_op(PD_NO_OP) { // for TYPE_ID -> TYPE ID
-    single_var = VarInfo(type);
-    single_var.name = id;
-}
-parsedData::parsedData(Type type, int value): pd_op(PD_NO_OP) {
-
-    if (PRINT_DEBUG) cout << "inside parsedData(Type type, int value, value = " << value << endl;
-
-
-    if (type.kind == Type::BYTE && (value < 0 || value > 255))
-        throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE, parsingExceptions::intToString(value));
-    kind = DK_SINGLE;
-    single_var.value = value;
-    single_var.type = type;
-}
-parsedData::parsedData(parsedData& data1, parsedData& data2): pd_op(PD_NO_OP) {
-    if (data2.kind != DK_UNDEF)
-        kind = data2.kind;
-
-    single_var = data1.single_var;
-    single_var.name = data2.single_var.name;
-    switch (data2.kind) {
-        case DK_SINGLE: {
-            single_var.type = data2.single_var.type;
-            single_var.value = data1.single_var.value;
-            if (single_var.type.kind == Type::BYTE) {
-                if (single_var.value > 255 || single_var.value < 0)
-                    throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE,
-                                            parsingExceptions::intToString(single_var.value));
+parsedData::parsedData(Type type) : single_var(type), pd_op(PD_NO_OP){
+        kind = type.kind == Type::ARRAY ? DK_ARRAY : DK_SINGLE;
+    };
+parsedData::parsedData(char* tmp_yytext, GrammerVar g_var) : pd_op(PD_NO_OP){
+        kind = DK_SINGLE;
+        switch (g_var) {
+            case IS_INT: {
+                single_var = VarInfo(string_to_num(tmp_yytext));
+            }
+                break;
+            case IS_ID: {
+                single_var = VarInfo(0, string(tmp_yytext), Type::VOID);
+            }
+                break;
+            case IS_STR: {
+                char *tmp = remove_double_quotes(tmp_yytext);
+                single_var = VarInfo(0, string(tmp), Type::STRING);
+                free(tmp);
+            }
+                break;
+            case IS_ARRAY: {
+                //TODO - not supposed to get here
+                if (PRINT_DEBUG) cout << "something wierd happend!!!"
+                                      << " constructor yytext, g_var , IS_ARRAY"
+                                      << endl;
+            }
+                break;
+            case IS_CALL: {
+                //TODO - not supposed to get here
+                if (PRINT_DEBUG) cout << "something wierd happend!!!"
+                                      << " constructor yytext, g_var , IS_CALL"
+                                      << endl;
+            }
+                break;
+            case IS_OP:{
+                kind = DK_OP;
+                pd_op = stringToOp(string(tmp_yytext));
+            }
+                break;
+            default: {
+                if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(char*,GrammarVar)" << endl;
+                throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
             }
         }
-            break;
-        case DK_ARRAY: {
+    }
+parsedData::parsedData(Type type, parsedData& data) : kind(DK_SINGLE),pd_op(PD_NO_OP){
+        single_var.type = type;
+        single_var.name = data.getName();
+    }
+parsedData::parsedData(Type type, string id): pd_op(PD_NO_OP){ // for TYPE_ID -> TYPE ID
+        single_var = VarInfo(type);
+        single_var.name = id;
+    }
+parsedData::parsedData(Type type, int value): pd_op(PD_NO_OP){
+
+        if(PRINT_DEBUG) cout << "inside parsedData(Type type, int value, value = " << value << endl;
+
+
+        if(type.kind == Type::BYTE && (value<0||value>255))
+            throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE,parsingExceptions::intToString(value));
+        kind = DK_SINGLE;
+        single_var.value = value;
+        single_var.type = type;
+    }
+parsedData::parsedData(parsedData& data1, parsedData& data2): pd_op(PD_NO_OP){
+        if(data2.kind != DK_UNDEF)
+            kind = data2.kind;
+
+        single_var = data1.single_var;
+        single_var.name = data2.single_var.name;
+        switch (data2.kind){
+            case DK_SINGLE: {
+                single_var.type = data2.single_var.type;
+                single_var.value = data1.single_var.value;
+                if(single_var.type.kind == Type::BYTE) {
+                    if (single_var.value > 255 || single_var.value < 0)
+                        throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE,parsingExceptions::intToString(single_var.value));
+                }
+            }break;
+            case DK_ARRAY: {
+                single_var.type =
+                        Type(data1.single_var.type.kind, data2.single_var.type.arrayLength);
+            }break;
+            case DK_LIST: {
+                list_of_vars = data2.list_of_vars;
+                list_of_vars.push_front(data1.single_var);
+            }break;
+            default: {
+                if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData, parsedData)" << endl;
+                throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+            }
+        }
+
+    }
+parsedData::parsedData(parsedData& data, GrammerVar g_var): pd_op(PD_NO_OP) {
+        if (g_var == IS_CALL) {
+            kind = DK_LIST;
+            list_of_vars = data.list_of_vars;
+            if (data.list_of_vars.size() == 0)
+                list_of_vars.push_front(data.single_var);
+        } else if (g_var == IS_ARRAY) {
+            kind = DK_ARRAY;
             single_var.type =
-                    Type(data1.single_var.type.kind, data2.single_var.type.arrayLength);
-        }
-            break;
-        case DK_LIST: {
-            list_of_vars = data2.list_of_vars;
-            list_of_vars.push_front(data1.single_var);
-        }
-            break;
-        default: {
-            if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData, parsedData)" << endl;
+                    Type(data.single_var.type.kind, data.single_var.value);
+        } else {
+            if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData,GrammerVar)" << endl;
             throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
         }
     }
+parsedData::parsedData(parsedData& data1, parsedData& data2, GrammerVar g_var): pd_op(PD_NO_OP){
+        if(g_var == IS_ARRAY){
+            kind = DK_ARRAY;
+            Type int_t = Type(Type::INTEGER);
+            Type byte_t = Type(Type::BYTE);
 
-}
-parsedData::parsedData(parsedData& data, GrammerVar g_var): pd_op(PD_NO_OP) {
-    if (g_var == IS_CALL) {
-        kind = DK_LIST;
-        list_of_vars = data.list_of_vars;
-        if (data.list_of_vars.size() == 0)
-            list_of_vars.push_front(data.single_var);
-    } else if (g_var == IS_ARRAY) {
-        kind = DK_ARRAY;
-        single_var.type =
-                Type(data.single_var.type.kind, data.single_var.value);
-    } else {
-        if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData,GrammerVar)" << endl;
-        throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+            if(PRINT_DEBUG) {
+                cout << "in parsedData(parsedData& data1, parsedData& data2, GrammerVar g_var), data2.single_var.value =  " << data2.single_var.value << endl;
+            }
+
+            if((data2.getType() == int_t || data2.getType() == byte_t)
+               && (data2.getInteger()>0 && data2.getInteger() <256 )){
+                single_var.name = data1.single_var.name;
+                single_var.type = Type(data1.single_var.type.kind, data2.single_var.value );
+            }
+            else
+                throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE, data1.single_var.name);      //TODO
+        }
+        else {
+            if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData,parsedData,GrammerVar)" << endl;
+            throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+        }
     }
-}
-parsedData::parsedData(parsedData& data1, parsedData& data2, GrammerVar g_var): pd_op(PD_NO_OP) {
-    if (g_var == IS_ARRAY) {
-        kind = DK_ARRAY;
+Type parsedData::getType(){
+        return single_var.type;
+    }
+string parsedData::getName(){
+        return single_var.name;
+    }
+int parsedData::getInteger(){
+        return single_var.value;
+    }
+bool parsedData::isInteger(){
         Type int_t = Type(Type::INTEGER);
         Type byte_t = Type(Type::BYTE);
-
-        if (PRINT_DEBUG) {
-            cout << "in parsedData(parsedData& data1, parsedData& data2, GrammerVar g_var), data2.single_var.value =  "
-                 << data2.single_var.value << endl;
+        return (getType()==int_t || getType()==byte_t);
+    }
+bool parsedData::isBool(){
+        return getType().kind == Type::BOOL;
+    }
+vector<string> parsedData::getArgsTypes(){
+        assert(kind == DK_LIST);
+        vector<string> tmp;
+        while(!list_of_vars.empty()){
+            tmp.push_back(list_of_vars.front().name);
+            list_of_vars.pop_front();
         }
-
-        if ((data2.getType() == int_t || data2.getType() == byte_t)
-            && (data2.getInteger() > 0 && data2.getInteger() < 256)) {
-            single_var.name = data1.single_var.name;
-            single_var.type = Type(data1.single_var.type.kind, data2.single_var.value);
-        } else
-            throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE, data1.single_var.name);      //TODO
-    } else {
-        if (PRINT_DEBUG)
-            cout << "reached a default case in constructor parsedData(parsedData,parsedData,GrammerVar)" << endl;
-        throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+        return tmp;
     }
-}
-Type parsedData::getType() {
-    return single_var.type;
-}
-string parsedData::getName() {
-    return single_var.name;
-}
-int parsedData::getInteger() {
-    return single_var.value;
-}
-bool parsedData::isInteger() {
-    Type int_t = Type(Type::INTEGER);
-    Type byte_t = Type(Type::BYTE);
-    return (getType() == int_t || getType() == byte_t);
-}
-bool parsedData::isBool() {
-    return getType().kind == Type::BOOL;
-}
-vector<string> parsedData::getArgsTypes() {
-    assert(kind == DK_LIST);
-    vector <string> tmp;
-    while (!list_of_vars.empty()) {
-        tmp.push_back(list_of_vars.front().name);
-        list_of_vars.pop_front();
-    }
-    return tmp;
-}
 
 parsedData::PDOp parsedData::stringToOp(string parsed_op_t){
     if (parsed_op_t == "+")
@@ -387,15 +381,16 @@ parsedData::PDOp parsedData::stringToOp(string parsed_op_t){
         return PD_LEQ;
     assert(0);   // NOT SUPPOSED TO GET HERE!!!!!!!
 }
-//=========================== BPInfo Class ===============================//
-BPInfo::BPInfo() {
-    beginLabel = buffer.genLabel();
-}
 
-BPInfo::BPInfo(string label) {
-    beginLabel = label;
-}
+//=========================== BPInfo Class ===============================//
+
+BPInfo::BPInfo() : beginLabel("undef"){}
+
+BPInfo::BPInfo(string label) : beginLabel(label){}
+
+
 //=========================== ParsedExp Class ===============================//
+
 parsedExp::parsedExp(Type::typeKind kind): parsedData(Type(kind)), regType(undef){}
 parsedExp::parsedExp(Type type) : parsedData(type), regType(undef){};
 parsedExp::parsedExp(parsedExp exp, binOps ops): regType(undef) {
@@ -409,7 +404,7 @@ parsedExp::parsedExp(parsedExp exp, binOps ops): regType(undef) {
             throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
         }
     }
-parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops):regType(undef){
+parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops): regType(undef){
         switch (ops){
             case REL_OP: {
                 if (exp1.isInteger() && exp2.isInteger()) {
@@ -434,36 +429,42 @@ parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops):regType(undef){
             }        }
     }
 parsedExp::parsedExp(parsedData data) : parsedData(data), regType(undef){};
-parsedExp::parsedExp(parsedData data1, parsedData data2, binOps ops): regType(undef) {
-    *this = parsedExp(parsedExp(data1), parsedExp(data2), ops);
-}
-parsedExp::parsedExp(parsedData data, binOps ops): regType(undef) {
-    *this = parsedExp(parsedExp(data), ops);
-}
+parsedExp::parsedExp(parsedData data1, parsedData data2, binOps ops): regType(undef){
+        *this = parsedExp(parsedExp(data1), parsedExp(data2), ops);
+    }
+parsedExp::parsedExp(parsedData data, binOps ops): regType(undef){
+        *this = parsedExp(parsedExp(data), ops);
+    }
 parsedExp parsedExp::maxRange(parsedExp exp1, parsedExp exp2) {
-    Type int_t = Type(Type::INTEGER);
-    Type byte_t = Type(Type::BYTE);
-    if (exp1.getType() == int_t || exp2.getType() == int_t)
-        return parsedExp(int_t);
-    else if (exp1.getType() == byte_t && exp2.getType() == byte_t)
-        return parsedExp(byte_t);
-    else
-        throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
+        Type int_t = Type(Type::INTEGER);
+        Type byte_t = Type(Type::BYTE);
+        if (exp1.getType() == int_t || exp2.getType() == int_t)
+            return parsedExp(int_t);
+        else if (exp1.getType() == byte_t && exp2.getType() == byte_t)
+            return parsedExp(byte_t);
+        else
+            throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
+    }
+
+bool parsedExp::isBoolExp(){
+    return (!(trueList.empty() && falseList.empty()));
 }
-
-
 //=========================== ParsedStatement Class ===============================//
 
 parsedStatement::parsedStatement(){
-        BPInfo();
-    }
-
+    BPInfo();
+}
 parsedStatement::parsedStatement(parsedExp exp){
-        trueList = exp.trueList;
-        falseList = exp.falseList;
-        nextList = exp.nextList;
-        breakList = exp.breakList;
-    }
+    trueList = exp.trueList;
+    falseList = exp.falseList;
+    nextList = exp.nextList;
+    breakList = exp.breakList;
+}
+
+parsedStatement::parsedStatement(string label){
+    BPInfo();
+    beginLabel = label;
+}
 
 //===========================================================================//
 //=============================== SCOPE HANDLING ============================//
@@ -472,112 +473,119 @@ parsedStatement::parsedStatement(parsedExp exp){
 //=============================== SCOPE CLASS ===============================//
 scope::scope(){} // in case of the first scope scope
 scope::scope(int nextIdLocation, bool isWhileScope) : nextIdLocation(nextIdLocation), isWhileScope(isWhileScope){}
-void scope::addId(Type newIdType, string newIdName) {
-    Id temp(newIdType, nextIdLocation, newIdName);
-    IdList.push_front(temp);
-    nextIdLocation += newIdType.size();
-}
-bool scope::containsId(string name) {
-    list <Id> IdNames = IdList;
-    while (!IdNames.empty()) {
-        if (IdNames.front().name == name)
-            return true;
-        IdNames.pop_front();
+void scope::addId(Type newIdType, string newIdName){
+
+        Id temp(newIdType,nextIdLocation,newIdName);
+        IdList.push_front(temp);
+        nextIdLocation += newIdType.size();
     }
-    return false;
-}
+bool scope::containsId(string name){
+        list<Id> IdNames = IdList;
+        while(!IdNames.empty()){
+            if(IdNames.front().name == name)
+                return true;
+            IdNames.pop_front();
+        }
+        return false;
+    }
 
 //============================== SCOPES CLASS ===============================//
 scopes::scopes() : need_to_print(true){};
-Id scopes::getId(string name) {
-    list <scope> allScopes(scopesList);
-    if (PRINT_DEBUG) cout << "trying to GET the  ID:  " << name << endl;
-    if (allScopes.size() == 0)
-        assert(0);
+Id scopes::getId(string name){
+        list<scope> allScopes(scopesList);
+        if (PRINT_DEBUG) cout << "trying to GET the  ID:  " << name << endl;
+        if(allScopes.size() == 0)
+            assert(0);
 
-    for (list<scope>::iterator s = allScopes.begin(); s != allScopes.end(); s++) {
-        if ((*s).IdList.size() == 0)
-            continue;
-        for (list<Id>::iterator id = (*s).IdList.begin(); id != (*s).IdList.end(); id++) {
-            if (PRINT_DEBUG) cout << "checking if " << (*id).name << " == " << name << endl;
-            if ((*id).name == name)
-                return *id;
+        for(list<scope>::iterator s = allScopes.begin(); s != allScopes.end() ; s++) {
+            if((*s).IdList.size() == 0)
+                continue;
+            for (list<Id>::iterator id = (*s).IdList.begin(); id !=(*s).IdList.end() ; id++){
+                if (PRINT_DEBUG) cout << "checking if " << (*id).name << " == " << name << endl;
+                if ((*id).name == name)
+                    return *id;
+            }
         }
-    }
-    assert(0);
-}
-function scopes::getFunction(string name) {
-    list <function> funcs = functions;
-
-    if (funcs.size() == 0)
         assert(0);
+    }
 
-    for (list<function>::iterator fun = funcs.begin(); fun != funcs.end(); fun++)
-        if ((*fun).idName == name)
-            return *fun;
-
-    assert(0);
+int scopes::getIdOffset(string name){
+    Id temp = getId(name);
+    return temp.offset;
 }
-bool scopes::containsIdName(string name) {
-    list <scope> allScopes(scopesList);
 
-    if (allScopes.size() == 0)
+function scopes::getFunction(string name){
+        list<function> funcs = functions;
+
+        if(funcs.size() == 0)
+            assert(0);
+
+        for(list<function>::iterator fun = funcs.begin(); fun != funcs.end(); fun ++)
+            if((*fun).idName == name)
+                return *fun;
+
+        assert(0);
+    }
+bool scopes::containsIdName(string name){
+        list<scope> allScopes(scopesList);
+
+        if(allScopes.size() == 0)
+            return false;
+        if (PRINT_DEBUG) cout << "trying to find (bool) ID:  " << name << endl;
+        for(list<scope>::iterator s = allScopes.begin(); s != allScopes.end() ; s++) {
+            if((*s).IdList.size() == 0)
+                continue;
+            for (list<Id>::iterator id = (*s).IdList.begin(); id !=(*s).IdList.end() ; id++){
+                if (PRINT_DEBUG) cout << "checking if " << (*id).name << " == " << name << endl;
+                if ((*id).name == name)
+                    return true;
+            }
+        }
         return false;
-    if (PRINT_DEBUG) cout << "trying to find (bool) ID:  " << name << endl;
-    for (list<scope>::iterator s = allScopes.begin(); s != allScopes.end(); s++) {
-        if ((*s).IdList.size() == 0)
-            continue;
-        for (list<Id>::iterator id = (*s).IdList.begin(); id != (*s).IdList.end(); id++) {
-            if (PRINT_DEBUG) cout << "checking if " << (*id).name << " == " << name << endl;
-            if ((*id).name == name)
+    }
+bool scopes::containsFunctionName(string name){
+        list<function> funcs = functions;
+
+        if(funcs.size() == 0)
+            return false;
+        for(list<function>::iterator fun = funcs.begin(); fun != funcs.end(); fun ++)
+            if((*fun).idName == name)
                 return true;
-        }
-    }
-    return false;
-}
-bool scopes::containsFunctionName(string name) {
-    list <function> funcs = functions;
-
-    if (funcs.size() == 0)
         return false;
-    for (list<function>::iterator fun = funcs.begin(); fun != funcs.end(); fun++)
-        if ((*fun).idName == name)
-            return true;
-    return false;
-}
-void scopes::addInitialFunction(Type returnType, string name, Type inputType) {
-    list <Type> functionInputTypes;
-    functionInputTypes.push_front(inputType);
-
-    function temp(name, returnType, functionInputTypes);
-    functions.push_front(temp);
-}
-void scopes::addFunction(parsedData retType,parsedData Id, parsedData functionInputs) {
-    assert(retType.kind == retType.DK_SINGLE);
-    assert(Id.kind == Id.DK_SINGLE);
-
-    //extracting the variables from the parsed data
-    string name = Id.single_var.name;
-    Type returnType = retType.single_var.type;
-
-    list <Type> functionInputTypes;
-    while (!functionInputs.list_of_vars.empty()) {
-        functionInputTypes.push_back(functionInputs.list_of_vars.front().type);
-        functionInputs.list_of_vars.pop_front();
     }
+void scopes::addInitialFunction(Type returnType, string name, Type inputType){
+        list<Type> functionInputTypes;
+        functionInputTypes.push_front(inputType);
 
-    // input check
-    if (containsFunctionName(name)) {
-        throw parsingExceptions(parsingExceptions::ERR_DEF, name);
-    }//errorUndefFunc(lineno,name); assert
-    /*   if(name == "main" &&(returnType.kind != returnType.VOID || !functionInputTypes.empty())) {
-           throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH,Id.getName());
-       } */ //throw {/* appropriate exception*/};
+        function temp(name, returnType, functionInputTypes);
+        functions.push_front(temp);
+    }
+void scopes::addFunction(parsedData retType,parsedData Id, parsedData functionInputs){
+        assert(retType.kind == retType.DK_SINGLE);
+        assert(Id.kind == Id.DK_SINGLE);
 
-    // inserting to the function list
-    function temp(name, returnType, functionInputTypes);
-    functions.push_front(temp);
-}
+        //extracting the variables from the parsed data
+        string name = Id.single_var.name;
+        Type returnType = retType.single_var.type;
+
+        list<Type> functionInputTypes;
+        while(!functionInputs.list_of_vars.empty()){
+            functionInputTypes.push_back(functionInputs.list_of_vars.front().type);
+            functionInputs.list_of_vars.pop_front();
+        }
+
+        // input check
+        if(containsFunctionName(name)) {
+            throw parsingExceptions(parsingExceptions::ERR_DEF,name);
+        }//errorUndefFunc(lineno,name); assert
+        /*   if(name == "main" &&(returnType.kind != returnType.VOID || !functionInputTypes.empty())) {
+               throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH,Id.getName());
+           } */ //throw {/* appropriate exception*/};
+
+        // inserting to the function list
+        function temp(name, returnType, functionInputTypes);
+        functions.push_front(temp);
+    }
 void scopes::addIdArray(parsedData Id,parsedData type,parsedData arraySize) {
     if (containsIdName(Id.single_var.name) || containsFunctionName(Id.single_var.name)) {
         throw parsingExceptions(parsingExceptions::ERR_DEF, Id.single_var.name);
@@ -593,12 +601,6 @@ void scopes::addIdArray(parsedData Id,parsedData type,parsedData arraySize) {
     scopesList.front().addId(newType, Id.single_var.name);
 
     if (PRINT_DEBUG) cout << "\n\n\nadded array: " << Id.single_var.name << endl;
-    // HW5 addition
-    buffer.emit(string("subu $sp, $sp, "+string(num_to_string(newType.arrayLength*4))));
-    for(int i=0; i< newType.arrayLength; i++) {
-        buffer.emit(string("sw $zero, "+string(num_to_string(i*4))+"($sp)"));
-    }
-    // HW5 addition
 }
 void scopes::addIdNotArray(parsedData type) {
     if (containsIdName(type.single_var.name) || containsFunctionName(type.single_var.name)) {
@@ -607,12 +609,6 @@ void scopes::addIdNotArray(parsedData type) {
 
     scopesList.front().addId(type.single_var.type, type.single_var.name);
     if (PRINT_DEBUG) cout << "\n\n\nadded ID (not array): " << type.single_var.name << endl;
-
-    // HW5 addition
-    //string var_offset = string(num_to_string(getId(type.single_var.name).offset*4));
-    buffer.emit(string("subu $sp, $sp, 4"));
-    buffer.emit(string("sw $zero, 0($sp)"));
-    // HW5 addition
 }
 void scopes::newRegularScope(bool isWhileScope) {
 
@@ -661,32 +657,20 @@ void scopes::removeScope() {
 }
 void scopes::verifyAssign(parsedData id_t,parsedExp exp) {
     if (!containsIdName(id_t.single_var.name)) {
-        throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN, id_t.single_var.name);
-    }//throw {/*  appropriate exception */}; // id not found
+        throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN, id_t.single_var.name); // id not found
+    }
 
-    //HW5 addition
-    Id id = getId(id_t.single_var.name);
-    //HW5 addition
-    Type idType = id.type;
+    Type idType = getId(id_t.single_var.name).type;
     if (!(idType == exp.single_var.type) && // the types are different, and it is not a case of assign byte to int
         !((idType.kind == Type::INTEGER) && (exp.single_var.type.kind == Type::BYTE))) {
-        throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
-    }//throw {/*  appropriate exception */}; // incompatible types
-
-    //HW5 addition
-    string reg_to_sw = exp.reg.toString();
-    string offset_str = string(num_to_string(id.offset*4));
-    string to_emit = (id.offset == 0 ?                                  \
-                            string("sw $"+reg_to_sw+", ($fp)") :        \
-                            string("sw $"+reg_to_sw+", "+offset_str+"($fp)" ));
-    buffer.emit(to_emit);
-    //HW5 addition
+        throw parsingExceptions(parsingExceptions::ERR_MISMATCH); // incompatible types
+    }
 }
 void scopes::verifyAssignToArray(parsedData idInput, parsedExp arrIndex, parsedExp assigned) {
 
     if (!containsIdName(idInput.single_var.name)) {
         throw parsingExceptions(parsingExceptions::ERR_UNDEF, idInput.single_var.name);
-    }//throw {/*  appropriate exception */}; //id not found
+    }//id not found
 
     Id id = getId(idInput.single_var.name);
     Type idType = id.type;
@@ -695,27 +679,18 @@ void scopes::verifyAssignToArray(parsedData idInput, parsedExp arrIndex, parsedE
 
     if (!(idType.kind == Type::ARRAY)) {
         throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
-    }//throw {/*  appropriate exception */}; // id is not array
+    }// id is not array
 
     if ((!(indexType.kind == Type::BYTE)) &&
         (!(indexType.kind == Type::INTEGER))) {
         throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
-    }//throw {/*  appropriate exception */}; // array index is not of numeric type
+    }// array index is not of numeric type
 
     if (!(idType.arrayType == assignedType.kind) &&
         // the types are different, and it is not a case of assign byte to int
         !((idType.arrayType == idType.INTEGER) && (assignedType.kind == assignedType.BYTE))) {
         throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
-    }//throw {/*  appropriate exception */}; // array type is not compatible with exp type
-
-    //HW5 addition
-    string reg_to_sw = assigned.reg.toString();     //TODO add register to expression
-    string offset_str = string(num_to_string(id.offset*4+arrIndex.single_var.value*4));
-    string to_emit = ((id.offset == 0 && arrIndex.single_var.value == 0 )?      \
-                            string("sw $"+reg_to_sw+", ($fp)") :                \
-                            string("sw $"+reg_to_sw+", "+offset_str+"($fp)" ));
-    buffer.emit(to_emit);
-    //HW5 addition
+    }// array type is not compatible with exp type
 
 }
 void scopes::verifyReturnTypeVoid() {
@@ -742,7 +717,7 @@ void scopes::verifyExpIsBool(parsedData expType) {
         throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
     }//throw {/*  appropriate exception */}; //expected boolean type
 }
-void scopes::verifyFunctionCall(parsedData idInput,parsedExp inputList) {
+void scopes::verifyFunctionCall(parsedData idInput,parsedData inputList) {
     assert(inputList.kind == parsedData::DK_LIST);
 
     if (!containsFunctionName(idInput.single_var.name)) {
@@ -817,53 +792,209 @@ scopes::~scopes() {
 
 //============================== codeGenerator CLASS ===============================//
 
-void codeGenerator::initiateKnownConstants() {
+void codeGenerator::initiateKnownConstants(){
     static bool initiated = false;
-    if (initiated)
+    if(initiated)
         return;
+
     buffer.emitData("byteMask: .word 0x000000ff");
+
     initiated = true;
 }
 
-string codeGenerator::opToBranchString(parsedData::PDOp op) {
-    switch (op) {
-        case parsedData::PD_EQ :  // ==
+string codeGenerator::opToBranchString(parsedData::PDOp op){
+    switch(op){
+        case parsedData::PD_EQ :{  // ==
             return "beq ";
-        case parsedData::PD_NEQ :  // !=
+        }break;
+        case parsedData::PD_NEQ :{  // !=
             return "bne ";
-        case parsedData::PD_GT :  // >
+        }break;
+        case parsedData::PD_GT :{  // >
             return "bgt ";
-        case parsedData::PD_GEQ :  // >=
+        }break;
+        case parsedData::PD_GEQ :{  // >=
             return "bge ";
-        case parsedData::PD_LT :   // <
+        }break;
+        case parsedData::PD_LT :{  // <
             return "blt ";
-        case parsedData::PD_LEQ :   // <=
+        }break;
+        case parsedData::PD_LEQ :{  // <=
             return "ble ";
-        default:
+        }break;
+        default:{
             assert(0);
+        }
     }
     assert(0);
 }
 
-string codeGenerator::arithmeticOpToString(parsedData::PDOp op) {
-    switch (op) {
+string codeGenerator::arithmeticOpToString(parsedData::PDOp op){
+    switch(op) {
         case parsedData::PD_PLUS : {
             return "add ";
-        }
+        }break;
         case parsedData::PD_MINUS : {
             return "sub ";
-        }
+        }break;
         case parsedData::PD_MUL : {
             return "mul ";
-        }
+        }break;
         case parsedData::PD_DIV : {
             return "div ";
-        }
-        default: {
+        }break;
+        default:{
             assert(0);
         }
     }
     assert(0);
+}
+
+string codeGenerator::byteArithmeticMasking(regClass reg){
+    string res = "and ";
+    res += reg.toString();
+    res += ", ";
+    res += reg.toString();
+    res += ", ";
+    res += "byteMask";
+    return res;
+}
+
+string codeGenerator::divisionByZeroCheck(regClass reg){
+    string res = "beq ";
+    res += reg.toString();
+    res += ", $0, ";
+    res += "_____TODO_goto_divide_by_zero_code____"; //code for reporting division by 0 and exit;
+    return res;
+}
+
+string codeGenerator::arrayOverflowCheck(int arrayLen,regClass reg){
+    string res = "bge ";
+    res += reg.toString();
+    res += ", ";
+    res += num_to_string(arrayLen);
+    res += ", ";
+    res += "_____TODO_____"; //code for reporting array access overflow and exit;
+}
+
+string codeGenerator::array_A_at_location_n(Id id, regClass reg){
+    // need to implement.
+    return "_____TODO_____";
+}
+
+string codeGenerator::idLocation(Id id){
+    string res = idOffsetFromFp(id);
+    res += string("(fp)");
+    return res ;
+};
+
+string codeGenerator::idOffsetFromFp(Id id){
+    return num_to_string(id.offset*4);
+}
+
+void codeGenerator::assignBoolIntoLocation(parsedExp exp, string location){
+
+    cout << "codeGenerator::assignBoolIntoLocation(parsedExp exp, string location)" << endl;
+    string res;
+    buffer.bpatch(exp.trueList,buffer.genLabel());
+
+    res = string("sw ");
+    res += location;
+    res += string(", ");
+    res += trueValueRepresentation();
+    buffer.emit(res);
+
+    vector<int> temp;
+    temp.push_back(buffer.emit(string("j ")));
+    buffer.bpatch(exp.falseList,buffer.genLabel());
+
+    res = string("sw ");
+    res += location;
+    res += string(", ");
+    res += falseValueRepresentation();
+    buffer.emit(res);
+
+    buffer.bpatch(temp,buffer.genLabel());
+}
+
+void codeGenerator::assignNonBoolIntoLocation(parsedExp exp, string location){
+    string res = string("sw ");
+    res += exp.reg.toString();
+    res += string(", ");
+    res += location;
+    buffer.emit(res);
+}
+
+void codeGenerator::assignValueToId(Id id,parsedExp exp) {
+
+    if (id.type.kind == Type::BOOL)
+        assignBoolIntoLocation(exp,idLocation(id));
+    else
+        assignNonBoolIntoLocation(exp,idLocation(id));
+}
+
+void codeGenerator::assignValueToArray(Id id,parsedExp offsetExp,parsedExp assignExp){
+    regClass addressReg = regAlloc();
+    regClass tempReg = regAlloc();
+    regClass toAssign = regAlloc();
+    string code;
+
+    if (id.type.arrayType == Type::BOOL)
+        assignBoolIntoLocation(assignExp,toAssign.toString());
+    else
+        assignNonBoolIntoLocation(assignExp,toAssign.toString());
+
+    code = string("bge ");
+    code += offsetExp.reg.toString();
+    code += string(", ");
+    code += num_to_string(id.type.arrayLength);
+    code += ", ______label_for_handling_array_wrong_size_dereferencing___";
+    buffer.emit(code);
+
+    code = string("blt ");
+    code += offsetExp.reg.toString();
+    code += ", $0, ";
+    code += "______label_for_handling_array_wrong_size_dereferencing___";
+    buffer.emit(code);
+
+
+    code = string("mul ");
+    code += tempReg.toString();
+    code += string(", ");
+    code += offsetExp.reg.toString();
+    code += string(", 4");
+
+    buffer.emit(code);
+
+    code = string("add ");
+    code += addressReg.toString();
+    code += string(", ");
+    code += idLocation(id);
+    code += string(", ");
+    code += tempReg.toString();
+
+    buffer.emit(code);
+
+    string location = string("(") + addressReg.toString() + string(")");
+
+    code = "add ";
+    code += location;
+    code += ", $0, ";
+    code += toAssign.toString();
+
+    buffer.emit(code);
+
+    regFree(toAssign);
+    regFree(tempReg);
+    regFree(addressReg);
+}
+
+string codeGenerator::trueValueRepresentation(){
+    return string("0");
+}
+
+string codeGenerator::falseValueRepresentation(){
+    return string("1");
 }
 
 string codeGenerator::byteArithmeticMasking(regClass reg) {
@@ -880,7 +1011,7 @@ string codeGenerator::divisionByZeroCheck(regClass reg) {
     string res = "beq ";
     res += reg.toString();
     res += ", $0, ";
-    res += "_____TODO_____"; //code for reporting division by 0 and exit;
+    res += "_____TODO_go_to_division_by_0_handling_function____"; //code for reporting division by 0 and exit;
 }
 
 string codeGenerator::arrayOverflowCheck(int arrayLen,regClass reg) {
@@ -889,26 +1020,16 @@ string codeGenerator::arrayOverflowCheck(int arrayLen,regClass reg) {
     res += ", ";
     res += num_to_string(arrayLen);
     res += ", ";
-    res += "_____TODO_____"; //code for reporting array access overflow and exit;
+    res += "_____TODO_go_to_array_access_overflow_handling_function____"; //code for reporting array access overflow and exit;
 }
-
-string codeGenerator::array_A_at_location_n(Id id, regClass reg) {
-    // need to implement.
-    return "_____TODO_____";
-}
-
-string codeGenerator::idLocation(Id id) {
-    return "_____toImplement_____";
-};
-
 
 //============================== Function Handling ==============================/
 
-
-int getIdOffset(string name){
+int codeGenerator::getIdOffset(string name){
     return scopesList->getId(name).offset;
 }
-void pushExpList(parsedExp input_list){
+void codeGenerator::pushExpList(parsedExp input_list){
+    if(!input_list) return;
     std::list<VarInfo> inputs = input_list.list_of_vars;
     while (!(inputs.empty())){
         VarInfo temp = inputs.back();
@@ -932,7 +1053,7 @@ void pushExpList(parsedExp input_list){
     }
 }
 
-void pushVarArray(VarInfo var_array){
+void codeGenerator::pushVarArray(VarInfo var_array){
     int length = var_array.type.arrayLength;
     string var_offset_to_add = string(num_to_string(length*4));
     buffer.emit(string("subu $sp, $sp, ")+var_offset_to_add);
@@ -941,100 +1062,89 @@ void pushVarArray(VarInfo var_array){
         buffer.emit(string("sw ")+temp_offset+string("($fp), ")+temp_offset+string("($sp)"));
     }
 }
-void pushSingleVar(VarInfo simple_var){
+void codeGenerator::pushSingleVar(VarInfo simple_var){
     string var_location = string(num_to_string(getIdOffset(simple_var.name)*4));
     buffer.emit(string("subu $sp, $sp, 4"));
     buffer.emit(string("sw ")+var_location+string("($fp), ($sp)"));
 }
-void pushString(VarInfo var_string){
-    //TODO
+string codeGenerator::pushString(VarInfo var_string){
+    string labelName = buffer.genDataLab();
+    buffer.emitData(labelName + string(" .asciiz \"") + var_string.name + string("\""));
+    return labelName;
 }
 
-void callerSaveRegisters(){
-    for (int i = 0; i <29 ; i++) {
+void codeGenerator::callerSaveRegisters(){
+    for (int i = 0; i < 19 ; i++) {
         string reg_to_save = IntToReg(i);
         buffer.emit(string("subu $sp, $sp, 4"));
         buffer.emit(string("sw ")+reg_to_save+string(", ($sp)"));
     }
 }
-void callerRestoreRegisters(){
-    for (int i = 29; i >0 ; i--) {
+void codeGenerator::callerRestoreRegisters(){
+    for (int i = 19 ; i >0 ; i--) {
         string reg_to_load = IntToReg(i-1);
         buffer.emit(string("lw ")+reg_to_load+string(", ($sp)"));
         buffer.emit(string("addu $sp, $sp, 4"));
     }
 }
 
-string IntToReg(int reg_to_save){
+string codeGenerator::IntToReg(int reg_to_save){
+    if(reg_to_save <= 17)
+        return string("$") + num_to_string(reg_to_save + 8);
     switch (reg_to_save){
-        case 0:
-            return string("$a0");
-        case 1:
-            return string("$a1");
-        case 2:
-            return string("$a2");
-        case 3:
-            return string("$a3");
-        case 4:
-            return string("$t0");
-        case 5:
-            return string("$t1");
-        case 6:
-            return string("$t2");
-        case 7:
-            return string("$t3");
-        case 8:
-            return string("$t4");
-        case 9:
-            return string("$t5");
-        case 10:
-            return string("$t6");
-        case 11:
-            return string("$t7");
-        case 12:
-            return string("$t8");
-        case 13:
-            return string("$t9");
-        case 14:
-            return string("$v1");
-        case 15:
-            return string("$f0");
-        case 16:
-            return string("$f1");
-        case 17:
-            return string("$f2");
         case 18:
-            return string("$f3");
+            return string("$fp");
         case 19:
-            return string("$f4");
-        case 20:
-            return string("$f5");
-        case 21:
-            return string("$f6");
-        case 22:
-            return string("$f7");
-        case 23:
-            return string("$f8");
-        case 24:
-            return string("$f9");
-        case 25:
-            return string("$f10");
-        case 26:
-            return string("$f16");
-        case 27:
-            return string("$f17");
-        case 28:
-            return string("$f18");
+            return string("$ra");
     }
 }
 
-void callFunction(string func_name, parsedExp input_list){
-    callerSaveRegisters();
-    pushExpList(input_list);
-    // jump to function
-    buffer.emit(string("jal "+func_name));
-    // TODO what do we do with the returned value???
-    callerRestoreRegisters();
+
+void codeGenerator::cleanStack(){
+    assert("in cleanStack, need to be implemented" && 0);
+    // search the scopes stack
+    // find the biggest and smallest offset of any var in any scope
+    // increase $sp by the different of them
 }
 
+void codeGenerator::returnVoidFunction(){
+    cleanStack();
+    buffer.emit(string("jr $ra"));
+}
+
+void codeGenerator::returnFunction(parsedExp returnExp){
+    if(returnExp.single_var.type.kind == Type::BOOL)
+        assignBoolIntoLocation(returnExp, string("-4($sp)"));
+    else
+        assignNonBoolIntoLocation(returnExp, string("-4($sp)"));
+    buffer.emit(string("add $v0, $0, -4($sp)"));
+    cleanStack();
+    buffer.emit(string("jr $ra"));
+}
+
+
+void codeGenerator::callFunction(string func_name, parsedExp input_list,regClass returnReg){
+    callerSaveRegisters();
+    pushExpList(input_list);
+
+    // creating a new frame for the calley function
+    buffer.emit(string("add $fp, $0, sp"));
+
+    // inserting to $ra the return address
+    vectot<int> returnBackPatchList;
+    returnBackPatchList.push_front(buffer.emit(string("la $ra, ")));
+
+    // jump to function
+    buffer.emit(string("jal "+func_name));
+
+    // backPatching the return address
+    buffer.bpatch(returnBackPatchList,buffer.genLabel());
+
+    // saving the return value
+    buffer.emit(string("add ") + returnReg.toString() + string(", $0, $v0"));
+
+    // restoring registers (includes $fp)
+    // assumes the calley function cleaning its own variables, include the passed parameters
+    callerRestoreRegisters();
+}
 

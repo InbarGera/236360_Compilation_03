@@ -1,6 +1,6 @@
 %{
 
-#include "attributes.h"
+#include "attributes.hpp"
 #include "parser.tab.hpp"
 
 %}

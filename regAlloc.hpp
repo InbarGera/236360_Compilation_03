@@ -6,8 +6,6 @@
 
 class regClass{
     int myIndex;
-    int offset_to_restore;
-    bool saved;
 public:
     regClass() : myIndex(-1) {};
     regClass(int i);
@@ -18,6 +16,5 @@ public:
 regClass regAlloc();
 void regFree(regClass toFree);
 void assertAllRegistersAreFree();
-
 
 #endif //COMPILATION_03_REGALLOC_HPP

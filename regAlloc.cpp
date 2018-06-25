@@ -1,4 +1,7 @@
 #include"regAlloc.hpp"
+#include <vector>
+#include <iostream>
+#include <sstream>
 
 #define REG_NUM 17
 #define FREE false
@@ -13,6 +16,7 @@ regClass::regClass(int i) {
 }
 
 std::string regClass::toString(){
+    if(myIndex == -1) return "uninitialized_register" ;
     return "$" + num_to_string(myIndex + 8); // 8  is due to mips reg names convention
 }
 
@@ -29,15 +33,13 @@ regClass regAlloc(){
 
     for(int i=0; i<REG_NUM ;i++)
         if(status[i] == FREE) {
-            status[i] == ALLOCATED;
+            status[i] = ALLOCATED;
             return regClass(i);
         }
-    assert(0); // should always be a free register
+    assert("no free registers to allocate" && 0); // should always be a free register
 }
 
 void regFree(regClass toFree){
-    if(toFree.index()<0)
-        return;
     assert(status[toFree.index()] == ALLOCATED && initiated);
     status[toFree.index()] = FREE;
 }
