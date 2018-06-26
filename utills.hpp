@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include <vector>
 
-int string_to_num(char* input);
+int string_to_num(const char* input);
 
 char* remove_double_quotes(char* input);
 

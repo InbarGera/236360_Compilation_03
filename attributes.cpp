@@ -2,6 +2,7 @@
 
 CodeBuffer buffer;
 scopes* scopesList;
+vector<int> goToMainBackPatch;
 //===========================================================================//
 //====================== ERROR HANDLING CLASS ===============================//
 //===========================================================================//
@@ -169,6 +170,11 @@ Id::Id(Type type_t, int offset, string name_t) : offset(offset){
         this->name = name_t;
     };
 
+Id::Id(){
+    offset = -9876543; // or something better ?
+    this->type = Type(Type::UNDEF);
+    this->name = "______undefined_id______";
+}
 //=========================== FUNCTION CLASS ================================//
 function::function(string idName_t, Type return_type_t, list<Type> inputTypes_t) :
             idName(idName_t), return_type(return_type_t), inputTypes(inputTypes_t){};
@@ -447,6 +453,8 @@ parsedExp parsedExp::maxRange(parsedExp exp1, parsedExp exp2) {
             throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
     }
 
+parsedExp::parsedExp(parsedExp e1,parsedExp e2): parsedData(e1,e2){}
+
 bool parsedExp::isBoolExp(){
     return regType == undef; // (!(trueList.empty() && falseList.empty())) old code
 }
@@ -647,12 +655,10 @@ void scopes::removeScope() {
     scope oldScope = scopesList.front();
 
     // print the scope
-    if(!HW_5)
-        endScope();
+    endScope();
     while (!oldScope.IdList.empty()) {
         Id temp = oldScope.IdList.back();
-        if(!HW_5)
-            printID(temp.name, temp.offset, temp.type.toString());
+        printID(temp.name, temp.offset, temp.type.toString());
         oldScope.IdList.pop_back();
     }
 
@@ -786,8 +792,7 @@ scopes::~scopes() {
 
         while (!functions.empty()) {
             function func = functions.back();
-            if(!HW_5)
-                printID(func.idName, 0, func.toString());
+            printID(func.idName, 0, func.toString());
             functions.pop_back();
         }
     }
@@ -796,14 +801,28 @@ scopes::~scopes() {
 
 //============================== codeGenerator CLASS ===============================//
 
+void codeGenerator::initiateHW5(){
+    buffer.emit(string("# Begin of initiation code"));
+    buffer.emit(string("main:"));
+    buffer.emit(string("la $ra, return_from_main"));
+    buffer.emit(string("add $fp, $0, $sp"));
+    goToMainBackPatch.push_back(buffer.emit(string("j "))); //will be backpached when main will be parsed
+    buffer.emit(string("return_from_main:"));
+    buffer.emit(string("nop"));
+    initiateKnownConstants();
+    initiateErrorHandling();
+    initiatePrintFunctions();
+    buffer.emit(string("# End of initiation code"));
+}
+
 void codeGenerator::initiateKnownConstants(){
     static bool initiated = false;
     if(initiated)
         return;
 
     buffer.emitData(string("byteMask: .word 0x000000ff"));
-    buffer.emitData(string("arrayIndexErrMsg: .asciiz  \"Error index out of bounds\n\""));
-    buffer.emitData(string("divByZeroErrMsg: .asciiz  \"Error division by zero\n\""));
+    buffer.emitData(string("arrayIndexErrMsg: .asciiz  \"Error index out of bounds\\n\""));
+    buffer.emitData(string("divByZeroErrMsg: .asciiz  \"Error division by zero\\n\""));
 
     initiated = true;
 }
@@ -812,12 +831,12 @@ void codeGenerator::initiateErrorHandling(){
     buffer.emit(string("arrayErrHandle: li $v0, 4"));
     buffer.emit(string("la $a0, arrayIndexErrMsg"));
     buffer.emit(string("syscall"));
-    buffer.emit(string("halt"));
+    buffer.emit(string("nop"));
 
     buffer.emit(string("divZeroErrHandle: li $v0, 4"));
     buffer.emit(string("la $a0, divByZeroErrMsg"));
     buffer.emit(string("syscall"));
-    buffer.emit(string("halt"));
+    buffer.emit(string("nop"));
 }
 
 void codeGenerator::initiatePrintFunctions(){
@@ -832,7 +851,6 @@ void codeGenerator::initiatePrintFunctions(){
     buffer.emit(string("syscall"));
     buffer.emit(string("jr $ra"));
 }
-
 
 string codeGenerator::opToBranchString(parsedData::PDOp op){
     switch(op){
@@ -942,9 +960,25 @@ void codeGenerator::assignNonBoolIntoLocation(parsedExp exp, string location){
     buffer.emit(res);
 }
 
+void codeGenerator::assignArrayToArray(Id id,parsedExp exp){
+    string offsetFromFp = idOffsetFromFp(id);
+    regClass reg = regAlloc();
+
+    for(int i=0; i < id.type.arrayLength; i++){
+        int offset = string_to_num(offsetFromFp.c_str()) + i*4; // is it + or - ??
+        buffer.emit(string("lw ") + reg.toString() + string(", (") + exp.reg.toString() + string(")"));
+        buffer.emit(string("add ") + exp.reg.toString() + string(", ") + exp.reg.toString() + string(", ") + string("4"));
+        buffer.emit(string("sw ") + reg.toString() + string(", ") + num_to_string(offset) + string("(fp)"));
+    }
+    regFree(reg);
+}
+
 void codeGenerator::assignValueToId(Id id,parsedExp exp) {
 
-    if (id.type.kind == Type::BOOL)
+    if(exp.regType == parsedExp::reference) {
+        assignArrayToArray(id, exp);
+    }
+    else if (exp.regType == parsedExp::undef) // meaning it is the case of true/false list of bool
         assignBoolIntoLocation(exp,idLocation(id));
     else
         assignNonBoolIntoLocation(exp,idLocation(id));
@@ -964,7 +998,7 @@ void codeGenerator::generateArrayOverflowCheck(int arrayLen,regClass reg) {
     res = string("blt ");
     res += reg.toString();
     res += ", $0, ";
-    res += "______label_for_handling_array_wrong_size_dereferencing___";
+    res += "arrayErrHandle";
     buffer.emit(res);
 
 }
@@ -997,7 +1031,7 @@ void codeGenerator::assignValueToArray(Id id,parsedExp offsetExp,parsedExp assig
     regClass toAssign = regAlloc();
     string code;
 
-    if (id.type.arrayType == Type::BOOL)
+    if (assignExp.regType == parsedExp::undef)
         assignBoolIntoLocation(assignExp,toAssign.toString());
     else
         assignNonBoolIntoLocation(assignExp,toAssign.toString());
@@ -1005,12 +1039,13 @@ void codeGenerator::assignValueToArray(Id id,parsedExp offsetExp,parsedExp assig
     generateArrayOverflowCheck(id.type.arrayLength,offsetExp.reg);
     generateArrayLocationCalc(addressReg,offsetExp.reg,idLocation(id));
 
-    string location = string("(") + addressReg.toString() + string(")");
+    // might need this code if there if too few dereferencing
+    //string location = string("(") + addressReg.toString() + string(")");
 
-    code = "add ";
-    code += location;
-    code += ", $0, ";
+    code = "sw ";
     code += toAssign.toString();
+    code += ", ";
+    code += addressReg.toString();
 
     buffer.emit(code);
 
@@ -1035,9 +1070,9 @@ int codeGenerator::getIdOffset(string name){
 }
 
 void codeGenerator::pushExpList(parsedExp input_list){
-    std::list<VarInfo> inputs = input_list.list_of_vars;
+    list<parsedExp*> inputs = input_list.expressionListForCallingFunctions;
     while (!(inputs.empty())){
-        VarInfo temp = inputs.back();
+        VarInfo temp = inputs.back().;
         switch (temp.type.kind){
             case Type::ARRAY:{
                 pushVarArray(temp);
@@ -1048,9 +1083,9 @@ void codeGenerator::pushExpList(parsedExp input_list){
                 break;
             }
             case Type::VOID:
-                assert(0);      //not supposed to get here
+                assert("in codeGenerator::pushExpList(parsedExp input_list), in case: Type::VOID" && 0);      //not supposed to get here
             case Type::UNDEF:
-                assert(0);      //not supposed to get here
+                assert("in codeGenerator::pushExpList(parsedExp input_list), in case: Type::UNDEF" && 0);      //not supposed to get here
             default:    // BOOL, BYTE, INTEGER
                 pushSingleVar(temp);
         }
@@ -1067,11 +1102,13 @@ void codeGenerator::pushVarArray(VarInfo var_array){
         buffer.emit(string("sw ")+temp_offset+string("($fp), ")+temp_offset+string("($sp)"));
     }
 }
+
 void codeGenerator::pushSingleVar(VarInfo simple_var){
-    string var_location = string(num_to_string(getIdOffset(simple_var.name)*4));
+    string var_location = num_to_string(getIdOffset(simple_var.name)*4);
     buffer.emit(string("subu $sp, $sp, 4"));
     buffer.emit(string("sw ")+var_location+string("($fp), ($sp)"));
 }
+
 string codeGenerator::pushString(VarInfo var_string){
     string labelName = buffer.genDataLabel();
     buffer.emitData(labelName + string(" .asciiz \"") + var_string.name + string("\""));
@@ -1104,12 +1141,45 @@ string codeGenerator::IntToReg(int reg_to_save){
     }
 }
 
-
 void codeGenerator::cleanStack(){
-    assert("in cleanStack, need to be implemented" && 0);
-    // search the scopes stack
-    // find the biggest and smallest offset of any var in any scope
-    // increase $sp by the different of them
+    scopes copyOfAllScopes = *scopesList;
+    Id firstOnStack;
+    Id lastOnStack;
+    int totalOffset;
+
+    while(!copyOfAllScopes.scopesList.empty()){
+        if(!copyOfAllScopes.scopesList.front().IdList.empty()) {
+            firstOnStack = copyOfAllScopes.scopesList.front().IdList.front();
+            copyOfAllScopes.scopesList.front().IdList.pop_front();
+            break;
+        }
+        copyOfAllScopes.scopesList.pop_front();
+    }
+
+    //cout << "for debug: first Id name = " << firstOnStack.name << ", and offset = " << firstOnStack.offset << endl;
+
+    if(firstOnStack.type.kind == Type::UNDEF) // if there is no variable then stack is already ok
+        return;
+
+    totalOffset = firstOnStack.offset + 1; // the plus 1 is because first variable is at location 0, will need to verify it in runtime
+
+    scope lastScope;
+    while(!copyOfAllScopes.scopesList.empty()){
+        lastScope = copyOfAllScopes.scopesList.front();
+        while(!lastScope.IdList.empty()){
+            lastOnStack = lastScope.IdList.front();
+            lastScope.IdList.pop_front();
+        }
+        copyOfAllScopes.scopesList.pop_front();
+    }
+
+    //cout << "for debug: last Id name = " << lastOnStack.name << ", and offset = " << lastOnStack.offset << endl;
+
+    if(lastOnStack.type.kind != Type::UNDEF)
+        totalOffset -= lastOnStack.offset;
+
+    totalOffset *= 4;
+    buffer.emit(string("add $sp, $sp, ") + num_to_string(totalOffset));
 }
 
 void codeGenerator::returnVoidFunction(){
@@ -1127,8 +1197,8 @@ void codeGenerator::returnFunction(parsedExp returnExp){
     buffer.emit(string("jr $ra"));
 }
 
-
 void codeGenerator::callFunction(string func_name, parsedExp input_list,regClass returnReg){
+    buffer.emit(string("# Begin of calling to function code"));
     callerSaveRegisters();
     pushExpList(input_list);
 
@@ -1151,5 +1221,6 @@ void codeGenerator::callFunction(string func_name, parsedExp input_list,regClass
     // restoring registers (includes $fp)
     // assumes the calley function cleaning its own variables, include the passed parameters
     callerRestoreRegisters();
+    buffer.emit(string("# End of calling to function code"));
 }
 

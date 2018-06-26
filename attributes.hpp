@@ -23,7 +23,6 @@ using namespace output;
 
 
 #define PRINT_DEBUG 0
-#define HW_5 1
 //================================= ENUMS ==================================//
 enum GrammerVar{
     NOT_INITIALIZED,
@@ -147,6 +146,7 @@ public:
     int offset;
 
     Id(Type type_t, int offset, string name_t);
+    Id(); // for HW5
 };
 
 class function{
@@ -251,7 +251,8 @@ public:
     enum registerType{value,reference,undef};
     regClass reg;
     registerType regType;
-    //parsedExp(); // ???????????
+
+    list<parsedExp*> expressionListForCallingFunctions;
     parsedExp(Type::typeKind kind);
     parsedExp(Type type) ;
     parsedExp(parsedExp exp, binOps ops);
@@ -260,6 +261,7 @@ public:
     parsedExp(parsedData data1, parsedData data2, binOps ops);
     parsedExp(parsedData data, binOps ops);
 
+    parsedExp(parsedExp e1,parsedExp e2);
     parsedExp maxRange(parsedExp exp1, parsedExp exp2);
 
     bool isBoolExp();
@@ -330,6 +332,7 @@ public:
 
 class codeGenerator{
 public:
+    static void initiateHW5();
     static void initiateKnownConstants();
     static void initiateErrorHandling();
     static void initiatePrintFunctions();
@@ -348,7 +351,7 @@ public:
     static void assignBoolIntoLocation(parsedExp exp, string location);
     static void assignNonBoolIntoLocation(parsedExp exp, string location);
 
-
+    static  void assignArrayToArray(Id id,parsedExp exp);
     static void generateArrayLocationCalc(regClass destenetion, regClass offsetHoldingReg, string arrayBaseAsString);
     static int getIdOffset(string name); // dangerous, scopes have same function
     static void pushExpList(parsedExp input_list);

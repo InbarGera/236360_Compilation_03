@@ -1,7 +1,7 @@
 #include "utills.hpp"
 #include <vector> // ????
 
-int string_to_num(char* input){
+int string_to_num(const char* input){
     int sum =0;
     while(input[0] != '\0'){
         sum = sum*10 + (input++[0] - '0');

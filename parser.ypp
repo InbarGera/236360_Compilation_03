@@ -8,6 +8,7 @@
 	extern int yylex();		// do they both need to be extern?
 	extern CodeBuffer buffer;
 	extern scopes* scopesList;
+	extern vector<int> goToMainBackPatch;
     void yyerror(const char * message);
 
     #define TRY_AND_CATCH(statement_to_try)                             \
@@ -17,14 +18,14 @@
              throw parsingExceptions(e.err_type, yylineno, e.id);       \
         }
 
+    #define PRINT_HW3_STUFF 1
+
     #define EMIT_TEXT(string) buffer.emit(string)
     #define EMIT_DATA(string) buffer.emitData(string)
     #define EXC static_cast<parsedExp*>
     #define STC static_cast<parsedStatement*>
 
     #define CODE_COMMENT(str) if(0) buffer.emit(static_cast<string>("# ") + static_cast<string>(str))
-
-
 %}
 
 %token B
@@ -53,12 +54,22 @@ Funcs :
 		;
 Function : FunctionDefinition LBRACE Gen_Label Statements RBRACE_t {
                                                                     scopesList->functions.front().beginLabel = STC$3->beginLabel;
-                                                                    delete $3;delete $4;}
+                                                                    if($1->single_var.name == "main"){
+                                                                        buffer.bpatch(goToMainBackPatch,STC$3->beginLabel);
+                                                                    }
+                                                                    buffer.emit(string("# End of function"));
+
+                                                                    delete $1; delete $3; delete $4;}
         ;
 
 FunctionDefinition : RetType ID LPAREN Formals RPAREN {TRY_AND_CATCH(scopesList->addFunction(*$1,*$2,*$4));
                                                        TRY_AND_CATCH(scopesList->newFunctionScope(*$4));
-                                                       delete $1; delete $2; delete $4;}
+                                                       $$ = $2;
+                                                       buffer.emit(string("# Function: ") + $2->single_var.name);
+                                                       //if($2->single_var.name == "main")
+                                                        //buffer.emit(string("main:"));
+
+                                                       delete $1; delete $4;}
                    ;
 
 RetType : Type          {$$ = $1;}
@@ -160,7 +171,7 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
 
                                                      for(int i=0; i < $3->single_var.value ; i++){
                                                         string s2 = string("sw ");
-                                                        if($1->single_var.type.arrayType == Type::BOOL)
+                                                        if($1->single_var.type.kind == Type::BOOL)
                                                            s2 += codeGenerator::falseValueRepresentation();
                                                         else
                                                            s2 += string("$0");
@@ -284,7 +295,7 @@ While_Statement : While_Open Gen_Label Statement {scopesList->removeScope();
 
                                         string endLabel = buffer.genLabel();
 
-                                        cout << " in while statement, break list size is : " << STC$3->breakList.size() << endl ;
+                                        //cout << " in while statement, break list size is : " << STC$3->breakList.size() << endl ;
                                         buffer.bpatch(STC$3->breakList,endLabel);
                                         buffer.bpatch(STC$1->falseList,endLabel);
 
@@ -320,8 +331,8 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
                                          else
                                             EXC$$->regType = parsedExp::value;
 
-                                         codeGenerator::callFunction(scopesList->getFunction($1->getName()).beginLabel
-                                                                      ,*EXC$3,EXC$$->reg);
+                                         //codeGenerator::callFunction(scopesList->getFunction($1->getName()).beginLabel
+                                                                      //,*EXC$3,EXC$$->reg);
 
                                          if(EXC$$->regType == parsedExp::undef)
                                             regFree(EXC$$->reg);
@@ -342,18 +353,21 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
                                             EXC$$->regType = parsedExp::value;
 
                                          parsedExp dummy(Type::UNDEF);
-                                         codeGenerator::callFunction(scopesList->getFunction($1->getName()).beginLabel,dummy,EXC$$->reg);
+                                         //codeGenerator::callFunction(scopesList->getFunction($1->getName()).beginLabel,dummy,EXC$$->reg);
 
                                          if(EXC$$->regType == parsedExp::undef)
                                             regFree(EXC$$->reg);
 
 		                                 delete $1;}
 		;
-//TODO Lior
-ExpList:    Exp ExpList2 {  $$ = new parsedData(*$1,*$2) ;
+
+ExpList:    Exp ExpList2 {  $$ = new parsedExp(*EXC$1,*EXC$2) ;
+                            $$->expressionListForCallingFunctions = EXC$2->expressionListForCallingFunctions;
+                            $$->expressionListForCallingFunctions.push_back(EXC$1);
+
 		                                delete $1; delete $2;}
 
-ExpList2 :                  { $$ = new parsedData(IS_CALL); }
+ExpList2 :                  { $$ = new parsedExp(IS_CALL); }
          | COMMA ExpList    { $$ = $2;}
          ;
 
@@ -400,9 +414,9 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      string s1 = codeGenerator::arithmeticOpToString($2->pd_op);
                                      string s2 = EXC$$->reg.toString();  //destination
                                      string s3 = ", ";
-                                     string s4 = EXC$3->reg.toString();
+                                     string s4 = EXC$1->reg.toString();
                                      string s5 = ", ";
-                                     string s6 = EXC$1->reg.toString();
+                                     string s6 = EXC$3->reg.toString();
 
                                      EMIT_TEXT(s1 + s2 + s3 + s4 + s5 + s6);
                                      if($$->single_var.type.kind == Type::BYTE){
@@ -422,9 +436,9 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 
 		                             string s2 = EXC$$->reg.toString();  //destination
 		                             string s3 = ", ";
-                                     string s4 = EXC$3->reg.toString();
+                                     string s4 = EXC$1->reg.toString();
                                      string s5 = ", ";
-                                     string s6 = EXC$1->reg.toString();
+                                     string s6 = EXC$3->reg.toString();
 
                                      EMIT_TEXT(s1 + s2 + s3 + s4 + s5 + s6);
                                      if($$->single_var.type.kind == Type::BYTE){
@@ -440,21 +454,40 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 
 		                             $$ = new parsedExp(scopesList->getId($1->getName()).type);
 		                             EXC$$->reg = regAlloc();
+                                     regClass addressReg = regAlloc();
 
-                                     string s1 = "move ";
-                                     string s2 = EXC$$->reg.toString();
-                                     string s3 = ", ";
-		                             string s4;
+                                     string s1 = string("add ") + addressReg.toString() + string(", $fp, ");
+                                     s1 += codeGenerator::idOffsetFromFp(scopesList->getId($1->getName()));
+                                     EMIT_TEXT(s1);
 
-		                             if($$->kind == parsedData::DK_ARRAY)
-		                                EXC$$->regType = parsedExp::reference;
-		                             else
+                                     if($$->kind == parsedData::DK_ARRAY){
+                                        EXC$$->regType = parsedExp::reference;
+                                        s1 = string("add ") + EXC$$->reg.toString() + string(", $0, ") + addressReg.toString();
+                                     }
+                                     else{
                                         EXC$$->regType = parsedExp::value;
+                                        s1 = string("lw ") + EXC$$->reg.toString() + string(", (") + addressReg.toString() + string(")");
+                                     }
+                                     EMIT_TEXT(s1);
 
-                                     s4 = codeGenerator::idLocation(scopesList->getId($1->getName())); // debug : make sure there are no too much/too little dereferences
-		                             EMIT_TEXT(s1 + s2 + s3 + s4);
+                                     // case that id is boolean, then creates true/false lists for use of upstream code
+                                     if(scopesList->getId($1->getName()).type.kind == Type::BOOL){
+                                        regClass boolTrueValue = regAlloc();
+                                        s1 = string("add ") + boolTrueValue.toString() + string(", $0, ");
+                                        s1 += codeGenerator::trueValueRepresentation();
+                                        EMIT_TEXT(s1);
 
-		                             delete $1;
+                                        s1 = string("be ") + EXC$$->reg.toString() + string(", ") + boolTrueValue.toString() + string(", ");
+                                        EXC$$->trueList.push_back(buffer.emit(s1));
+                                        EXC$$->falseList.push_back(buffer.emit(string("j ")));
+
+                                        regFree(EXC$$->reg);
+                                        EXC$$->regType = parsedExp::undef; // hope this is enough for representing null
+                                        regFree(boolTrueValue);
+                                     }
+
+                                     regFree(addressReg);
+                                     delete $1;
 		                            }
 
 		|	Call                    {$$ = new parsedExp(*$1);
@@ -576,16 +609,22 @@ RBRACE_t : RBRACE{ scopesList->removeScope(); }
 
 int main()
 {
+    // magic from stack overflow :) redirect cout somewhere so we can keep old printing code as is
+
+    streambuf* oldCoutStreamBuf;
+    ostringstream strCout;
+    if(!PRINT_HW3_STUFF){
+        oldCoutStreamBuf = cout.rdbuf();
+        cout.rdbuf( strCout.rdbuf() );
+    }
+
 	// initSystem
 	scopesList = new scopes();
-	scopesList->scopesList.push_front( scope(0,false));
-	Type tmp;
-    scopesList->addInitialFunction( Type(tmp.VOID),string("print"), Type(tmp.STRING));
-    scopesList->addInitialFunction( Type(tmp.VOID),string("printi"), Type(tmp.INTEGER));
+	scopesList->scopesList.push_front(scope(0,false));
+    scopesList->addInitialFunction( Type(Type::VOID),string("print"), Type(Type::STRING));
+    scopesList->addInitialFunction( Type(Type::VOID),string("printi"), Type(Type::INTEGER));
 
-
-    buffer.emit(string("add $ra, $0, return_from_main"));
-    //buffer.emit(string("j ")); //need to jump to main
+    codeGenerator::initiateHW5();
 
     try{
 	    yyparse();
@@ -610,11 +649,14 @@ int main()
             }
         }
     }
-    if(HW_5)
-        scopesList->need_to_print = false;
-	delete scopesList;
-	if(HW_5)
-	    buffer.printCodeBuffer();
+
+    delete scopesList;
+
+    // Restore old cout.
+    if(!PRINT_HW3_STUFF) cout.rdbuf( oldCoutStreamBuf );
+
+	 //buffer.printCodeBuffer();
+	 //buffer.printDataBuffer();
 }
 
 void yyerror(const char * message)
