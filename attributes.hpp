@@ -23,7 +23,7 @@ using namespace output;
 
 
 #define PRINT_DEBUG 0
-
+#define HW_5 1
 //================================= ENUMS ==================================//
 enum GrammerVar{
     NOT_INITIALIZED,
@@ -76,7 +76,28 @@ public:
     ~parsingExceptions() throw();
 
 };
-
+/*
+class HW5Exceptions : public parsingExceptions{
+public:
+    enum semanticsErr{
+        ERR_INDEX_OUT,
+        ERR_DIV_BY_ZERO
+    };
+    semanticsErr semantic_err;
+    HW5Exceptions(semanticsErr err_t) : semantic_err(err_t){
+        print_now = false;
+    };
+    ~HW5Exceptions(){
+        string label_to_jump;
+        switch (semantic_err){
+            case ERR_INDEX_OUT:
+                label_to_jump = string("arrayErrHandle");
+            case ERR_DIV_BY_ZERO:
+                label_to_jump = string("divZeroErrHandle");
+        }
+        buffer.emit(string("j ")+label_to_jump);
+    }
+};*/
 //=========================== DATA TYPES ====================================//
 class Type{
 public:
@@ -310,6 +331,8 @@ public:
 class codeGenerator{
 public:
     static void initiateKnownConstants();
+    static void initiateErrorHandling();
+    static void initiatePrintFunctions();
     static string opToBranchString(parsedData::PDOp op);
     static string idLocation(Id id);
     static string arithmeticOpToString(parsedData::PDOp op);
@@ -340,6 +363,5 @@ public:
     static void returnFunction(parsedExp returnExp);
     static void callFunction(string func_name, parsedExp input_list,regClass returnReg);
 };
-
 
 #endif

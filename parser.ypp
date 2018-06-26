@@ -24,6 +24,7 @@
 
     #define CODE_COMMENT(str) if(0) buffer.emit(static_cast<string>("# ") + static_cast<string>(str))
 
+
 %}
 
 %token B
@@ -582,6 +583,7 @@ int main()
     scopesList->addInitialFunction( Type(tmp.VOID),string("print"), Type(tmp.STRING));
     scopesList->addInitialFunction( Type(tmp.VOID),string("printi"), Type(tmp.INTEGER));
 
+
     buffer.emit(string("add $ra, $0, return_from_main"));
     //buffer.emit(string("j ")); //need to jump to main
 
@@ -608,8 +610,11 @@ int main()
             }
         }
     }
+    if(HW_5)
+        scopesList->need_to_print = false;
 	delete scopesList;
-	buffer.printCodeBuffer();
+	if(HW_5)
+	    buffer.printCodeBuffer();
 }
 
 void yyerror(const char * message)

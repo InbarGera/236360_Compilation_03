@@ -647,10 +647,12 @@ void scopes::removeScope() {
     scope oldScope = scopesList.front();
 
     // print the scope
-    endScope();
+    if(!HW_5)
+        endScope();
     while (!oldScope.IdList.empty()) {
         Id temp = oldScope.IdList.back();
-        printID(temp.name, temp.offset, temp.type.toString());
+        if(!HW_5)
+            printID(temp.name, temp.offset, temp.type.toString());
         oldScope.IdList.pop_back();
     }
 
@@ -784,7 +786,8 @@ scopes::~scopes() {
 
         while (!functions.empty()) {
             function func = functions.back();
-            printID(func.idName, 0, func.toString());
+            if(!HW_5)
+                printID(func.idName, 0, func.toString());
             functions.pop_back();
         }
     }
@@ -798,10 +801,38 @@ void codeGenerator::initiateKnownConstants(){
     if(initiated)
         return;
 
-    buffer.emitData("byteMask: .word 0x000000ff");
+    buffer.emitData(string("byteMask: .word 0x000000ff"));
+    buffer.emitData(string("arrayIndexErrMsg: .asciiz  \"Error index out of bounds\n\""));
+    buffer.emitData(string("divByZeroErrMsg: .asciiz  \"Error division by zero\n\""));
 
     initiated = true;
 }
+
+void codeGenerator::initiateErrorHandling(){
+    buffer.emit(string("arrayErrHandle: li $v0, 4"));
+    buffer.emit(string("la $a0, arrayIndexErrMsg"));
+    buffer.emit(string("syscall"));
+    buffer.emit(string("halt"));
+
+    buffer.emit(string("divZeroErrHandle: li $v0, 4"));
+    buffer.emit(string("la $a0, divByZeroErrMsg"));
+    buffer.emit(string("syscall"));
+    buffer.emit(string("halt"));
+}
+
+void codeGenerator::initiatePrintFunctions(){
+
+    buffer.emit(string("printiFunc: lw $a0, 0($sp)"));
+    buffer.emit(string("li $v0, 1"));
+    buffer.emit(string("syscall"));
+    buffer.emit(string("jr $ra"));
+
+    buffer.emit(string("printFunc: lw $a0, 0($sp)"));
+    buffer.emit(string("li $v0, 4"));
+    buffer.emit(string("syscall"));
+    buffer.emit(string("jr $ra"));
+}
+
 
 string codeGenerator::opToBranchString(parsedData::PDOp op){
     switch(op){
@@ -865,7 +896,7 @@ string codeGenerator::divisionByZeroCheck(regClass reg){
     string res = "beq ";
     res += reg.toString();
     res += ", $0, ";
-    res += "_____TODO_goto_divide_by_zero_code____"; //code for reporting division by 0 and exit;
+    res += "divZeroErrHandle"; //code for reporting division by 0 and exit;
     return res;
 }
 
@@ -920,14 +951,14 @@ void codeGenerator::assignValueToId(Id id,parsedExp exp) {
 }
 
 void codeGenerator::generateArrayOverflowCheck(int arrayLen,regClass reg) {
-
+    if(PRINT_DEBUG)
     cout << "in codeGenerator::generateArrayOverflowCheck(int arrayLen,regClass reg), arrayLen = " << arrayLen << endl;
     string res = "bge ";
     res += reg.toString();
     res += ", ";
     res += num_to_string(arrayLen);
     res += ", ";
-    res += "_____TODO_go_to_array_access_overflow_handling_function____"; //code for reporting array access overflow and exit;
+    res += "arrayErrHandle"; //code for reporting array access overflow and exit;
     buffer.emit(res);
 
     res = string("blt ");
