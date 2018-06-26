@@ -1,6 +1,7 @@
 #include "attributes.hpp"
 
 CodeBuffer buffer;
+scopes* scopesList;
 //===========================================================================//
 //====================== ERROR HANDLING CLASS ===============================//
 //===========================================================================//
@@ -447,7 +448,7 @@ parsedExp parsedExp::maxRange(parsedExp exp1, parsedExp exp2) {
     }
 
 bool parsedExp::isBoolExp(){
-    return (!(trueList.empty() && falseList.empty()));
+    return regType == undef; // (!(trueList.empty() && falseList.empty())) old code
 }
 //=========================== ParsedStatement Class ===============================//
 
@@ -868,23 +869,9 @@ string codeGenerator::divisionByZeroCheck(regClass reg){
     return res;
 }
 
-string codeGenerator::arrayOverflowCheck(int arrayLen,regClass reg){
-    string res = "bge ";
-    res += reg.toString();
-    res += ", ";
-    res += num_to_string(arrayLen);
-    res += ", ";
-    res += "_____TODO_____"; //code for reporting array access overflow and exit;
-}
-
-string codeGenerator::array_A_at_location_n(Id id, regClass reg){
-    // need to implement.
-    return "_____TODO_____";
-}
-
 string codeGenerator::idLocation(Id id){
     string res = idOffsetFromFp(id);
-    res += string("(fp)");
+    res += string("($fp)");
     return res ;
 };
 
@@ -894,7 +881,6 @@ string codeGenerator::idOffsetFromFp(Id id){
 
 void codeGenerator::assignBoolIntoLocation(parsedExp exp, string location){
 
-    cout << "codeGenerator::assignBoolIntoLocation(parsedExp exp, string location)" << endl;
     string res;
     buffer.bpatch(exp.trueList,buffer.genLabel());
 
@@ -933,6 +919,47 @@ void codeGenerator::assignValueToId(Id id,parsedExp exp) {
         assignNonBoolIntoLocation(exp,idLocation(id));
 }
 
+void codeGenerator::generateArrayOverflowCheck(int arrayLen,regClass reg) {
+
+    cout << "in codeGenerator::generateArrayOverflowCheck(int arrayLen,regClass reg), arrayLen = " << arrayLen << endl;
+    string res = "bge ";
+    res += reg.toString();
+    res += ", ";
+    res += num_to_string(arrayLen);
+    res += ", ";
+    res += "_____TODO_go_to_array_access_overflow_handling_function____"; //code for reporting array access overflow and exit;
+    buffer.emit(res);
+
+    res = string("blt ");
+    res += reg.toString();
+    res += ", $0, ";
+    res += "______label_for_handling_array_wrong_size_dereferencing___";
+    buffer.emit(res);
+
+}
+
+void codeGenerator::generateArrayLocationCalc(regClass destenetion, regClass offsetHoldingReg, string arrayBaseAsString){
+
+    regClass tempReg = regAlloc();
+    string code;
+    code = string("mul ");
+    code += tempReg.toString();
+    code += string(", ");
+    code += offsetHoldingReg.toString();
+    code += string(", 4");
+
+    buffer.emit(code);
+
+    code = string("add ");
+    code += destenetion.toString();
+    code += string(", ");
+    code += arrayBaseAsString;
+    code += string(", ");
+    code += tempReg.toString();
+
+    buffer.emit(code);
+}
+
 void codeGenerator::assignValueToArray(Id id,parsedExp offsetExp,parsedExp assignExp){
     regClass addressReg = regAlloc();
     regClass tempReg = regAlloc();
@@ -944,36 +971,8 @@ void codeGenerator::assignValueToArray(Id id,parsedExp offsetExp,parsedExp assig
     else
         assignNonBoolIntoLocation(assignExp,toAssign.toString());
 
-    code = string("bge ");
-    code += offsetExp.reg.toString();
-    code += string(", ");
-    code += num_to_string(id.type.arrayLength);
-    code += ", ______label_for_handling_array_wrong_size_dereferencing___";
-    buffer.emit(code);
-
-    code = string("blt ");
-    code += offsetExp.reg.toString();
-    code += ", $0, ";
-    code += "______label_for_handling_array_wrong_size_dereferencing___";
-    buffer.emit(code);
-
-
-    code = string("mul ");
-    code += tempReg.toString();
-    code += string(", ");
-    code += offsetExp.reg.toString();
-    code += string(", 4");
-
-    buffer.emit(code);
-
-    code = string("add ");
-    code += addressReg.toString();
-    code += string(", ");
-    code += idLocation(id);
-    code += string(", ");
-    code += tempReg.toString();
-
-    buffer.emit(code);
+    generateArrayOverflowCheck(id.type.arrayLength,offsetExp.reg);
+    generateArrayLocationCalc(addressReg,offsetExp.reg,idLocation(id));
 
     string location = string("(") + addressReg.toString() + string(")");
 
@@ -997,39 +996,14 @@ string codeGenerator::falseValueRepresentation(){
     return string("1");
 }
 
-string codeGenerator::byteArithmeticMasking(regClass reg) {
-    string res = "and ";
-    res += reg.toString();
-    res += ", ";
-    res += reg.toString();
-    res += ", ";
-    res += "byteMask";
-    return res;
-}
-
-string codeGenerator::divisionByZeroCheck(regClass reg) {
-    string res = "beq ";
-    res += reg.toString();
-    res += ", $0, ";
-    res += "_____TODO_go_to_division_by_0_handling_function____"; //code for reporting division by 0 and exit;
-}
-
-string codeGenerator::arrayOverflowCheck(int arrayLen,regClass reg) {
-    string res = "bge ";
-    res += reg.toString();
-    res += ", ";
-    res += num_to_string(arrayLen);
-    res += ", ";
-    res += "_____TODO_go_to_array_access_overflow_handling_function____"; //code for reporting array access overflow and exit;
-}
 
 //============================== Function Handling ==============================/
 
 int codeGenerator::getIdOffset(string name){
     return scopesList->getId(name).offset;
 }
+
 void codeGenerator::pushExpList(parsedExp input_list){
-    if(!input_list) return;
     std::list<VarInfo> inputs = input_list.list_of_vars;
     while (!(inputs.empty())){
         VarInfo temp = inputs.back();
@@ -1068,7 +1042,7 @@ void codeGenerator::pushSingleVar(VarInfo simple_var){
     buffer.emit(string("sw ")+var_location+string("($fp), ($sp)"));
 }
 string codeGenerator::pushString(VarInfo var_string){
-    string labelName = buffer.genDataLab();
+    string labelName = buffer.genDataLabel();
     buffer.emitData(labelName + string(" .asciiz \"") + var_string.name + string("\""));
     return labelName;
 }
@@ -1128,11 +1102,11 @@ void codeGenerator::callFunction(string func_name, parsedExp input_list,regClass
     pushExpList(input_list);
 
     // creating a new frame for the calley function
-    buffer.emit(string("add $fp, $0, sp"));
+    buffer.emit(string("add $fp, $0, $sp"));
 
     // inserting to $ra the return address
-    vectot<int> returnBackPatchList;
-    returnBackPatchList.push_front(buffer.emit(string("la $ra, ")));
+    vector<int> returnBackPatchList;
+    returnBackPatchList.push_back(buffer.emit(string("la $ra, ")));
 
     // jump to function
     buffer.emit(string("jal "+func_name));

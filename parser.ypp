@@ -7,6 +7,7 @@
     extern int yylineno;
 	extern int yylex();		// do they both need to be extern?
 	extern CodeBuffer buffer;
+	extern scopes* scopesList;
     void yyerror(const char * message);
 
     #define TRY_AND_CATCH(statement_to_try)                             \
@@ -22,7 +23,7 @@
     #define STC static_cast<parsedStatement*>
 
     #define CODE_COMMENT(str) if(0) buffer.emit(static_cast<string>("# ") + static_cast<string>(str))
-	scopes* scopesList;
+
 %}
 
 %token B
@@ -116,11 +117,12 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
                                      string s2 = num_to_string(scopesList->getId($1->getName()).type.size()*4);
                                      EMIT_TEXT(s1 + s2);
 
-                                     string s4 = "add (sp), $0, ";
+                                     string s4 = "sw ";
                                      if($1->single_var.type.kind == Type::BOOL)
                                         s4 += codeGenerator::falseValueRepresentation();
                                      else
                                         s4 += string("$0");
+                                     s4 += string(", 0($sp)");
                                      EMIT_TEXT(s4);
 
 			                         delete $1;
@@ -133,11 +135,12 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
                                                  string s2 = num_to_string(scopesList->getId($1->getName()).type.size()*4);
                                                  EMIT_TEXT(s1 + s2);
 
-                                                 string s4 = "add (sp), $0, "; // for cases such int a = a
+                                                 string s4 = "sw ";
                                                  if($1->single_var.type.kind == Type::BOOL)
                                                     s4 += codeGenerator::falseValueRepresentation();
                                                  else
                                                     s4 += string("$0");
+                                                 s4 += string(", 0($sp)");
                                                  EMIT_TEXT(s4);
 
 			                                     codeGenerator::assignValueToId(scopesList->getId($1->getName()),*EXC$3);
@@ -155,13 +158,14 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
                                                      EMIT_TEXT(s1 + var_offset);
 
                                                      for(int i=0; i < $3->single_var.value ; i++){
-                                                        string s2 = string("add ");
-                                                        s2 += num_to_string(i*4);
-                                                        s2 += "($sp), $0, ";
+                                                        string s2 = string("sw ");
                                                         if($1->single_var.type.arrayType == Type::BOOL)
                                                            s2 += codeGenerator::falseValueRepresentation();
                                                         else
                                                            s2 += string("$0");
+                                                        s2 += string(", ");
+                                                        s2 += num_to_string(i*4);
+                                                        s2 += string("($sp)");
                                                         EMIT_TEXT(s2);
                                                     }
 
@@ -199,7 +203,7 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
 			|	RETURN Exp SC       {TRY_AND_CATCH(scopesList->verifyReturnType(*$2));
 					                 $$ = new parsedStatement(); // so delete later will be possible
 
-                                    returnFunction(*EXC$2);
+                                    codeGenerator::returnFunction(*EXC$2);
 
 					                 delete $2;
 					                }
@@ -315,7 +319,7 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
                                          else
                                             EXC$$->regType = parsedExp::value;
 
-                                         codeGenerator::callFunction(scopesList->getFunction($1->getName())).beginLabel
+                                         codeGenerator::callFunction(scopesList->getFunction($1->getName()).beginLabel
                                                                       ,*EXC$3,EXC$$->reg);
 
                                          if(EXC$$->regType == parsedExp::undef)
@@ -336,8 +340,8 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
                                          else
                                             EXC$$->regType = parsedExp::value;
 
-                                         codeGenerator::callFunction(scopesList->getFunction($1->getName()).beginLabel
-                                                                      ,NULL,EXC$$->reg);
+                                         parsedExp dummy(Type::UNDEF);
+                                         codeGenerator::callFunction(scopesList->getFunction($1->getName()).beginLabel,dummy,EXC$$->reg);
 
                                          if(EXC$$->regType == parsedExp::undef)
                                             regFree(EXC$$->reg);
@@ -370,16 +374,21 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      EXC$$->reg = regAlloc();
                                      EXC$$->regType = parsedExp::value;
 
-                                     // runtime check that Exp value is smaller than array size
-                                     EMIT_TEXT(codeGenerator::arrayOverflowCheck(scopesList->getId($1->getName()).type.arrayLength,EXC$3->reg));
+                                     regClass addressReg = regAlloc();
+
+                                     codeGenerator::generateArrayOverflowCheck(scopesList->getId($1->getName()).type.arrayLength,EXC$3->reg);
+                                     codeGenerator::generateArrayLocationCalc(addressReg,EXC$3->reg,codeGenerator::idLocation(scopesList->getId($1->getName())));
+
+                                     string location = string("(") + addressReg.toString() + string(")");
 
                                      string s1 = "lw ";
                                      string s2 = EXC$$->reg.toString();
                                      string s3 = ", ";
-                                     string s4 = codeGenerator::array_A_at_location_n(scopesList->getId($1->getName()),EXC$3->reg);
+                                     string s4 = location;
 
                                      EMIT_TEXT(s1 + s2 + s3 + s4);
 
+                                     regFree(addressReg);
                                      regFree(EXC$3->reg);
                                      delete $1; delete $3;
 		                            }
@@ -471,7 +480,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      EXC$$->regType = parsedExp::reference;
 
                                      // create string in .data segment
-                                     string stringLocation = codeGenerator::pushString($1->single_var.name);
+                                     string stringLocation = codeGenerator::pushString($1->single_var);
 
                                      // generate code " la  $$->reg, <string location label>"
                                      string s1 = "la "; // load address, need to verify it works with labels

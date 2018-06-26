@@ -230,7 +230,7 @@ public:
     enum registerType{value,reference,undef};
     regClass reg;
     registerType regType;
-    parsedExp();
+    //parsedExp(); // ???????????
     parsedExp(Type::typeKind kind);
     parsedExp(Type type) ;
     parsedExp(parsedExp exp, binOps ops);
@@ -315,7 +315,7 @@ public:
     static string arithmeticOpToString(parsedData::PDOp op);
     static string byteArithmeticMasking(regClass reg);
     static string divisionByZeroCheck(regClass reg);
-    static string arrayOverflowCheck(int arrayLen,regClass reg);
+    static void generateArrayOverflowCheck(int arrayLen,regClass reg);
     static string idOffsetFromFp(Id id);
     static string idOffsetString(Id id,parsedData offset);
     static void assignValueToId(Id id,parsedExp reg);
@@ -325,8 +325,10 @@ public:
     static void assignBoolIntoLocation(parsedExp exp, string location);
     static void assignNonBoolIntoLocation(parsedExp exp, string location);
 
+
+    static void generateArrayLocationCalc(regClass destenetion, regClass offsetHoldingReg, string arrayBaseAsString);
     static int getIdOffset(string name); // dangerous, scopes have same function
-    static void codeGenerator::pushExpList(parsedExp input_list);
+    static void pushExpList(parsedExp input_list);
     static void pushVarArray(VarInfo var_array);
     static void pushSingleVar(VarInfo simple_var);
     static string pushString(VarInfo var_string);
