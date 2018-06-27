@@ -58,6 +58,8 @@ Function : FunctionDefinition LBRACE Gen_Label Statements RBRACE_t {
                                                                     if($1->single_var.name == "main"){
                                                                         buffer.bpatch(goToMainBackPatch,STC$3->beginLabel);
                                                                     }
+
+                                                                    codeGenerator::returnVoidFunction();
                                                                     buffer.emit(string("# End of function"));
 
                                                                     delete $1; delete $3; delete $4;}
@@ -145,17 +147,22 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
 
                                                      string s1 = "subu $sp, $sp, ";
                                                      s1 += num_to_string(scopesList->getId($1->getName()).type.size()*4);
+                                                     EMIT_TEXT(s1);
 
+                                                     regClass valueToInitReg = regAlloc();
+                                                     s1 = string("add ") + valueToInitReg.toString() + string(", $0, ");
+                                                     if($1->single_var.type.kind == Type::BOOL)
+                                                        s1 += codeGenerator::falseValueRepresentation();
+                                                     else
+                                                        s1 += string("$0");
                                                      EMIT_TEXT(s1);
 
                                                      for(int i=0; i < $3->single_var.value ; i++){
                                                         regClass tempReg = regAlloc();
+
                                                         EMIT_TEXT(string("addu ") + tempReg.toString() + string(", $sp, ") + num_to_string(i*4));
-                                                        string s2 = string("sw ");
-                                                        if($1->single_var.type.kind == Type::BOOL)
-                                                           s2 += codeGenerator::falseValueRepresentation();
-                                                        else
-                                                           s2 += string("$0");
+
+                                                        string s2 = string("sw ") + valueToInitReg.toString();
                                                         s2 += string(", (");
                                                         s2 += tempReg.toString();
                                                         s2 += string(")");
@@ -164,6 +171,7 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
                                                         regFree(tempReg);
                                                     }
 
+                                                     regFree(valueToInitReg);
 			                                         delete $1; delete $3;
 			                                        }
 			|	ID ASSIGN Exp SC        {if (!scopesList->containsIdName($1->getName()))

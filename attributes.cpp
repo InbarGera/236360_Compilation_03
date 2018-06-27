@@ -808,11 +808,12 @@ scopes::~scopes() {
 void codeGenerator::initiateHW5(){
     buffer.emit(string("# Begin of initiation code"));
     buffer.emit(string("main:"));
-    buffer.emit(string("la $ra, return_from_main"));
+    buffer.emit(string("la $ra, end_program"));
     buffer.emit(string("subu $fp, $sp, 4"));
     goToMainBackPatch.push_back(buffer.emit(string("j "))); //will be backpached when main will be parsed
-    buffer.emit(string("return_from_main:"));
-    buffer.emit(string("nop"));
+    buffer.emit(string("end_program:"));
+    buffer.emit(string("li $v0, 10"));
+    buffer.emit(string("syscall"));
     initiateKnownConstants();
     initiateErrorHandling();
     initiatePrintFunctions();
@@ -835,12 +836,12 @@ void codeGenerator::initiateErrorHandling(){
     buffer.emit(string("arrayErrHandle: li $v0, 4"));
     buffer.emit(string("la $a0, arrayIndexErrMsg"));
     buffer.emit(string("syscall"));
-    buffer.emit(string("nop"));
+    buffer.emit(string("j end_program"));
 
     buffer.emit(string("divZeroErrHandle: li $v0, 4"));
     buffer.emit(string("la $a0, divByZeroErrMsg"));
     buffer.emit(string("syscall"));
-    buffer.emit(string("nop"));
+    buffer.emit(string("j end_program"));
 }
 
 void codeGenerator::initiatePrintFunctions(){
@@ -1193,7 +1194,7 @@ void codeGenerator::cleanStack(){
         copyOfAllScopes.scopesList.pop_front();
     }
 
-    cout << "for debug: first Id name = " << firstOnStack.name << ", and offset = " << firstOnStack.offset << endl;
+    //cout << "for debug: first Id name = " << firstOnStack.name << ", and offset = " << firstOnStack.offset << endl;
 
     if(firstOnStack.type.kind == Type::UNDEF) // if there is no variable then stack is already ok
         return;
@@ -1217,7 +1218,7 @@ void codeGenerator::cleanStack(){
         copyOfAllScopes.scopesList.pop_front();
     }
 
-    cout << "for debug: last Id name = " << lastOnStack.name << ", and offset = " << lastOnStack.offset << endl;
+    //cout << "for debug: last Id name = " << lastOnStack.name << ", and offset = " << lastOnStack.offset << endl;
 
     if(lastOnStack.type.kind != Type::UNDEF)
         totalOffset -= lastOnStack.offset;
@@ -1289,12 +1290,18 @@ void codeGenerator::putIdAddressInRegister(Id id, regClass resultReg){
 }
 
 void codeGenerator::generateNewSingleVarCreation(parsedExp exp){
+
+    regClass tempReg = regAlloc();
+    string tempString;
     buffer.emit(string("subu $sp, $sp, 4"));
-    string s1 = "sw ";
+    tempString = string("add ") + tempReg.toString() + string(", $0, ");
     if(exp.single_var.type.kind == Type::BOOL)
-        s1 += codeGenerator::falseValueRepresentation();
+        tempString += codeGenerator::falseValueRepresentation();
     else
-        s1 += string("$0");
-    s1 += string(", ($sp)");
-    buffer.emit(s1);
+        tempString += string("$0");
+
+    buffer.emit(tempString);
+    buffer.emit(string("sw ") + tempReg.toString() + string(", ($sp)"));
+
+    regFree(tempReg);
 }
