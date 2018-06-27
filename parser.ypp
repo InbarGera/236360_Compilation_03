@@ -18,8 +18,8 @@
              throw parsingExceptions(e.err_type, yylineno, e.id);       \
         }
 
-    #define PRINT_HW3_STUFF 1
-    #define PRINT_HW5_STUFF 0
+    #define PRINT_HW3_STUFF 0
+    #define PRINT_HW5_STUFF 1
 
     #define EMIT_TEXT(string) buffer.emit(string)
     #define EMIT_DATA(string) buffer.emitData(string)
@@ -189,7 +189,12 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
                                                      delete $1; delete $3; delete $6;
                                                     }
 			|	Call SC             {$$ = new parsedStatement();
-			                        // code for calling is implemented in Call
+
+			                        if(!EXC$1->trueList.empty())
+			                            buffer.bpatch(EXC$1->trueList,buffer.genLabel());
+			                        if(!EXC$1->falseList.empty())
+                                        buffer.bpatch(EXC$1->falseList,buffer.genLabel());
+
 			                        if(EXC$1->regType != REG_TYPE_UNDEF) regFree(EXC$1->reg);
 			                        delete $1;
 			                        }
@@ -282,7 +287,6 @@ While_Statement : While_Open Gen_Label Statement {scopesList->removeScope();
 
                                         string endLabel = buffer.genLabel();
 
-                                        //cout << " in while statement, break list size is : " << STC$3->breakList.size() << endl ;
                                         buffer.bpatch(STC$3->breakList,endLabel);
                                         buffer.bpatch(STC$1->falseList,endLabel);
 
@@ -323,14 +327,13 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
                                          if(EXC$$->regType == REG_TYPE_UNDEF)
                                             regFree(EXC$$->reg);
 
-
                                          regClass tempReg = regAlloc();
                                          if(scopesList->getFunction($1->getName()).return_type.kind == Type::BOOL){
                                             buffer.emit(string("add ") + tempReg.toString() + string(", $0, ") +
                                                 codeGenerator::trueValueRepresentation());
 
                                             EXC$$->trueList.push_back(buffer.emit(string("be ") + tempReg.toString() + string(", ") +
-                                                EXC$$->reg.toString()));
+                                                EXC$$->reg.toString() + string(", ")));
                                             EXC$$->falseList.push_back(buffer.emit(string("j ")));
 
                                             regFree(EXC$$->reg);
@@ -338,7 +341,6 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
                                          }
 
                                           regFree(tempReg);
-
 
                                          delete $1; delete $3;}
 		|	ID LPAREN RPAREN            {try {scopesList->verifyNoParametersFunctionCall(*$1);
@@ -414,6 +416,22 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      codeGenerator::generateArrayLocationCalc(addressReg,EXC$3->reg,codeGenerator::idOffsetFromFp(scopesList->getId($1->getName())));
 
                                      buffer.emit(string("lw ") + EXC$$->reg.toString() + string(", (") + addressReg.toString() + string(")"));
+
+                                     // case that id is boolean, then creates true/false lists for use of upstream code
+                                     if(scopesList->getId($1->getName()).type.arrayType == Type::BOOL){
+                                        regClass boolTrueValue = regAlloc();
+                                        string s1 = string("add ") + boolTrueValue.toString() + string(", $0, ");
+                                        s1 += codeGenerator::trueValueRepresentation();
+                                        EMIT_TEXT(s1);
+
+                                        s1 = string("be ") + EXC$$->reg.toString() + string(", ") + boolTrueValue.toString() + string(", ");
+                                        EXC$$->trueList.push_back(buffer.emit(s1));
+                                        EXC$$->falseList.push_back(buffer.emit(string("j ")));
+
+                                        regFree(EXC$$->reg);
+                                        EXC$$->regType = REG_TYPE_UNDEF; // hope this is enough for representing null
+                                        regFree(boolTrueValue);
+                                     }
 
                                      regFree(addressReg);
                                      regFree(EXC$3->reg);

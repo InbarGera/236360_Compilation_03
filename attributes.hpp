@@ -9,6 +9,7 @@
 #include <sstream>
 #include <exception>
 #include <string>
+#include <vector>
 
 #include "output.hpp"
 #include "regAlloc.hpp"
@@ -122,22 +123,16 @@ class Type{
 public:
     enum typeKind {UNDEF, VOID, BOOL, INTEGER, BYTE, STRING, ARRAY};
     typeKind kind;
-
     int arrayLength;
     typeKind arrayType;
 
     Type();
-
     Type(typeKind Kind) ;
-
     Type(typeKind Kind, int len) ;
 
     bool operator==(const Type& toCompare);
-
     int size();
-
     static string typeKindToString(typeKind kind);
-
     string toString();
 };
 
@@ -360,8 +355,8 @@ public:
     static void generateArrayLocationCalc(regClass destenetion, regClass offsetHoldingReg, string offsetOfBaseFromFp);
     static int getIdOffset(string name); // dangerous, scopes have same function
     static void pushExpListAndFreeRegisters(parsedExp input_list);
-    static void callerSaveRegisters();
-    static void callerRestoreRegisters();
+    static void callerSaveRegisters(vector<regClass> regsToSave);
+    static void callerRestoreRegisters(vector<regClass> regsToSave);
     static string IntToReg(int reg_to_save);
     static void cleanStack();
     static void returnVoidFunction();

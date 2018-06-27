@@ -48,3 +48,16 @@ void assertAllRegistersAreFree(){
     for(int i=0; i<REG_NUM ;i++)
         assert(status[i] == FREE);
 }
+
+bool regClass::isFree(){
+    return  status[myIndex] == FREE;
+}
+
+std::vector<regClass> getAllUsedRegisters(){
+    std::vector<regClass> res;
+    for(int i=0; i<REG_NUM ;i++) {
+        if (status[i] == ALLOCATED)
+            res.push_back(regClass(i));
+    }
+    return res;
+}

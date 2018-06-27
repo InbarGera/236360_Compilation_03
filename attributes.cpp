@@ -709,6 +709,10 @@ void scopes::verifyReturnTypeVoid() {
 }
 void scopes::verifyReturnType(parsedData returnType) {
     if (PRINT_DEBUG) cout << "in verifyReturnType " << endl;
+
+    if (functions.front().return_type.kind == Type::VOID)
+        throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
+
     if ((!(functions.front().return_type == returnType.single_var.type)) &&
         !((functions.front().return_type == Type::INTEGER) &&
           (returnType.single_var.type == Type::BYTE))) {
@@ -1135,17 +1139,27 @@ void codeGenerator::pushExpListAndFreeRegisters(parsedExp input_list){
     }
 }
 
-void codeGenerator::callerSaveRegisters(){
-    for (int i = 0; i < 20 ; i++) {
-        string reg_to_save = IntToReg(i);
+void codeGenerator::callerSaveRegisters(vector<regClass> regsToSave){
+    for (int i = 0; i < regsToSave.size() ; i++) {
+        //string reg_to_save = IntToReg(i);
         buffer.emit(string("subu $sp, $sp, 4"));
-        buffer.emit(string("sw ")+reg_to_save+string(", ($sp)"));
+        buffer.emit(string("sw ") + regsToSave[i].toString() + string(", ($sp)"));
     }
+    buffer.emit(string("subu $sp, $sp, 4"));
+    buffer.emit(string("sw $ra, ($sp)"));
+    buffer.emit(string("subu $sp, $sp, 4"));
+    buffer.emit(string("sw $fp, ($sp)"));
 }
-void codeGenerator::callerRestoreRegisters(){
-    for (int i = 20 ; i >0 ; i--) {
-        string reg_to_load = IntToReg(i-1);
-        buffer.emit(string("lw ")+reg_to_load+string(", ($sp)"));
+
+void codeGenerator::callerRestoreRegisters(vector<regClass> regsToSave){
+    buffer.emit(string("lw $fp, ($sp)"));
+    buffer.emit(string("addu $sp, $sp, 4"));
+    buffer.emit(string("lw $ra, ($sp)"));
+    buffer.emit(string("addu $sp, $sp, 4"));
+
+    for (int i = regsToSave.size()-1 ; i >= 0 ; i--) {
+        //string reg_to_load = IntToReg(i-1);
+        buffer.emit(string("lw ") + regsToSave[i].toString() + string(", ($sp)"));
         buffer.emit(string("addu $sp, $sp, 4"));
     }
 }
@@ -1163,7 +1177,7 @@ string codeGenerator::IntToReg(int reg_to_save){
 
 void codeGenerator::cleanStack(){
     scopes copyOfAllScopes = *scopesList;
-    copyOfAllScopes.need_to_print = false;      //so we don't print HW3 twice
+    copyOfAllScopes.need_to_print = false;
     Id firstOnStack;
     Id lastOnStack;
     int totalOffset;
@@ -1227,7 +1241,11 @@ void codeGenerator::returnFunction(parsedExp returnExp){
 
 void codeGenerator::callFunction(string func_name, parsedExp input_list,regClass returnReg){
     buffer.emit(string("# Begin of calling to function code"));
-    callerSaveRegisters();
+
+    vector<regClass> usedRegisters;
+    usedRegisters = getAllUsedRegisters();
+    callerSaveRegisters(usedRegisters);
+
     pushExpListAndFreeRegisters(input_list);
 
     // creating a new frame for the calley function
@@ -1245,7 +1263,7 @@ void codeGenerator::callFunction(string func_name, parsedExp input_list,regClass
 
     // restoring registers (includes $fp)
     // assumes the calley function cleaning its own variables, include the passed parameters
-    callerRestoreRegisters();
+    callerRestoreRegisters(usedRegisters);
 
     // saving the return value
     buffer.emit(string("add ") + returnReg.toString() + string(", $0, $v0"));
