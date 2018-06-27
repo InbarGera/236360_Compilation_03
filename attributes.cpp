@@ -905,14 +905,13 @@ string codeGenerator::arithmeticOpToString(parsedData::PDOp op){
     assert(0);
 }
 
-string codeGenerator::byteArithmeticMasking(regClass reg){
-    string res = "and ";
-    res += reg.toString();
-    res += ", ";
-    res += reg.toString();
-    res += ", ";
-    res += "byteMask";
-    return res;
+void codeGenerator::byteArithmeticMasking(regClass reg){
+    regClass tempReg = regAlloc();
+
+    buffer.emit(string("lw ") + tempReg.toString() + string(", byteMask"));
+    buffer.emit(string("and ") + reg.toString() + string(", ") + reg.toString() + string(", ") + tempReg.toString() );
+
+    regFree(tempReg);
 }
 
 string codeGenerator::divisionByZeroCheck(regClass reg){
@@ -933,6 +932,7 @@ void codeGenerator::assignBoolIntoLocation(parsedExp exp, regClass destination){
     buffer.bpatch(exp.trueList,buffer.genLabel());
 
     regClass tempReg = regAlloc();
+    buffer.emit(string("# in  assignBoolIntoLocation"));
     buffer.emit(string("add ") + tempReg.toString() + string(", $0, ") + trueValueRepresentation());
     buffer.emit(string("sw ") + tempReg.toString() + string(", (") + destination.toString() + string(")"));
 

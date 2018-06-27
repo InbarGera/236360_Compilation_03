@@ -339,7 +339,7 @@ public:
     static void initiatePrintFunctions();
     static string opToBranchString(parsedData::PDOp op);
     static string arithmeticOpToString(parsedData::PDOp op);
-    static string byteArithmeticMasking(regClass reg);
+    static void byteArithmeticMasking(regClass reg);
     static string divisionByZeroCheck(regClass reg);
     static void generateArrayOverflowCheck(int arrayLen,regClass reg);
     static string idOffsetFromFp(Id id);

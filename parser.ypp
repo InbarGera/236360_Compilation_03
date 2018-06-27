@@ -134,12 +134,25 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
 			|	Type_ID ASSIGN Exp SC           {TRY_AND_CATCH(scopesList->addIdNotArray(*$1));
 			                                     TRY_AND_CATCH(scopesList->verifyAssign(*$1,*$3));
 			                                     $$ = new parsedStatement();
+                                                regClass tempReg = regAlloc();
 
-			                                     codeGenerator::generateNewSingleVarCreation(*$1);
-			                                     codeGenerator::assignValueToId(scopesList->getId($1->getName()),*EXC$3);
+                                                 if($1->isBool()){ //hacking of the stack, saving the data in temp register and afterwards manually move the value to the memory
+                                                    buffer.emit(string("subu ") + tempReg.toString() + string(", $sp, 4"));
+                                                    codeGenerator::assignBoolIntoLocation(*EXC$3,tempReg);
+                                                    buffer.emit(string("lw ") + tempReg.toString() + string(", -4($sp)"));
+
+                                                    codeGenerator::generateNewSingleVarCreation(*$1);
+
+                                                    buffer.emit(string("sw ") + tempReg.toString() + string(", ($sp)"));
+                                                 }
+                                                 else{
+			                                        codeGenerator::generateNewSingleVarCreation(*$1);
+			                                        codeGenerator::assignValueToId(scopesList->getId($1->getName()),*EXC$3);
+                                                 }
 
                                                  if(!EXC$3->isBoolExp()) regFree(EXC$3->reg);
 
+						                          regFree(tempReg);
 						                          delete $1; delete $3;
 						                         }
 			|	Type_ID LBRACK NUM_T RBRACK SC      {TRY_AND_CATCH(scopesList->addIdArray(*$1,*$1,*$3));
@@ -340,7 +353,7 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
                                             buffer.emit(string("add ") + tempReg.toString() + string(", $0, ") +
                                                 codeGenerator::trueValueRepresentation());
 
-                                            EXC$$->trueList.push_back(buffer.emit(string("be ") + tempReg.toString() + string(", ") +
+                                            EXC$$->trueList.push_back(buffer.emit(string("beq ") + tempReg.toString() + string(", ") +
                                                 EXC$$->reg.toString() + string(", ")));
                                             EXC$$->falseList.push_back(buffer.emit(string("j ")));
 
@@ -377,7 +390,7 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
                                             buffer.emit(string("add ") + tempReg.toString() + string(", $0, ") +
                                                 codeGenerator::trueValueRepresentation());
 
-                                            EXC$$->trueList.push_back(buffer.emit(string("be ") + tempReg.toString() + string(", ") +
+                                            EXC$$->trueList.push_back(buffer.emit(string("beq ") + tempReg.toString() + string(", ") +
                                                 EXC$$->reg.toString()));
                                             EXC$$->falseList.push_back(buffer.emit(string("j ")));
 
@@ -432,7 +445,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                         s1 += codeGenerator::trueValueRepresentation();
                                         EMIT_TEXT(s1);
 
-                                        s1 = string("be ") + EXC$$->reg.toString() + string(", ") + boolTrueValue.toString() + string(", ");
+                                        s1 = string("beq ") + EXC$$->reg.toString() + string(", ") + boolTrueValue.toString() + string(", ");
                                         EXC$$->trueList.push_back(buffer.emit(s1));
                                         EXC$$->falseList.push_back(buffer.emit(string("j ")));
 
@@ -453,7 +466,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      buffer.emit(s1 + EXC$$->reg.toString() + ", " + EXC$1->reg.toString() + ", " + EXC$3->reg.toString());
 
                                      if($$->single_var.type.kind == Type::BYTE){
-                                        EMIT_TEXT(codeGenerator::byteArithmeticMasking(EXC$$->reg));
+                                        codeGenerator::byteArithmeticMasking(EXC$$->reg);
                                      }
 
                                      regFree(EXC$1->reg);
@@ -472,7 +485,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 		                            buffer.emit(s1 + EXC$$->reg.toString() + ", " + EXC$1->reg.toString() + ", " + EXC$3->reg.toString());
 
                                      if($$->single_var.type.kind == Type::BYTE)
-                                        EMIT_TEXT(codeGenerator::byteArithmeticMasking(EXC$$->reg));
+                                        codeGenerator::byteArithmeticMasking(EXC$$->reg);
 
                                      regFree(EXC$1->reg);
                                      regFree(EXC$3->reg);
@@ -503,7 +516,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                         s1 += codeGenerator::trueValueRepresentation();
                                         EMIT_TEXT(s1);
 
-                                        s1 = string("be ") + EXC$$->reg.toString() + string(", ") + boolTrueValue.toString() + string(", ");
+                                        s1 = string("beq ") + EXC$$->reg.toString() + string(", ") + boolTrueValue.toString() + string(", ");
                                         EXC$$->trueList.push_back(buffer.emit(s1));
                                         EXC$$->falseList.push_back(buffer.emit(string("j ")));
 
