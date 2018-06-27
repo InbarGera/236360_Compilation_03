@@ -156,13 +156,13 @@ VarBase::VarBase(string str,Type::typeKind kind): name(str), type(kind){};
 VarBase::VarBase(string str, Type::typeKind kind, int len):name(str), type(kind, len){};
 
 //=========================== VarInfo CLASS =================================//
-VarInfo::VarInfo() : value(0){};
-VarInfo::VarInfo(Type type): value(0),VarBase(type) {};
-VarInfo::VarInfo(int val) : value(val), VarBase(string(),Type::INTEGER) {};
+VarInfo::VarInfo() : value(0), BPInfo(){};
+VarInfo::VarInfo(Type type): value(0),VarBase(type), BPInfo() {};
+VarInfo::VarInfo(int val) : value(val), VarBase(string(),Type::INTEGER), BPInfo() {};
 VarInfo::VarInfo(int val, string str, Type::typeKind kind):
-            value(val), VarBase(str,kind){};
+            value(val), VarBase(str,kind), BPInfo(){};
 VarInfo::VarInfo(int val, string str, Type::typeKind kind, int len):
-            value(val), VarBase(str, kind, len){};
+            value(val), VarBase(str, kind, len), BPInfo(){};
 
 //============================= ID CLASS ====================================//
 Id::Id(Type type_t, int offset, string name_t) : offset(offset){
@@ -398,9 +398,9 @@ BPInfo::BPInfo(string label) : beginLabel(label){}
 
 //=========================== ParsedExp Class ===============================//
 
-parsedExp::parsedExp(Type::typeKind kind): parsedData(Type(kind)), regType(undef){}
-parsedExp::parsedExp(Type type) : parsedData(type), regType(undef){};
-parsedExp::parsedExp(parsedExp exp, binOps ops): regType(undef) {
+parsedExp::parsedExp(Type::typeKind kind): parsedData(Type(kind)), regType(REG_TYPE_UNDEF){}
+parsedExp::parsedExp(Type type) : parsedData(type), regType(REG_TYPE_UNDEF){};
+parsedExp::parsedExp(parsedExp exp, binOps ops): regType(REG_TYPE_UNDEF) {
         if (ops == BOOL_OP) {
             if (exp.isBool()) {
                 *this = parsedExp(Type(Type::BOOL));
@@ -411,7 +411,7 @@ parsedExp::parsedExp(parsedExp exp, binOps ops): regType(undef) {
             throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
         }
     }
-parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops): regType(undef){
+parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops): regType(REG_TYPE_UNDEF){
         switch (ops){
             case REL_OP: {
                 if (exp1.isInteger() && exp2.isInteger()) {
@@ -435,11 +435,11 @@ parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops): regType(undef)
                 throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
             }        }
     }
-parsedExp::parsedExp(parsedData data) : parsedData(data), regType(undef){};
-parsedExp::parsedExp(parsedData data1, parsedData data2, binOps ops): regType(undef){
+parsedExp::parsedExp(parsedData data) : parsedData(data), regType(REG_TYPE_UNDEF){};
+parsedExp::parsedExp(parsedData data1, parsedData data2, binOps ops): regType(REG_TYPE_UNDEF){
         *this = parsedExp(parsedExp(data1), parsedExp(data2), ops);
     }
-parsedExp::parsedExp(parsedData data, binOps ops): regType(undef){
+parsedExp::parsedExp(parsedData data, binOps ops): regType(REG_TYPE_UNDEF){
         *this = parsedExp(parsedExp(data), ops);
     }
 parsedExp parsedExp::maxRange(parsedExp exp1, parsedExp exp2) {
@@ -456,7 +456,7 @@ parsedExp parsedExp::maxRange(parsedExp exp1, parsedExp exp2) {
 parsedExp::parsedExp(parsedExp e1,parsedExp e2): parsedData(e1,e2){}
 
 bool parsedExp::isBoolExp(){
-    return regType == undef; // (!(trueList.empty() && falseList.empty())) old code
+    return regType == REG_TYPE_UNDEF; // (!(trueList.empty() && falseList.empty())) old code
 }
 //=========================== ParsedStatement Class ===============================//
 
@@ -805,7 +805,7 @@ void codeGenerator::initiateHW5(){
     buffer.emit(string("# Begin of initiation code"));
     buffer.emit(string("main:"));
     buffer.emit(string("la $ra, return_from_main"));
-    buffer.emit(string("add $fp, $0, $sp"));
+    buffer.emit(string("add $fp, $sp, -4"));
     goToMainBackPatch.push_back(buffer.emit(string("j "))); //will be backpached when main will be parsed
     buffer.emit(string("return_from_main:"));
     buffer.emit(string("nop"));
@@ -925,7 +925,7 @@ string codeGenerator::idLocation(Id id){
 };
 
 string codeGenerator::idOffsetFromFp(Id id){
-    return num_to_string(id.offset*4);
+    return num_to_string(-(id.offset)*4);
 }
 
 void codeGenerator::assignBoolIntoLocation(parsedExp exp, string location){
@@ -975,10 +975,10 @@ void codeGenerator::assignArrayToArray(Id id,parsedExp exp){
 
 void codeGenerator::assignValueToId(Id id,parsedExp exp) {
 
-    if(exp.regType == parsedExp::reference) {
+    if(exp.regType == REG_TYPE_REFERENCE) {
         assignArrayToArray(id, exp);
     }
-    else if (exp.regType == parsedExp::undef) // meaning it is the case of true/false list of bool
+    else if (exp.regType == REG_TYPE_UNDEF) // meaning it is the case of true/false list of bool
         assignBoolIntoLocation(exp,idLocation(id));
     else
         assignNonBoolIntoLocation(exp,idLocation(id));
@@ -1031,7 +1031,7 @@ void codeGenerator::assignValueToArray(Id id,parsedExp offsetExp,parsedExp assig
     regClass toAssign = regAlloc();
     string code;
 
-    if (assignExp.regType == parsedExp::undef)
+    if (assignExp.regType == REG_TYPE_UNDEF)
         assignBoolIntoLocation(assignExp,toAssign.toString());
     else
         assignNonBoolIntoLocation(assignExp,toAssign.toString());
@@ -1062,57 +1062,85 @@ string codeGenerator::falseValueRepresentation(){
     return string("1");
 }
 
-
 //============================== Function Handling ==============================/
+
+string codeGenerator::pushStringToDataBuffer(parsedData toPush){
+    string toReturn = buffer.genDataLabel();
+    buffer.emitData(toReturn + string(": .asciiz \"") + toPush.single_var.name + string("\""));
+    return toReturn;
+}
 
 int codeGenerator::getIdOffset(string name){
     return scopesList->getId(name).offset;
 }
 
-void codeGenerator::pushExpList(parsedExp input_list){
-    list<parsedExp*> inputs = input_list.expressionListForCallingFunctions;
+static void pushBool(VarInfo var_bool){
+    assert(!(var_bool.trueList.empty() && var_bool.falseList.empty()));
+    regClass tempReg = regAlloc();
+    vector<int> tempBackPatchList;
+
+    buffer.bpatch(var_bool.trueList,buffer.genLabel());
+    buffer.emit(string("add ") + tempReg.toString() + string(", $0, ") + codeGenerator::trueValueRepresentation());
+    tempBackPatchList.push_back(buffer.emit(string("j ")));
+    buffer.bpatch(var_bool.falseList,buffer.genLabel());
+    buffer.emit(string("add ") + tempReg.toString() + string(", $0, ") + codeGenerator::falseValueRepresentation());
+    buffer.bpatch(tempBackPatchList,buffer.genLabel());
+
+    buffer.emit(string("subu $sp, $sp, 4"));
+    buffer.emit(string("sw ") + tempReg.toString() + string(", ($sp)"));
+
+    regFree(tempReg);
+}
+
+static void pushArray(VarInfo var_array){
+
+    regClass tempReg = regAlloc();
+
+    for(int i=0 ; i < var_array.type.arrayLength ; i++){
+        buffer.emit(string("subu $sp, $sp, 4"));
+        buffer.emit(string("lw ") + tempReg.toString() + string(", (") + var_array.reg.toString() + string(")"));
+        buffer.emit(string("sw ") + tempReg.toString() + string(", ($sp)"));
+        buffer.emit(string("subu ") + var_array.reg.toString() + string(", ") + var_array.reg.toString() + string(", 4"));
+    }
+
+    regFree(tempReg);
+    regFree(var_array.reg);
+}
+
+static void pushNumeric(VarInfo simple_var){
+    buffer.emit(string("subu $sp, $sp, 4"));
+    buffer.emit(string("sw ") + simple_var.reg.toString() + string(", ($sp)"));
+    regFree(simple_var.reg);
+}
+
+static void pushString(VarInfo var_string){
+    pushNumeric(var_string); // preperation work done in parsing
+}
+
+void codeGenerator::pushExpListAndFreeRegisters(parsedExp input_list){
+    std::list<VarInfo> inputs = input_list.list_of_vars;
     while (!(inputs.empty())){
-        VarInfo temp = inputs.back().;
+        VarInfo temp = inputs.back();
         switch (temp.type.kind){
-            case Type::ARRAY:{
-                pushVarArray(temp);
-                break;
-            }
-            case Type::STRING:{
+            case Type::ARRAY :{
+                pushArray(temp);
+            }break;
+            case Type::STRING :{
                 pushString(temp);
-                break;
-            }
+            }break;
+            case Type::BOOL :{
+                pushBool(temp);
+            }break;
             case Type::VOID:
                 assert("in codeGenerator::pushExpList(parsedExp input_list), in case: Type::VOID" && 0);      //not supposed to get here
             case Type::UNDEF:
                 assert("in codeGenerator::pushExpList(parsedExp input_list), in case: Type::UNDEF" && 0);      //not supposed to get here
-            default:    // BOOL, BYTE, INTEGER
-                pushSingleVar(temp);
+
+                default:    //  BYTE, INTEGER
+                    pushNumeric(temp);
         }
         inputs.pop_back();
     }
-}
-
-void codeGenerator::pushVarArray(VarInfo var_array){
-    int length = var_array.type.arrayLength;
-    string var_offset_to_add = string(num_to_string(length*4));
-    buffer.emit(string("subu $sp, $sp, ")+var_offset_to_add);
-    for (int i = 0; i <length ; i++) {
-        string temp_offset = string(num_to_string(i*4));
-        buffer.emit(string("sw ")+temp_offset+string("($fp), ")+temp_offset+string("($sp)"));
-    }
-}
-
-void codeGenerator::pushSingleVar(VarInfo simple_var){
-    string var_location = num_to_string(getIdOffset(simple_var.name)*4);
-    buffer.emit(string("subu $sp, $sp, 4"));
-    buffer.emit(string("sw ")+var_location+string("($fp), ($sp)"));
-}
-
-string codeGenerator::pushString(VarInfo var_string){
-    string labelName = buffer.genDataLabel();
-    buffer.emitData(labelName + string(" .asciiz \"") + var_string.name + string("\""));
-    return labelName;
 }
 
 void codeGenerator::callerSaveRegisters(){
@@ -1192,7 +1220,7 @@ void codeGenerator::returnFunction(parsedExp returnExp){
         assignBoolIntoLocation(returnExp, string("-4($sp)"));
     else
         assignNonBoolIntoLocation(returnExp, string("-4($sp)"));
-    buffer.emit(string("add $v0, $0, -4($sp)"));
+    buffer.emit(string("lw $v0, -4($sp)"));
     cleanStack();
     buffer.emit(string("jr $ra"));
 }
@@ -1200,10 +1228,10 @@ void codeGenerator::returnFunction(parsedExp returnExp){
 void codeGenerator::callFunction(string func_name, parsedExp input_list,regClass returnReg){
     buffer.emit(string("# Begin of calling to function code"));
     callerSaveRegisters();
-    pushExpList(input_list);
+    pushExpListAndFreeRegisters(input_list);
 
     // creating a new frame for the calley function
-    buffer.emit(string("add $fp, $0, $sp"));
+    buffer.emit(string("add $fp, $sp, -4"));
 
     // inserting to $ra the return address
     vector<int> returnBackPatchList;
@@ -1215,12 +1243,12 @@ void codeGenerator::callFunction(string func_name, parsedExp input_list,regClass
     // backPatching the return address
     buffer.bpatch(returnBackPatchList,buffer.genLabel());
 
-    // saving the return value
-    buffer.emit(string("add ") + returnReg.toString() + string(", $0, $v0"));
-
     // restoring registers (includes $fp)
     // assumes the calley function cleaning its own variables, include the passed parameters
     callerRestoreRegisters();
+
+    // saving the return value
+    buffer.emit(string("add ") + returnReg.toString() + string(", $0, $v0"));
     buffer.emit(string("# End of calling to function code"));
 }
 

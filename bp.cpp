@@ -75,7 +75,6 @@ string CodeBuffer::genDataLabel(){
     std::stringstream label;
     label << "labelData_";
     label << n++;
-    label << ":";
     std::string ret(label.str());
     return ret;
 }

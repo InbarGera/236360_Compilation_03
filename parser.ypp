@@ -18,7 +18,7 @@
              throw parsingExceptions(e.err_type, yylineno, e.id);       \
         }
 
-    #define PRINT_HW3_STUFF 1
+    #define PRINT_HW3_STUFF 0
 
     #define EMIT_TEXT(string) buffer.emit(string)
     #define EMIT_DATA(string) buffer.emitData(string)
@@ -327,14 +327,14 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
 
                                          EXC$$->reg = regAlloc();
                                          if((scopesList->getFunction($1->getName())).return_type.kind == Type::VOID)
-                                            EXC$$->regType = parsedExp::undef;
+                                            EXC$$->regType = REG_TYPE_UNDEF;
                                          else
-                                            EXC$$->regType = parsedExp::value;
+                                            EXC$$->regType = REG_TYPE_VALUE;
 
-                                         //codeGenerator::callFunction(scopesList->getFunction($1->getName()).beginLabel
-                                                                      //,*EXC$3,EXC$$->reg);
+                                         codeGenerator::callFunction(scopesList->getFunction($1->getName()).beginLabel
+                                                                      ,*EXC$3,EXC$$->reg);
 
-                                         if(EXC$$->regType == parsedExp::undef)
+                                         if(EXC$$->regType == REG_TYPE_UNDEF)
                                             regFree(EXC$$->reg);
                                          delete $1; delete $3;}
 		|	ID LPAREN RPAREN            {try {scopesList->verifyNoParametersFunctionCall(*$1);
@@ -348,24 +348,25 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
 
                                          EXC$$->reg = regAlloc();
                                          if((scopesList->getFunction($1->getName())).return_type.kind == Type::VOID)
-                                            EXC$$->regType = parsedExp::undef;
+                                            EXC$$->regType = REG_TYPE_UNDEF;
                                          else
-                                            EXC$$->regType = parsedExp::value;
+                                            EXC$$->regType = REG_TYPE_VALUE;
 
                                          parsedExp dummy(Type::UNDEF);
-                                         //codeGenerator::callFunction(scopesList->getFunction($1->getName()).beginLabel,dummy,EXC$$->reg);
+                                         codeGenerator::callFunction(scopesList->getFunction($1->getName()).beginLabel,dummy,EXC$$->reg);
 
-                                         if(EXC$$->regType == parsedExp::undef)
+                                         if(EXC$$->regType == REG_TYPE_UNDEF)
                                             regFree(EXC$$->reg);
 
 		                                 delete $1;}
 		;
 
 ExpList:    Exp ExpList2 {  $$ = new parsedExp(*EXC$1,*EXC$2) ;
-                            $$->expressionListForCallingFunctions = EXC$2->expressionListForCallingFunctions;
-                            $$->expressionListForCallingFunctions.push_back(EXC$1);
-
-		                                delete $1; delete $2;}
+                            $$->list_of_vars.front().reg = EXC$1->reg;
+                            $$->list_of_vars.front().regType = EXC$1->regType;
+                            $$->list_of_vars.front().trueList = EXC$1->trueList;
+		                    $$->list_of_vars.front().falseList = EXC$1->falseList;
+		                    delete $1; delete $2;}
 
 ExpList2 :                  { $$ = new parsedExp(IS_CALL); }
          | COMMA ExpList    { $$ = $2;}
@@ -387,7 +388,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      $$ = new parsedExp(scopesList->getId($1->getName()).type.arrayType);
 
                                      EXC$$->reg = regAlloc();
-                                     EXC$$->regType = parsedExp::value;
+                                     EXC$$->regType = REG_TYPE_VALUE;
 
                                      regClass addressReg = regAlloc();
 
@@ -409,7 +410,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 		                            }
 		| 	Exp PLUS_MINUS Exp      {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, MATH_OP));
 		                             EXC$$->reg = regAlloc();
-                                     EXC$$->regType = parsedExp::value;
+                                     EXC$$->regType = REG_TYPE_VALUE;
 
                                      string s1 = codeGenerator::arithmeticOpToString($2->pd_op);
                                      string s2 = EXC$$->reg.toString();  //destination
@@ -426,7 +427,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      }
 		|	Exp MUL_DIV Exp         {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, MATH_OP));
 		                             EXC$$->reg = regAlloc();
-		                             EXC$$->regType = parsedExp::value;
+		                             EXC$$->regType = REG_TYPE_VALUE;
 
 		                             string s1 = codeGenerator::arithmeticOpToString($2->pd_op);
 
@@ -461,11 +462,11 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      EMIT_TEXT(s1);
 
                                      if($$->kind == parsedData::DK_ARRAY){
-                                        EXC$$->regType = parsedExp::reference;
+                                        EXC$$->regType = REG_TYPE_REFERENCE;
                                         s1 = string("add ") + EXC$$->reg.toString() + string(", $0, ") + addressReg.toString();
                                      }
                                      else{
-                                        EXC$$->regType = parsedExp::value;
+                                        EXC$$->regType = REG_TYPE_VALUE;
                                         s1 = string("lw ") + EXC$$->reg.toString() + string(", (") + addressReg.toString() + string(")");
                                      }
                                      EMIT_TEXT(s1);
@@ -482,7 +483,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                         EXC$$->falseList.push_back(buffer.emit(string("j ")));
 
                                         regFree(EXC$$->reg);
-                                        EXC$$->regType = parsedExp::undef; // hope this is enough for representing null
+                                        EXC$$->regType = REG_TYPE_UNDEF; // hope this is enough for representing null
                                         regFree(boolTrueValue);
                                      }
 
@@ -490,18 +491,11 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      delete $1;
 		                            }
 
-		|	Call                    {$$ = new parsedExp(*$1);
-                                     EXC$$->reg =  regAlloc();
-                                     EXC$$->regType = parsedExp::value;
-                                     // calling the function code
-                                     string s1 = "move $v0, ";
-                                     string s2 = EXC$$->reg.toString();
-                                     EMIT_TEXT(s1 + s2);
-                                    }
+		|	Call                    {$$ = $1;}
 
         |	NUM_T	                {$$ = new parsedExp(*$1);
                                     EXC$$->reg =  regAlloc();
-                                    EXC$$->regType = parsedExp::value;
+                                    EXC$$->regType = REG_TYPE_VALUE;
                                     string s1 = "li "; // load immediate
                                     string s2 = EXC$$->reg.toString();
                                     string s3 = ", ";
@@ -511,10 +505,10 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 
         |	STRING                  {$$ = new parsedExp(Type(Type::STRING));    // return string type
                                      EXC$$->reg =  regAlloc();
-                                     EXC$$->regType = parsedExp::reference;
+                                     EXC$$->regType = REG_TYPE_REFERENCE;
 
                                      // create string in .data segment
-                                     string stringLocation = codeGenerator::pushString($1->single_var);
+                                     string stringLocation = codeGenerator::pushStringToDataBuffer(*$1);
 
                                      // generate code " la  $$->reg, <string location label>"
                                      string s1 = "la "; // load address, need to verify it works with labels
@@ -655,8 +649,8 @@ int main()
     // Restore old cout.
     if(!PRINT_HW3_STUFF) cout.rdbuf( oldCoutStreamBuf );
 
-	 //buffer.printCodeBuffer();
-	 //buffer.printDataBuffer();
+	 buffer.printCodeBuffer();
+	 buffer.printDataBuffer();
 }
 
 void yyerror(const char * message)

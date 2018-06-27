@@ -41,6 +41,11 @@ enum binOps {
     MATH_OP
 };
 
+enum registerType{
+    REG_TYPE_VALUE,
+    REG_TYPE_REFERENCE,
+    REG_TYPE_UNDEF
+}; // HW5
 //====================== ERROR HANDLING CLASS ===============================//
 class parsingExceptions : std::exception {
 public:
@@ -98,6 +103,21 @@ public:
     }
 };*/
 //=========================== DATA TYPES ====================================//
+class BPInfo {
+public:
+    string beginLabel;
+    std::vector<int> trueList;
+    std::vector<int> falseList;
+    std::vector<int> nextList;
+    std::vector<int> breakList;
+
+    string ifTrueLabel; //relevant only for if statements
+    string ifFalseLabel; //relevant only for if statements
+
+    BPInfo(); // NOT generate new label
+    BPInfo(string label); // copying input label
+};
+
 class Type{
 public:
     enum typeKind {UNDEF, VOID, BOOL, INTEGER, BYTE, STRING, ARRAY};
@@ -131,9 +151,12 @@ public:
     VarBase(string str, Type::typeKind kind, int len);
 };
 
-class VarInfo : public VarBase{
+class VarInfo : public VarBase, public BPInfo{
 public:
+    //enum registerType{value,reference,undef}; // /*HW5*/ same as in parsedExp, make sure to change both if one is changed.
     int value;
+    regClass reg; /*HW5*/ //same name as in parsedExp, make sure to change both if one is changed.
+    registerType regType; /*HW5*/ //same name as in parsedExp, make sure to change both if one is changed.
     VarInfo();
     VarInfo(Type type);
     VarInfo(int val);
@@ -196,7 +219,6 @@ public:
 
     parsedData(GrammerVar g_var);
 
-
     parsedData(Type type);
     parsedData(char* tmp_yytext, GrammerVar g_var);
     parsedData(Type type, parsedData& data);
@@ -231,28 +253,12 @@ public:
 };
 #define YYSTYPE parsedData*	// Tell Bison to use STYPE as the stack type
 
-class BPInfo {
-public:
-    string beginLabel;
-    std::vector<int> trueList;
-    std::vector<int> falseList;
-    std::vector<int> nextList;
-    std::vector<int> breakList;
-
-    string ifTrueLabel; //relevant only for if statements
-    string ifFalseLabel; //relevant only for if statements
-
-    BPInfo(); // NOT generate new label
-    BPInfo(string label); // copying input label
-};
-
 class parsedExp : public parsedData, public BPInfo {
 public:
-    enum registerType{value,reference,undef};
-    regClass reg;
-    registerType regType;
+    //enum registerType{value,reference,undef}; // same as in VarInfo, make sure to change both if one is changed.
+    regClass reg; //same name as in VarInfo, make sure to change both if one is changed.
+    registerType regType; //same name as in VarInfo, make sure to change both if one is changed.
 
-    list<parsedExp*> expressionListForCallingFunctions;
     parsedExp(Type::typeKind kind);
     parsedExp(Type type) ;
     parsedExp(parsedExp exp, binOps ops);
@@ -351,13 +357,11 @@ public:
     static void assignBoolIntoLocation(parsedExp exp, string location);
     static void assignNonBoolIntoLocation(parsedExp exp, string location);
 
-    static  void assignArrayToArray(Id id,parsedExp exp);
+    static string pushStringToDataBuffer(parsedData toPush);
+    static void assignArrayToArray(Id id,parsedExp exp);
     static void generateArrayLocationCalc(regClass destenetion, regClass offsetHoldingReg, string arrayBaseAsString);
     static int getIdOffset(string name); // dangerous, scopes have same function
-    static void pushExpList(parsedExp input_list);
-    static void pushVarArray(VarInfo var_array);
-    static void pushSingleVar(VarInfo simple_var);
-    static string pushString(VarInfo var_string);
+    static void pushExpListAndFreeRegisters(parsedExp input_list);
     static void callerSaveRegisters();
     static void callerRestoreRegisters();
     static string IntToReg(int reg_to_save);

@@ -2,11 +2,16 @@
 #include <vector> // ????
 
 int string_to_num(const char* input){
-    int sum =0;
+    int sum = 0;
+    int sign = 1;
+    if(input[0] == '-'){
+        sign = -1;
+        input++;
+    }
     while(input[0] != '\0'){
         sum = sum*10 + (input++[0] - '0');
     }
-    return sum;
+    return sum * sign;
 }
 
 char* remove_double_quotes(char* input){
@@ -19,7 +24,13 @@ char* remove_double_quotes(char* input){
 std::string num_to_string(int input){
     if(input == 0)
         return "0";
+
     std::string res = "";
+
+    if(input < 0 ){
+        res += "-";
+        input *= -1;
+    }
 
     int mod = 1;
     while(input/mod)
