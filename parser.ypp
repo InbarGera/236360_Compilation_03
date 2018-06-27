@@ -136,14 +136,10 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
 			                                     $$ = new parsedStatement();
                                                 regClass tempReg = regAlloc();
 
-                                                 if($1->isBool()){ //hacking of the stack, saving the data in temp register and afterwards manually move the value to the memory
-                                                    buffer.emit(string("subu ") + tempReg.toString() + string(", $sp, 4"));
-                                                    codeGenerator::assignBoolIntoLocation(*EXC$3,tempReg);
-                                                    buffer.emit(string("lw ") + tempReg.toString() + string(", -4($sp)"));
-
+                                                 if($1->isBool()){
+                                                    codeGenerator::assignBoolIntoV1(*EXC$3);
                                                     codeGenerator::generateNewSingleVarCreation(*$1);
-
-                                                    buffer.emit(string("sw ") + tempReg.toString() + string(", ($sp)"));
+                                                    buffer.emit(string("sw $v1, ($sp)"));
                                                  }
                                                  else{
 			                                        codeGenerator::generateNewSingleVarCreation(*$1);

@@ -947,6 +947,20 @@ void codeGenerator::assignBoolIntoLocation(parsedExp exp, regClass destination){
     buffer.bpatch(temp,buffer.genLabel());
 }
 
+void codeGenerator::assignBoolIntoV1(parsedExp exp){
+    buffer.bpatch(exp.trueList,buffer.genLabel());
+
+    buffer.emit(string("# in  assignBoolIntoV1"));
+    buffer.emit(string("addu $v1, $0, ") + trueValueRepresentation());
+
+    vector<int> temp;
+    temp.push_back(buffer.emit(string("j ")));
+    buffer.bpatch(exp.falseList,buffer.genLabel());
+
+    buffer.emit(string("addu $v1, $0, ") + falseValueRepresentation());
+    buffer.bpatch(temp,buffer.genLabel());
+}
+
 void codeGenerator::assignNonBoolIntoLocation(parsedExp exp, regClass destination){
     buffer.emit(string("sw ") + exp.reg.toString() + string(", (") + destination.toString() + string(")"));
 }
@@ -977,14 +991,17 @@ void codeGenerator::assignValueToId(Id id,parsedExp exp) {
         assignArrayToArray(id, exp);
     }
     else {
+        if (exp.regType == REG_TYPE_UNDEF)  // meaning it is the case of true/false list of bool
+            assignBoolIntoV1(exp);
+
         if (string_to_num(idOffsetFromFp(id).c_str()) >= 0)
             buffer.emit(string("addu ") + tempReg.toString() + string(", $fp, ") + idOffsetFromFp(id));
         else
             buffer.emit(string("subu ") + tempReg.toString() + string(", $fp, ") +
                         num_to_string(-string_to_num(idOffsetFromFp(id).c_str())));
 
-        if (exp.regType == REG_TYPE_UNDEF) // meaning it is the case of true/false list of bool
-            assignBoolIntoLocation(exp, tempReg);
+        if (exp.regType == REG_TYPE_UNDEF)  // meaning it is the case of true/false list of bool
+            buffer.emit(string("sw $v1, (") + tempReg.toString() + string(")"));
         else
             assignNonBoolIntoLocation(exp, tempReg);
     }
@@ -1029,12 +1046,15 @@ void codeGenerator::assignValueToArray(Id id,parsedExp offsetExp,parsedExp assig
     regClass addressReg = regAlloc();
     regClass toAssign = regAlloc();
 
-    buffer.emit(string("subu ") + toAssign.toString() + string(", $sp, 4"));
-    if (assignExp.regType == REG_TYPE_UNDEF)
-        assignBoolIntoLocation(assignExp,toAssign);
-    else
+    if (assignExp.regType == REG_TYPE_UNDEF){ // bool
+        assignBoolIntoV1(assignExp);
+        buffer.emit(string("addu ") + toAssign.toString() + string(", $v1, $0"));
+    }
+    else{
+        buffer.emit(string("subu ") + toAssign.toString() + string(", $sp, 4"));
         assignNonBoolIntoLocation(assignExp,toAssign);
-    buffer.emit(string("lw ") + toAssign.toString() + string(", (") + toAssign.toString() + string(")"));
+        buffer.emit(string("lw ") + toAssign.toString() + string(", (") + toAssign.toString() + string(")"));
+    }
 
     generateArrayOverflowCheck(id.type.arrayLength,offsetExp.reg);
     generateArrayLocationCalc(addressReg,offsetExp.reg,idOffsetFromFp(id));
@@ -1233,16 +1253,20 @@ void codeGenerator::returnVoidFunction(){
 }
 
 void codeGenerator::returnFunction(parsedExp returnExp){
-
     regClass tempReg = regAlloc();
-    buffer.emit(string("subu ") + tempReg.toString() + string(", $sp, 4"));
-    if(returnExp.regType == REG_TYPE_UNDEF)
-        assignBoolIntoLocation(returnExp, tempReg);
-    else {
+
+    if(returnExp.regType == REG_TYPE_UNDEF) { // bool
+        assignBoolIntoV1(returnExp);
+        buffer.emit(string("addu $v0, $v1, $0"));
+    }
+    else{
+        buffer.emit(string("subu ") + tempReg.toString() + string(", $sp, 4"));
         assignNonBoolIntoLocation(returnExp, tempReg);
+        buffer.emit(string("lw $v0, -4($sp)"));
+
         regFree(returnExp.reg);
     }
-    buffer.emit(string("lw $v0, -4($sp)"));
+
     cleanStack();
     buffer.emit(string("jr $ra"));
 

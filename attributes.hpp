@@ -349,6 +349,7 @@ public:
     static string falseValueRepresentation();
     static void assignBoolIntoLocation(parsedExp exp,regClass destination);
     static void assignNonBoolIntoLocation(parsedExp exp,regClass destination);
+    static void assignBoolIntoV1(parsedExp exp);
 
     static string pushStringToDataBuffer(parsedData toPush);
     static void assignArrayToArray(Id id,parsedExp exp);
