@@ -1003,7 +1003,7 @@ void codeGenerator::generateArrayOverflowCheck(int arrayLen,regClass reg) {
 
 }
 
-void codeGenerator::generateArrayLocationCalc(regClass destenetion, regClass offsetHoldingReg, string arrayBaseAsString){
+void codeGenerator::generateArrayLocationCalc(regClass destenetion, regClass offsetHoldingReg, string offsetOfBaseFromFp){
 
     regClass tempReg = regAlloc();
     string code;
@@ -1017,12 +1017,17 @@ void codeGenerator::generateArrayLocationCalc(regClass destenetion, regClass off
 
     code = string("add ");
     code += destenetion.toString();
-    code += string(", ");
-    code += arrayBaseAsString;
-    code += string(", ");
-    code += tempReg.toString();
+    code += string(", $fp, ");
+    code += offsetOfBaseFromFp;
 
     buffer.emit(code);
+
+    code = string("add ");
+    code += destenetion.toString();
+    code += string(", $0, ");
+    code += tempReg.toString();
+
+    regFree(tempReg);
 }
 
 void codeGenerator::assignValueToArray(Id id,parsedExp offsetExp,parsedExp assignExp){
@@ -1037,7 +1042,7 @@ void codeGenerator::assignValueToArray(Id id,parsedExp offsetExp,parsedExp assig
         assignNonBoolIntoLocation(assignExp,toAssign.toString());
 
     generateArrayOverflowCheck(id.type.arrayLength,offsetExp.reg);
-    generateArrayLocationCalc(addressReg,offsetExp.reg,idLocation(id));
+    generateArrayLocationCalc(addressReg,offsetExp.reg,idOffsetFromFp(id));
 
     // might need this code if there if too few dereferencing
     //string location = string("(") + addressReg.toString() + string(")");

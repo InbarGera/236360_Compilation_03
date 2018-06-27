@@ -19,6 +19,7 @@
         }
 
     #define PRINT_HW3_STUFF 0
+    #define PRINT_HW5_STUFF 1
 
     #define EMIT_TEXT(string) buffer.emit(string)
     #define EMIT_DATA(string) buffer.emitData(string)
@@ -170,15 +171,19 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
                                                      EMIT_TEXT(s1 + var_offset);
 
                                                      for(int i=0; i < $3->single_var.value ; i++){
+                                                        regClass tempReg = regAlloc();
+                                                        EMIT_TEXT(string("add ") + tempReg.toString() + string(", $sp, ") + num_to_string(i*4));
                                                         string s2 = string("sw ");
                                                         if($1->single_var.type.kind == Type::BOOL)
                                                            s2 += codeGenerator::falseValueRepresentation();
                                                         else
                                                            s2 += string("$0");
-                                                        s2 += string(", ");
-                                                        s2 += num_to_string(i*4);
-                                                        s2 += string("($sp)");
+                                                        s2 += string(", (");
+                                                        s2 += tempReg.toString();
+                                                        s2 += string(")");
                                                         EMIT_TEXT(s2);
+
+                                                        regFree(tempReg);
                                                     }
 
 			                                         delete $1; delete $3;
@@ -648,9 +653,10 @@ int main()
 
     // Restore old cout.
     if(!PRINT_HW3_STUFF) cout.rdbuf( oldCoutStreamBuf );
-
-	 buffer.printCodeBuffer();
-	 buffer.printDataBuffer();
+    if(PRINT_HW5_STUFF){
+	    buffer.printCodeBuffer();
+	    buffer.printDataBuffer();
+	 }
 }
 
 void yyerror(const char * message)

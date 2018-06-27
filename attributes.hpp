@@ -359,7 +359,7 @@ public:
 
     static string pushStringToDataBuffer(parsedData toPush);
     static void assignArrayToArray(Id id,parsedExp exp);
-    static void generateArrayLocationCalc(regClass destenetion, regClass offsetHoldingReg, string arrayBaseAsString);
+    static void generateArrayLocationCalc(regClass destenetion, regClass offsetHoldingReg, string offsetOfBaseFromFp);
     static int getIdOffset(string name); // dangerous, scopes have same function
     static void pushExpListAndFreeRegisters(parsedExp input_list);
     static void callerSaveRegisters();
