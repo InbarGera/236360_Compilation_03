@@ -923,7 +923,7 @@ string codeGenerator::divisionByZeroCheck(regClass reg){
 }
 
 string codeGenerator::idOffsetFromFp(Id id){
-    return num_to_string((id.offset)*4);
+    return num_to_string(-(id.offset)*4);
 }
 
 void codeGenerator::assignBoolIntoLocation(parsedExp exp, regClass destination){
@@ -1019,7 +1019,7 @@ void codeGenerator::generateArrayLocationCalc(regClass destenetion, regClass off
         buffer.emit(string("addu ") + destenetion.toString() + string(", $fp, ") + offsetOfBaseFromFp);
     else
         buffer.emit(string("subu ") + destenetion.toString() + string(", $fp, ") + num_to_string(-string_to_num(offsetOfBaseFromFp.c_str())));
-    buffer.emit(string("addu ") + destenetion.toString() + string(", ") + destenetion.toString() + string(", ") + tempReg.toString());
+    buffer.emit(string("subu ") + destenetion.toString() + string(", ") + destenetion.toString() + string(", ") + tempReg.toString());
 
     regFree(tempReg);
 }
@@ -1085,17 +1085,18 @@ static void pushBool(VarInfo var_bool){
 static void pushArray(VarInfo var_array){
 
     regClass tempReg = regAlloc();
-    regClass tempReg2 = regAlloc();
+    regClass destinationReg = regAlloc();
     buffer.emit(string("subu $sp, $sp, ") + num_to_string(var_array.type.arrayLength*4));
-    buffer.emit(string("subu ") + tempReg2.toString() + string(",$0, $sp"));
+    buffer.emit(string("subu ") + var_array.reg.toString() + string(", ") + num_to_string((var_array.type.arrayLength -1)*4));
+    buffer.emit(string("move ") + destinationReg.toString() + string(", $sp"));
     for(int i=0 ; i < var_array.type.arrayLength ; i++){
         buffer.emit(string("lw ") + tempReg.toString() + string(", (") + var_array.reg.toString() + string(")"));
-        buffer.emit(string("sw ") + tempReg.toString() + string(", (") + tempReg2.toString() + string(")"));
+        buffer.emit(string("sw ") + tempReg.toString() + string(", (") + destinationReg.toString() + string(")"));
         buffer.emit(string("addu ") + var_array.reg.toString() + string(", ") + var_array.reg.toString() + string(", 4"));
-        buffer.emit(string("addu ") + tempReg2.toString() + string(", ") + tempReg2.toString() + string(", 4"));
+        buffer.emit(string("addu ") + destinationReg.toString() + string(", ") + destinationReg.toString() + string(", 4"));
     }
 
-    regFree(tempReg2);
+    regFree(destinationReg);
     regFree(tempReg);
     regFree(var_array.reg);
 }
@@ -1180,6 +1181,7 @@ void codeGenerator::cleanStack(){
     copyOfAllScopes.need_to_print = false;
     Id firstOnStack;
     Id lastOnStack;
+    bool foundLast = false;
     int totalOffset;
 
     while(!copyOfAllScopes.scopesList.empty()){
@@ -1191,7 +1193,7 @@ void codeGenerator::cleanStack(){
         copyOfAllScopes.scopesList.pop_front();
     }
 
-    //cout << "for debug: first Id name = " << firstOnStack.name << ", and offset = " << firstOnStack.offset << endl;
+    cout << "for debug: first Id name = " << firstOnStack.name << ", and offset = " << firstOnStack.offset << endl;
 
     if(firstOnStack.type.kind == Type::UNDEF) // if there is no variable then stack is already ok
         return;
@@ -1202,13 +1204,20 @@ void codeGenerator::cleanStack(){
     while(!copyOfAllScopes.scopesList.empty()){
         lastScope = copyOfAllScopes.scopesList.front();
         while(!lastScope.IdList.empty()){
-            lastOnStack = lastScope.IdList.front();
+            if(!foundLast) {
+                foundLast = true;
+                lastOnStack = lastScope.IdList.front();
+            }
+            else{
+                if(lastOnStack.offset >= lastScope.IdList.front().offset)
+                    lastOnStack = lastScope.IdList.front();
+            }
             lastScope.IdList.pop_front();
         }
         copyOfAllScopes.scopesList.pop_front();
     }
 
-    //cout << "for debug: last Id name = " << lastOnStack.name << ", and offset = " << lastOnStack.offset << endl;
+    cout << "for debug: last Id name = " << lastOnStack.name << ", and offset = " << lastOnStack.offset << endl;
 
     if(lastOnStack.type.kind != Type::UNDEF)
         totalOffset -= lastOnStack.offset;
