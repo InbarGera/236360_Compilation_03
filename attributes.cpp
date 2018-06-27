@@ -1163,6 +1163,7 @@ string codeGenerator::IntToReg(int reg_to_save){
 
 void codeGenerator::cleanStack(){
     scopes copyOfAllScopes = *scopesList;
+    copyOfAllScopes.need_to_print = false;      //so we don't print HW3 twice
     Id firstOnStack;
     Id lastOnStack;
     int totalOffset;
