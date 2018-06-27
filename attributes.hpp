@@ -343,19 +343,17 @@ public:
     static void initiateErrorHandling();
     static void initiatePrintFunctions();
     static string opToBranchString(parsedData::PDOp op);
-    static string idLocation(Id id);
     static string arithmeticOpToString(parsedData::PDOp op);
     static string byteArithmeticMasking(regClass reg);
     static string divisionByZeroCheck(regClass reg);
     static void generateArrayOverflowCheck(int arrayLen,regClass reg);
     static string idOffsetFromFp(Id id);
-    static string idOffsetString(Id id,parsedData offset);
     static void assignValueToId(Id id,parsedExp reg);
     static void assignValueToArray(Id id,parsedExp offsetExp,parsedExp reg);
     static string trueValueRepresentation();
     static string falseValueRepresentation();
-    static void assignBoolIntoLocation(parsedExp exp, string location);
-    static void assignNonBoolIntoLocation(parsedExp exp, string location);
+    static void assignBoolIntoLocation(parsedExp exp,regClass destination);
+    static void assignNonBoolIntoLocation(parsedExp exp,regClass destination);
 
     static string pushStringToDataBuffer(parsedData toPush);
     static void assignArrayToArray(Id id,parsedExp exp);
@@ -369,6 +367,11 @@ public:
     static void returnVoidFunction();
     static void returnFunction(parsedExp returnExp);
     static void callFunction(string func_name, parsedExp input_list,regClass returnReg);
+
+    static void putIdAddressInRegister(Id id, regClass reg);
+    static void generateNewSingleVarCreation(parsedExp exp);
+
+
 };
 
 #endif

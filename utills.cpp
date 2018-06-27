@@ -14,6 +14,12 @@ int string_to_num(const char* input){
     return sum * sign;
 }
 
+/*
+int string_to_num(std::string input){
+    return string_to_num(input.c_str());
+}
+*/
+
 char* remove_double_quotes(char* input){
     char* res = (char*)malloc(strlen(input)* sizeof(char));
     strcpy(res,input+1);

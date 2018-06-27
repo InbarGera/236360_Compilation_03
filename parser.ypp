@@ -126,36 +126,14 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
 			|	Type_ID SC          {TRY_AND_CATCH(scopesList->addIdNotArray(*$1));
                                      $$ = new parsedStatement();
 
-                                     string s1 = "subu $sp, $sp, ";
-                                     string s2 = num_to_string(scopesList->getId($1->getName()).type.size()*4);
-                                     EMIT_TEXT(s1 + s2);
-
-                                     string s4 = "sw ";
-                                     if($1->single_var.type.kind == Type::BOOL)
-                                        s4 += codeGenerator::falseValueRepresentation();
-                                     else
-                                        s4 += string("$0");
-                                     s4 += string(", 0($sp)");
-                                     EMIT_TEXT(s4);
-
+                                     codeGenerator::generateNewSingleVarCreation(*$1);
 			                         delete $1;
 			                         }
 			|	Type_ID ASSIGN Exp SC           {TRY_AND_CATCH(scopesList->addIdNotArray(*$1));
 			                                     TRY_AND_CATCH(scopesList->verifyAssign(*$1,*$3));
 			                                     $$ = new parsedStatement();
 
-			                                     string s1 = "subu $sp, $sp, ";
-                                                 string s2 = num_to_string(scopesList->getId($1->getName()).type.size()*4);
-                                                 EMIT_TEXT(s1 + s2);
-
-                                                 string s4 = "sw ";
-                                                 if($1->single_var.type.kind == Type::BOOL)
-                                                    s4 += codeGenerator::falseValueRepresentation();
-                                                 else
-                                                    s4 += string("$0");
-                                                 s4 += string(", 0($sp)");
-                                                 EMIT_TEXT(s4);
-
+			                                     codeGenerator::generateNewSingleVarCreation(*$1);
 			                                     codeGenerator::assignValueToId(scopesList->getId($1->getName()),*EXC$3);
 
                                                  if(!EXC$3->isBoolExp()) regFree(EXC$3->reg);
@@ -166,13 +144,13 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
 			                                         $$ = new parsedStatement();
 
                                                      string s1 = "subu $sp, $sp, ";
-                                                     string var_offset = num_to_string(scopesList->getId($1->getName()).type.size()*4);
+                                                     s1 += num_to_string(scopesList->getId($1->getName()).type.size()*4);
 
-                                                     EMIT_TEXT(s1 + var_offset);
+                                                     EMIT_TEXT(s1);
 
                                                      for(int i=0; i < $3->single_var.value ; i++){
                                                         regClass tempReg = regAlloc();
-                                                        EMIT_TEXT(string("add ") + tempReg.toString() + string(", $sp, ") + num_to_string(i*4));
+                                                        EMIT_TEXT(string("addu ") + tempReg.toString() + string(", $sp, ") + num_to_string(i*4));
                                                         string s2 = string("sw ");
                                                         if($1->single_var.type.kind == Type::BOOL)
                                                            s2 += codeGenerator::falseValueRepresentation();
@@ -205,10 +183,14 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
                                                      $$ = new parsedStatement();
                                                      codeGenerator::assignValueToArray(scopesList->getId($1->getName()),*EXC$3,*EXC$6);
 
+                                                     if(!(EXC$6->regType == REG_TYPE_UNDEF))
+                                                        regFree(EXC$6->reg);
+                                                     regFree(EXC$3->reg);
                                                      delete $1; delete $3; delete $6;
                                                     }
 			|	Call SC             {$$ = new parsedStatement();
 			                        // code for calling is implemented in Call
+			                        if(EXC$1->regType != REG_TYPE_UNDEF) regFree(EXC$1->reg);
 			                        delete $1;
 			                        }
 			|	RETURN SC           {TRY_AND_CATCH(scopesList->verifyReturnTypeVoid());
@@ -317,7 +299,6 @@ While_Open : WHILE LPAREN Exp RPAREN {TRY_AND_CATCH(scopesList->verifyExpIsBool(
                                       delete $3;}
         ;
 
-//TODO Inbar call returns type
 Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3);}
                                             catch(parsingExceptions& e){
                                             if(e.err_type == parsingExceptions::ERR_PROTOTYPE_MISMATCH)
@@ -398,16 +379,9 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      regClass addressReg = regAlloc();
 
                                      codeGenerator::generateArrayOverflowCheck(scopesList->getId($1->getName()).type.arrayLength,EXC$3->reg);
-                                     codeGenerator::generateArrayLocationCalc(addressReg,EXC$3->reg,codeGenerator::idLocation(scopesList->getId($1->getName())));
+                                     codeGenerator::generateArrayLocationCalc(addressReg,EXC$3->reg,codeGenerator::idOffsetFromFp(scopesList->getId($1->getName())));
 
-                                     string location = string("(") + addressReg.toString() + string(")");
-
-                                     string s1 = "lw ";
-                                     string s2 = EXC$$->reg.toString();
-                                     string s3 = ", ";
-                                     string s4 = location;
-
-                                     EMIT_TEXT(s1 + s2 + s3 + s4);
+                                     buffer.emit(string("lw ") + EXC$$->reg.toString() + string(", (") + addressReg.toString() + string(")"));
 
                                      regFree(addressReg);
                                      regFree(EXC$3->reg);
@@ -418,16 +392,14 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      EXC$$->regType = REG_TYPE_VALUE;
 
                                      string s1 = codeGenerator::arithmeticOpToString($2->pd_op);
-                                     string s2 = EXC$$->reg.toString();  //destination
-                                     string s3 = ", ";
-                                     string s4 = EXC$1->reg.toString();
-                                     string s5 = ", ";
-                                     string s6 = EXC$3->reg.toString();
+                                     buffer.emit(s1 + EXC$$->reg.toString() + ", " + EXC$1->reg.toString() + ", " + EXC$3->reg.toString());
 
-                                     EMIT_TEXT(s1 + s2 + s3 + s4 + s5 + s6);
                                      if($$->single_var.type.kind == Type::BYTE){
                                         EMIT_TEXT(codeGenerator::byteArithmeticMasking(EXC$$->reg));
                                      }
+
+                                     regFree(EXC$1->reg);
+                                     regFree(EXC$3->reg);
                                      delete $1; delete $3;
                                      }
 		|	Exp MUL_DIV Exp         {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, MATH_OP));
@@ -436,20 +408,13 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 
 		                             string s1 = codeGenerator::arithmeticOpToString($2->pd_op);
 
-		                             if(s1 == "div "){
+		                             if(s1 == "div ")
 		                                EMIT_TEXT(codeGenerator::divisionByZeroCheck(EXC$3->reg));
-		                             }
 
-		                             string s2 = EXC$$->reg.toString();  //destination
-		                             string s3 = ", ";
-                                     string s4 = EXC$1->reg.toString();
-                                     string s5 = ", ";
-                                     string s6 = EXC$3->reg.toString();
+		                            buffer.emit(s1 + EXC$$->reg.toString() + ", " + EXC$1->reg.toString() + ", " + EXC$3->reg.toString());
 
-                                     EMIT_TEXT(s1 + s2 + s3 + s4 + s5 + s6);
-                                     if($$->single_var.type.kind == Type::BYTE){
+                                     if($$->single_var.type.kind == Type::BYTE)
                                         EMIT_TEXT(codeGenerator::byteArithmeticMasking(EXC$$->reg));
-                                     }
 
                                      regFree(EXC$1->reg);
                                      regFree(EXC$3->reg);
@@ -462,24 +427,21 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 		                             EXC$$->reg = regAlloc();
                                      regClass addressReg = regAlloc();
 
-                                     string s1 = string("add ") + addressReg.toString() + string(", $fp, ");
-                                     s1 += codeGenerator::idOffsetFromFp(scopesList->getId($1->getName()));
-                                     EMIT_TEXT(s1);
+                                     codeGenerator::putIdAddressInRegister(scopesList->getId($1->getName()),addressReg);
 
                                      if($$->kind == parsedData::DK_ARRAY){
                                         EXC$$->regType = REG_TYPE_REFERENCE;
-                                        s1 = string("add ") + EXC$$->reg.toString() + string(", $0, ") + addressReg.toString();
+                                        buffer.emit(string("addu ") + EXC$$->reg.toString() + string(", $0, ") + addressReg.toString());
                                      }
                                      else{
                                         EXC$$->regType = REG_TYPE_VALUE;
-                                        s1 = string("lw ") + EXC$$->reg.toString() + string(", (") + addressReg.toString() + string(")");
+                                        buffer.emit(string("lw ") + EXC$$->reg.toString() + string(", (") + addressReg.toString() + string(")"));
                                      }
-                                     EMIT_TEXT(s1);
 
                                      // case that id is boolean, then creates true/false lists for use of upstream code
                                      if(scopesList->getId($1->getName()).type.kind == Type::BOOL){
                                         regClass boolTrueValue = regAlloc();
-                                        s1 = string("add ") + boolTrueValue.toString() + string(", $0, ");
+                                        string s1 = string("add ") + boolTrueValue.toString() + string(", $0, ");
                                         s1 += codeGenerator::trueValueRepresentation();
                                         EMIT_TEXT(s1);
 
