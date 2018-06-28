@@ -1246,19 +1246,13 @@ void codeGenerator::cleanStack(){
 
     //cout << "for debug: last Id name = " << lastOnStack.name << ", and offset = " << lastOnStack.offset << endl;
 
-    if(lastOnStack.type.kind == Type::UNDEF ){ //only one variable
-        if(firstOnStack.offset >= 0)
-            totalOffset = firstOnStack.offset + 1;
-        else
-            totalOffset = - firstOnStack.offset;
+    if(firstOnStack.offset >= 0) {
+        totalOffset = firstOnStack.offset + scopesList->getId(firstOnStack.name).type.size();
+        if(lastOnStack.type.kind != Type::UNDEF && lastOnStack.offset < 0)
+            totalOffset += -lastOnStack.offset;
     }
-    else{ // there are at least 2 variables
-        if(firstOnStack.offset >= 0 && lastOnStack.offset < 0)
-            totalOffset = firstOnStack.offset + 1 - lastOnStack.offset;
-        else if(firstOnStack.offset >= 0 && lastOnStack.offset >= 0)
-            totalOffset = firstOnStack.offset + 1;
-        else
-            totalOffset = -firstOnStack.offset;
+    else{
+        totalOffset = -firstOnStack.offset;
     }
 
     totalOffset *= 4;
