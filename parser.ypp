@@ -681,6 +681,7 @@ int main()
         cout.rdbuf( strCout.rdbuf() );
     }
 
+    bool print_hw3_error = false;
 	// initSystem
 	scopesList = new scopes();
 	scopesList->scopesList.push_front(scope(0,false));
@@ -693,21 +694,25 @@ int main()
 	    yyparse();
 	}catch(parsingExceptions& e){
 	    scopesList->need_to_print = false;
+	    print_hw3_error = true;
 	}
 	catch(...){
 	    scopesList->need_to_print = false;
-        if(PRINT_DEBUG) cout << "Something wierd happened!!!" << endl;
+ 	    print_hw3_error = true;
+       if(PRINT_DEBUG) cout << "Something wierd happened!!!" << endl;
 	}
 	if(scopesList->need_to_print){      //check valid main function in the scopelist
 	    if(!scopesList->containsFunctionName("main")){
    	        scopesList->need_to_print = false;
-            errorMainMissing();
+ 	        print_hw3_error = true;
+           errorMainMissing();
     	}else{
     	    function main_func = scopesList->getFunction("main");
     	    if((main_func.return_type.kind != main_func.return_type.VOID ||
     	            !main_func.inputTypes.empty())){
                 scopesList->need_to_print = false;
                 errorMainMissing();
+	            print_hw3_error = true;
                 if(PRINT_DEBUG) cout <<"in the if to check the main function" << endl;
             }
         }
@@ -716,8 +721,8 @@ int main()
     delete scopesList;
 
     // Restore old cout.
-    if(!PRINT_HW3_STUFF) cout.rdbuf( oldCoutStreamBuf );
-    if(PRINT_HW5_STUFF){
+    if(!PRINT_HW3_STUFF || print_hw3_error) cout.rdbuf( oldCoutStreamBuf );
+    if(PRINT_HW5_STUFF && scopesList->need_to_print){
 	    buffer.printCodeBuffer();
 	    buffer.printDataBuffer();
 	 }
