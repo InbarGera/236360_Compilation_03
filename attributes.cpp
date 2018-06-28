@@ -659,16 +659,20 @@ void scopes::newFunctionScope(parsedData inputVars) {
 }
 void scopes::removeScope() {
     scope oldScope = scopesList.front();
-
+    int variblesSize = 0; //HW5
     // print the scope
     endScope();
     while (!oldScope.IdList.empty()) {
         Id temp = oldScope.IdList.back();
         printID(temp.name, temp.offset, temp.type.toString());
         oldScope.IdList.pop_back();
+
+        variblesSize += temp.type.size()*4; // HW5
     }
 
     scopesList.pop_front();
+
+    buffer.emit(string("addu $sp, $sp, ") + num_to_string(variblesSize));
 }
 void scopes::verifyAssign(parsedData id_t,parsedExp exp) {
     if (!containsIdName(id_t.single_var.name)) {
