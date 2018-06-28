@@ -293,17 +293,19 @@ CloseScope : { scopesList->removeScope(); }
 While_Statement : While_Open Gen_Label Statement {scopesList->removeScope();
                                         $$ = new parsedStatement(); // for the delete at higher levels
 
-                                        buffer.bpatch(STC$1->trueList, STC$2->beginLabel);
+                                        regClass trueValueReg = regAlloc();
+                                        buffer.emit(string("add ") + trueValueReg.toString() + string(", ")
+                                            + trueValueReg.toString() + string(", ") + codeGenerator::trueValueRepresentation());
 
-                                        string s1 = "j ";
-                                        string s2 = STC$2->beginLabel;
-                                        EMIT_TEXT(s1 + s2);
+                                        buffer.emit(string("beq ") + STC$1->reg.toString() + string(", ")
+                                             + trueValueReg.toString() + string(", ") + STC$2->beginLabel);
 
                                         string endLabel = buffer.genLabel();
 
                                         buffer.bpatch(STC$3->breakList,endLabel);
-                                        buffer.bpatch(STC$1->falseList,endLabel);
 
+                                        regFree(trueValueReg);
+                                        regFree(STC$1->reg);
                                         delete $1; delete $2;
                                        }
             ;
@@ -312,9 +314,19 @@ While_Open : WHILE LPAREN Exp RPAREN {TRY_AND_CATCH(scopesList->verifyExpIsBool(
                                       TRY_AND_CATCH(scopesList->newRegularScope(true));
 
                                       $$ = new parsedStatement();
-                                      STC$$->trueList = EXC$3->trueList;
-                                      STC$$->falseList = EXC$3->falseList;
-                                      STC$$->boolType = BPInfo::BOOL_TYPE_BRANCH_LISTS;
+                                      assert(EXC$3->boolType != BPInfo::BOOL_TYPE_UNDEF);
+                                      if(EXC$3->boolType == BPInfo::BOOL_TYPE_BRANCH_LISTS){
+                                        STC$$->reg = regAlloc();
+                                        codeGenerator::assignBoolIntoV1(*EXC$3);
+                                        buffer.emit(string("addu ") + STC$$->reg.toString() + string(", $v1, $0"));
+                                        }
+                                      else{
+                                        STC$$->reg = STC$3->reg;
+                                      }
+
+                                      STC$$->boolType = BPInfo::BOOL_TYPE_VALUE;
+                                      STC$$->regType = BPInfo::REG_TYPE_VALUE;
+
                                       delete $3;}
         ;
 
@@ -408,6 +420,7 @@ ExpList:    Exp ExpList2 {  $$ = new parsedExp(*EXC$1,*EXC$2) ;
                                 codeGenerator::assignBoolIntoV1(*EXC$1);
                                 buffer.emit(string("addu ") + $$->list_of_vars.front().reg.toString() + string(", $v1, $0"));
                                 $$->list_of_vars.front().boolType = BPInfo::BOOL_TYPE_VALUE;
+                                $$->list_of_vars.front().regType = BPInfo::REG_TYPE_VALUE;
                             }
 
 		                    delete $1; delete $2;}
@@ -681,7 +694,6 @@ int main()
         cout.rdbuf( strCout.rdbuf() );
     }
 
-    bool print_hw3_error = false;
 	// initSystem
 	scopesList = new scopes();
 	scopesList->scopesList.push_front(scope(0,false));
@@ -694,25 +706,21 @@ int main()
 	    yyparse();
 	}catch(parsingExceptions& e){
 	    scopesList->need_to_print = false;
-	    print_hw3_error = true;
 	}
 	catch(...){
 	    scopesList->need_to_print = false;
- 	    print_hw3_error = true;
-       if(PRINT_DEBUG) cout << "Something wierd happened!!!" << endl;
+        if(PRINT_DEBUG) cout << "Something wierd happened!!!" << endl;
 	}
 	if(scopesList->need_to_print){      //check valid main function in the scopelist
 	    if(!scopesList->containsFunctionName("main")){
    	        scopesList->need_to_print = false;
- 	        print_hw3_error = true;
-           errorMainMissing();
+            errorMainMissing();
     	}else{
     	    function main_func = scopesList->getFunction("main");
     	    if((main_func.return_type.kind != main_func.return_type.VOID ||
     	            !main_func.inputTypes.empty())){
                 scopesList->need_to_print = false;
                 errorMainMissing();
-	            print_hw3_error = true;
                 if(PRINT_DEBUG) cout <<"in the if to check the main function" << endl;
             }
         }
@@ -721,8 +729,8 @@ int main()
     delete scopesList;
 
     // Restore old cout.
-    if(!PRINT_HW3_STUFF || print_hw3_error) cout.rdbuf( oldCoutStreamBuf );
-    if(PRINT_HW5_STUFF && scopesList->need_to_print){
+    if(!PRINT_HW3_STUFF) cout.rdbuf( oldCoutStreamBuf );
+    if(PRINT_HW5_STUFF){
 	    buffer.printCodeBuffer();
 	    buffer.printDataBuffer();
 	 }
