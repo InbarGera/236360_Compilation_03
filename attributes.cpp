@@ -983,7 +983,7 @@ void codeGenerator::assignArrayToArray(Id id,parsedExp exp){ //branch bug : if b
     regClass tempReg = regAlloc();
 
     for(int i=0; i < id.type.arrayLength; i++){
-        int offset = string_to_num(offsetFromFp.c_str()) + i*4; // is it + or - ??
+        int offset = string_to_num(offsetFromFp.c_str()) - i*4; // is it + or - ??
         buffer.emit(string("lw ") + reg.toString() + string(", (") + exp.reg.toString() + string(")"));
         buffer.emit(string("add ") + exp.reg.toString() + string(", ") + exp.reg.toString() + string(", ") + string("4"));
         if(offset >= 0)
