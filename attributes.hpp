@@ -308,7 +308,7 @@ public:
     bool containsIdName(string name);
     bool containsFunctionName(string name);
     void addInitialFunction(Type returnType, string name, Type inputType);
-    void addFunction(parsedData retType,parsedData Id, parsedData functionInputs);
+    void addFunction(parsedData retType,parsedData Id, parsedData functionInputs, parsedExp labelExp);
 
     void addIdArray(parsedData Id,parsedData type,parsedData arraySize);
     void addIdNotArray(parsedData type);

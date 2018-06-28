@@ -567,9 +567,14 @@ void scopes::addInitialFunction(Type returnType, string name, Type inputType){
         functionInputTypes.push_front(inputType);
 
         function temp(name, returnType, functionInputTypes);
+        if(name == "print")
+            temp.beginLabel = "printFunc";
+        if(name == "printi")
+            temp.beginLabel = "printiFunc";
+
         functions.push_front(temp);
     }
-void scopes::addFunction(parsedData retType,parsedData Id, parsedData functionInputs){
+void scopes::addFunction(parsedData retType,parsedData Id, parsedData functionInputs, parsedExp labelExp){
         assert(retType.kind == retType.DK_SINGLE);
         assert(Id.kind == Id.DK_SINGLE);
 
@@ -593,6 +598,7 @@ void scopes::addFunction(parsedData retType,parsedData Id, parsedData functionIn
 
         // inserting to the function list
         function temp(name, returnType, functionInputTypes);
+        temp.beginLabel = labelExp.beginLabel;
         functions.push_front(temp);
     }
 void scopes::addIdArray(parsedData Id,parsedData type,parsedData arraySize) {
@@ -849,11 +855,13 @@ void codeGenerator::initiatePrintFunctions(){
     buffer.emit(string("printiFunc: lw $a0, 0($sp)"));
     buffer.emit(string("li $v0, 1"));
     buffer.emit(string("syscall"));
+    buffer.emit(string("addu $sp, $sp, 4"));
     buffer.emit(string("jr $ra"));
 
     buffer.emit(string("printFunc: lw $a0, 0($sp)"));
     buffer.emit(string("li $v0, 4"));
     buffer.emit(string("syscall"));
+    buffer.emit(string("addu $sp, $sp, 4"));
     buffer.emit(string("jr $ra"));
 }
 
@@ -950,7 +958,7 @@ void codeGenerator::assignBoolIntoLocation(parsedExp exp, regClass destination){
 void codeGenerator::assignBoolIntoV1(parsedExp exp){
     buffer.bpatch(exp.trueList,buffer.genLabel());
 
-    buffer.emit(string("# in  assignBoolIntoV1"));
+    buffer.emit(string("# in assignBoolIntoV1"));
     buffer.emit(string("addu $v1, $0, ") + trueValueRepresentation());
 
     vector<int> temp;
@@ -1219,8 +1227,6 @@ void codeGenerator::cleanStack(){
     if(firstOnStack.type.kind == Type::UNDEF) // if there is no variable then stack is already ok
         return;
 
-    totalOffset = firstOnStack.offset + 1; // the plus 1 is because first variable is at location 0, will need to verify it in runtime
-
     scope lastScope;
     while(!copyOfAllScopes.scopesList.empty()){
         lastScope = copyOfAllScopes.scopesList.front();
@@ -1240,10 +1246,26 @@ void codeGenerator::cleanStack(){
 
     //cout << "for debug: last Id name = " << lastOnStack.name << ", and offset = " << lastOnStack.offset << endl;
 
-    if(lastOnStack.type.kind != Type::UNDEF)
-        totalOffset -= lastOnStack.offset;
+    if(lastOnStack.type.kind == Type::UNDEF ){ //only one variable
+        if(firstOnStack.offset >= 0)
+            totalOffset = firstOnStack.offset + 1;
+        else
+            totalOffset = - firstOnStack.offset;
+    }
+    else{ // there are at least 2 variables
+        if(firstOnStack.offset >= 0 && lastOnStack.offset < 0)
+            totalOffset = firstOnStack.offset + 1 - lastOnStack.offset;
+        else if(firstOnStack.offset >= 0 && lastOnStack.offset >= 0)
+            totalOffset = firstOnStack.offset + 1;
+        else
+            totalOffset = -firstOnStack.offset;
+    }
 
     totalOffset *= 4;
+    buffer.emit(string("# in cleanStack"));
+    buffer.emit(string("# firstOnStack name = ") +firstOnStack.name + string(", offset = ") + num_to_string(firstOnStack.offset));
+    buffer.emit(string("# secondOnStack name = ") + lastOnStack.name + string(", offset = ") + num_to_string(lastOnStack.offset));
+
     buffer.emit(string("add $sp, $sp, ") + num_to_string(totalOffset));
 }
 
@@ -1253,6 +1275,7 @@ void codeGenerator::returnVoidFunction(){
 }
 
 void codeGenerator::returnFunction(parsedExp returnExp){
+    buffer.emit(string("# in returnFunction begin"));
     regClass tempReg = regAlloc();
 
     if(returnExp.regType == REG_TYPE_UNDEF) { // bool
@@ -1271,6 +1294,7 @@ void codeGenerator::returnFunction(parsedExp returnExp){
     buffer.emit(string("jr $ra"));
 
     regFree(tempReg);
+    buffer.emit(string("# in returnFunction end"));
 }
 
 void codeGenerator::callFunction(string func_name, parsedExp input_list,regClass returnReg){
@@ -1290,7 +1314,7 @@ void codeGenerator::callFunction(string func_name, parsedExp input_list,regClass
     returnBackPatchList.push_back(buffer.emit(string("la $ra, ")));
 
     // jump to function
-    buffer.emit(string("jal "+func_name));
+    buffer.emit(string("jal " + func_name));
 
     // backPatching the return address
     buffer.bpatch(returnBackPatchList,buffer.genLabel());

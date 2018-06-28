@@ -53,26 +53,23 @@ Program	:	Funcs
 Funcs :
 		|	Function Funcs
 		;
-Function : FunctionDefinition LBRACE Gen_Label Statements RBRACE_t {
-                                                                    scopesList->functions.front().beginLabel = STC$3->beginLabel;
+Function : FunctionDefinition LBRACE Statements RBRACE_t {
                                                                     if($1->single_var.name == "main"){
-                                                                        buffer.bpatch(goToMainBackPatch,STC$3->beginLabel);
+                                                                        buffer.bpatch(goToMainBackPatch,scopesList->functions.front().beginLabel);
                                                                     }
 
                                                                     codeGenerator::returnVoidFunction();
                                                                     buffer.emit(string("# End of function"));
 
-                                                                    delete $1; delete $3; delete $4;}
+                                                                    delete $1; delete $3;}
         ;
 
-FunctionDefinition : RetType ID LPAREN Formals RPAREN {TRY_AND_CATCH(scopesList->addFunction(*$1,*$2,*$4));
-                                                       TRY_AND_CATCH(scopesList->newFunctionScope(*$4));
-                                                       $$ = $2;
-                                                       buffer.emit(string("# Function: ") + $2->single_var.name);
-                                                       //if($2->single_var.name == "main")
-                                                        //buffer.emit(string("main:"));
+FunctionDefinition : RetType ID LPAREN Formals Gen_Label RPAREN {TRY_AND_CATCH(scopesList->addFunction(*$1,*$2,*$4,*EXC$5));
+                                                                   TRY_AND_CATCH(scopesList->newFunctionScope(*$4));
+                                                                   $$ = $2;
+                                                                   buffer.emit(string("# Function: ") + $2->single_var.name);
 
-                                                       delete $1; delete $4;}
+                                                                   delete $1; delete $4; delete $5;}
                    ;
 
 RetType : Type          {$$ = $1;}
@@ -387,7 +384,7 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
                                                 codeGenerator::trueValueRepresentation());
 
                                             EXC$$->trueList.push_back(buffer.emit(string("beq ") + tempReg.toString() + string(", ") +
-                                                EXC$$->reg.toString()));
+                                                EXC$$->reg.toString() + string(", "))) ;
                                             EXC$$->falseList.push_back(buffer.emit(string("j ")));
 
                                             regFree(EXC$$->reg);
