@@ -1372,3 +1372,82 @@ void codeGenerator::generateNewSingleVarCreation(parsedExp exp){
 
     regFree(tempReg);
 }
+
+
+
+
+void callerSaveRegisters(){
+    for (int i = 0; i <26 ; i++) {
+        string reg_to_save = IntToReg(i);
+        buffer.emit(string("subu $sp, $sp, 4"));
+        buffer.emit(string("sw ")+reg_to_save+string(", ($sp)"));
+    }
+}
+void callerRestoreRegisters(){
+    for (int i = 26; i >0 ; i--) {
+        string reg_to_load = IntToReg(i-1);
+        buffer.emit(string("lw ")+reg_to_load+string(", ($sp)"));
+        buffer.emit(string("addu $sp, $sp, 4"));
+    }
+}
+
+string IntToReg(int reg_to_save){
+    switch (reg_to_save){
+        case 0:
+            return string("$a0");
+        case 1:
+            return string("$a1");
+        case 2:
+            return string("$a2");
+        case 3:
+            return string("$a3");
+        case 4:
+            return string("$t0");
+        case 5:
+            return string("$t1");
+        case 6:
+            return string("$t2");
+        case 7:
+            return string("$t3");
+        case 8:
+            return string("$t4");
+        case 9:
+            return string("$t5");
+        case 10:
+            return string("$t6");
+        case 11:
+            return string("$t7");
+        case 12:
+            return string("$t8");
+        case 13:
+            return string("$t9");
+        case 14:
+            return string("$v1");
+        case 15:
+            return string("$s0");
+        case 16:
+            return string("$s1");
+        case 17:
+            return string("$s2");
+        case 18:
+            return string("$s3");
+        case 19:
+            return string("$s4");
+        case 20:
+            return string("$s5");
+        case 21:
+            return string("$s6");
+        case 22:
+            return string("$s7");
+        case 23:
+            return string("$s8");
+        case 24:
+            return string("$k0");
+        case 25:
+            return string("$k1");
+
+    }
+}
+
+
+

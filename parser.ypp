@@ -297,17 +297,19 @@ CloseScope : { scopesList->removeScope(); }
 
 While_Statement : While_Open Gen_Label Statement {
                                         $$ = new parsedStatement(); // for the delete at higher levels
-
+                                        STC$$->beginLabel = STC$1->beginLabel;
                                         regClass trueValueReg = regAlloc();
                                         buffer.emit(string("add ") + trueValueReg.toString() + string(", ")
                                             + trueValueReg.toString() + string(", ") + codeGenerator::trueValueRepresentation());
 
                                         buffer.emit(string("beq ") + STC$1->reg.toString() + string(", ")
-                                             + trueValueReg.toString() + string(", ") + STC$2->beginLabel);
+                                            + trueValueReg.toString() + string(", ") + STC$1->beginLabel);
 
                                         string endLabel = buffer.genLabel();
 
                                         buffer.bpatch(STC$3->breakList,endLabel);
+                                        //buffer.bpatch(STC$3->breakList,STC$1->endLabel);
+                                        //buffer.emit(string("j ")+STC$$->beginLabel);
 
                                         regFree(trueValueReg);
                                         regFree(STC$1->reg);
@@ -316,7 +318,7 @@ While_Statement : While_Open Gen_Label Statement {
                                        }
             ;
 
-While_Open : WHILE LPAREN Exp RPAREN {TRY_AND_CATCH(scopesList->verifyExpIsBool(*$3));
+While_Open : WHILE LPAREN WhileExp RPAREN {TRY_AND_CATCH(scopesList->verifyExpIsBool(*$3));
                                       TRY_AND_CATCH(scopesList->newRegularScope(true, true));
 
                                       $$ = new parsedStatement();
@@ -332,9 +334,28 @@ While_Open : WHILE LPAREN Exp RPAREN {TRY_AND_CATCH(scopesList->verifyExpIsBool(
 
                                       STC$$->boolType = BPInfo::BOOL_TYPE_VALUE;
                                       STC$$->regType = BPInfo::REG_TYPE_VALUE;
+                                      STC$$->beginLabel = STC$3->beginLabel;
+                                      STC$$->endLabel = STC$3->endLabel;
 
                                       delete $3;}
         ;
+
+WhileExp : Save_Regs Exp_t  {$$ = $1;
+                                       // STC$$->beginLabel = STC$1->beginLabel;
+                                        STC$$->endLabel = STC$2->beginLabel;
+                                        }
+         ;
+Exp_t       :       Exp {$$ = $1;
+                        //STC$$->beginLabel = buffer.genLabel();
+                        EXC$$->reg = regAlloc();
+                        codeGenerator::assignBoolIntoV1(*EXC$1);
+                         callerRestoreRegisters();
+                         buffer.emit(string("addu ")+(EXC$$->reg.toString())+string("$v1, $0"));
+                        }
+            ;
+Save_Regs   :       {$$ = new parsedStatement(buffer.genLabel());
+                    callerSaveRegisters();}
+             ;
 
 Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3);}
                                             catch(parsingExceptions& e){

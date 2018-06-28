@@ -41,6 +41,9 @@ enum binOps {
     BOOL_OP,
     MATH_OP
 };
+void callerSaveRegisters();
+void callerRestoreRegisters();
+string IntToReg(int reg_to_save);
 
 //====================== ERROR HANDLING CLASS ===============================//
 class parsingExceptions : std::exception {
@@ -117,6 +120,7 @@ public:
     BoolType boolType;
 
     string beginLabel;
+    string endLabel;
     std::vector<int> trueList;
     std::vector<int> falseList;
     std::vector<int> nextList;
@@ -378,5 +382,7 @@ public:
 
 
 };
+
+
 
 #endif
