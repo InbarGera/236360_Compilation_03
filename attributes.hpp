@@ -42,11 +42,6 @@ enum binOps {
     MATH_OP
 };
 
-enum registerType{
-    REG_TYPE_VALUE,
-    REG_TYPE_REFERENCE,
-    REG_TYPE_UNDEF
-}; // HW5
 //====================== ERROR HANDLING CLASS ===============================//
 class parsingExceptions : std::exception {
 public:
@@ -106,6 +101,21 @@ public:
 //=========================== DATA TYPES ====================================//
 class BPInfo {
 public:
+    enum registerType{
+        REG_TYPE_VALUE,
+        REG_TYPE_REFERENCE,
+        REG_TYPE_UNDEF
+    };
+    enum BoolType{
+        BOOL_TYPE_VALUE,
+        BOOL_TYPE_BRANCH_LISTS,
+        BOOL_TYPE_UNDEF
+    };
+
+    regClass reg; //same name as in VarInfo, make sure to change both if one is changed.
+    registerType regType; //same name as in VarInfo, make sure to change both if one is changed.
+    BoolType boolType;
+
     string beginLabel;
     std::vector<int> trueList;
     std::vector<int> falseList;
@@ -150,8 +160,6 @@ class VarInfo : public VarBase, public BPInfo{
 public:
     //enum registerType{value,reference,undef}; // /*HW5*/ same as in parsedExp, make sure to change both if one is changed.
     int value;
-    regClass reg; /*HW5*/ //same name as in parsedExp, make sure to change both if one is changed.
-    registerType regType; /*HW5*/ //same name as in parsedExp, make sure to change both if one is changed.
     VarInfo();
     VarInfo(Type type);
     VarInfo(int val);
@@ -251,8 +259,6 @@ public:
 class parsedExp : public parsedData, public BPInfo {
 public:
     //enum registerType{value,reference,undef}; // same as in VarInfo, make sure to change both if one is changed.
-    regClass reg; //same name as in VarInfo, make sure to change both if one is changed.
-    registerType regType; //same name as in VarInfo, make sure to change both if one is changed.
 
     parsedExp(Type::typeKind kind);
     parsedExp(Type type) ;

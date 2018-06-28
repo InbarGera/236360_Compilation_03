@@ -197,7 +197,7 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
                                                      $$ = new parsedStatement();
                                                      codeGenerator::assignValueToArray(scopesList->getId($1->getName()),*EXC$3,*EXC$6);
 
-                                                     if(!(EXC$6->regType == REG_TYPE_UNDEF))
+                                                     if(!(EXC$6->regType == BPInfo::REG_TYPE_UNDEF))
                                                         regFree(EXC$6->reg);
                                                      regFree(EXC$3->reg);
                                                      delete $1; delete $3; delete $6;
@@ -209,7 +209,7 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
 			                        if(!EXC$1->falseList.empty())
                                         buffer.bpatch(EXC$1->falseList,buffer.genLabel());
 
-			                        if(EXC$1->regType != REG_TYPE_UNDEF) regFree(EXC$1->reg);
+			                        if(EXC$1->regType != BPInfo::REG_TYPE_UNDEF) regFree(EXC$1->reg);
 			                        delete $1;
 			                        }
 			|	RETURN SC           {TRY_AND_CATCH(scopesList->verifyReturnTypeVoid());
@@ -314,6 +314,7 @@ While_Open : WHILE LPAREN Exp RPAREN {TRY_AND_CATCH(scopesList->verifyExpIsBool(
                                       $$ = new parsedStatement();
                                       STC$$->trueList = EXC$3->trueList;
                                       STC$$->falseList = EXC$3->falseList;
+                                      STC$$->boolType = BPInfo::BOOL_TYPE_BRANCH_LISTS;
                                       delete $3;}
         ;
 
@@ -331,14 +332,14 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
 
                                          EXC$$->reg = regAlloc();
                                          if((scopesList->getFunction($1->getName())).return_type.kind == Type::VOID)
-                                            EXC$$->regType = REG_TYPE_UNDEF;
+                                            EXC$$->regType = BPInfo::REG_TYPE_UNDEF;
                                          else
-                                            EXC$$->regType = REG_TYPE_VALUE;
+                                            EXC$$->regType = BPInfo::REG_TYPE_VALUE;
 
                                          codeGenerator::callFunction(scopesList->getFunction($1->getName()).beginLabel
                                                                       ,*EXC$3,EXC$$->reg);
 
-                                         if(EXC$$->regType == REG_TYPE_UNDEF)
+                                         if(EXC$$->regType == BPInfo::REG_TYPE_UNDEF)
                                             regFree(EXC$$->reg);
 
                                          regClass tempReg = regAlloc();
@@ -351,7 +352,8 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
                                             EXC$$->falseList.push_back(buffer.emit(string("j ")));
 
                                             regFree(EXC$$->reg);
-                                            EXC$$->regType = REG_TYPE_UNDEF;
+                                            EXC$$->regType = BPInfo::REG_TYPE_UNDEF;
+                                            EXC$$->boolType = BPInfo::BOOL_TYPE_BRANCH_LISTS;
                                          }
 
                                           regFree(tempReg);
@@ -368,14 +370,14 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
 
                                          EXC$$->reg = regAlloc();
                                          if((scopesList->getFunction($1->getName())).return_type.kind == Type::VOID)
-                                            EXC$$->regType = REG_TYPE_UNDEF;
+                                            EXC$$->regType = BPInfo::REG_TYPE_UNDEF;
                                          else
-                                            EXC$$->regType = REG_TYPE_VALUE;
+                                            EXC$$->regType = BPInfo::REG_TYPE_VALUE;
 
                                          parsedExp dummy(Type::UNDEF);
                                          codeGenerator::callFunction(scopesList->getFunction($1->getName()).beginLabel,dummy,EXC$$->reg);
 
-                                         if(EXC$$->regType == REG_TYPE_UNDEF)
+                                         if(EXC$$->regType == BPInfo::REG_TYPE_UNDEF)
                                             regFree(EXC$$->reg);
 
                                          regClass tempReg = regAlloc();
@@ -388,7 +390,8 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
                                             EXC$$->falseList.push_back(buffer.emit(string("j ")));
 
                                             regFree(EXC$$->reg);
-                                            EXC$$->regType = REG_TYPE_UNDEF;
+                                            EXC$$->regType = BPInfo::REG_TYPE_UNDEF;
+                                            EXC$$->boolType = BPInfo::BOOL_TYPE_BRANCH_LISTS;
                                          }
 
                                          regFree(tempReg);
@@ -398,8 +401,15 @@ Call	:	ID LPAREN ExpList RPAREN    {try {scopesList->verifyFunctionCall(*$1,*$3)
 ExpList:    Exp ExpList2 {  $$ = new parsedExp(*EXC$1,*EXC$2) ;
                             $$->list_of_vars.front().reg = EXC$1->reg;
                             $$->list_of_vars.front().regType = EXC$1->regType;
-                            $$->list_of_vars.front().trueList = EXC$1->trueList;
-		                    $$->list_of_vars.front().falseList = EXC$1->falseList;
+
+                            if(EXC$1->isBool()){
+                                assert(EXC$1->boolType == BPInfo::BOOL_TYPE_BRANCH_LISTS && "if got here, it might be due use of bool as not branch list");
+                                $$->list_of_vars.front().reg = regAlloc();
+                                codeGenerator::assignBoolIntoV1(*EXC$1);
+                                buffer.emit(string("addu ") + $$->list_of_vars.front().reg.toString() + string(", $v1, $0"));
+                                $$->list_of_vars.front().boolType = BPInfo::BOOL_TYPE_VALUE;
+                            }
+
 		                    delete $1; delete $2;}
 
 ExpList2 :                  { $$ = new parsedExp(IS_CALL); }
@@ -422,7 +432,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      $$ = new parsedExp(scopesList->getId($1->getName()).type.arrayType);
 
                                      EXC$$->reg = regAlloc();
-                                     EXC$$->regType = REG_TYPE_VALUE;
+                                     EXC$$->regType = BPInfo::REG_TYPE_VALUE;
 
                                      regClass addressReg = regAlloc();
 
@@ -443,7 +453,8 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                         EXC$$->falseList.push_back(buffer.emit(string("j ")));
 
                                         regFree(EXC$$->reg);
-                                        EXC$$->regType = REG_TYPE_UNDEF; // hope this is enough for representing null
+                                        EXC$$->regType = BPInfo::REG_TYPE_UNDEF; // hope this is enough for representing null
+                                        EXC$$->boolType = BPInfo::BOOL_TYPE_BRANCH_LISTS;
                                         regFree(boolTrueValue);
                                      }
 
@@ -453,7 +464,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 		                            }
 		| 	Exp PLUS_MINUS Exp      {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, MATH_OP));
 		                             EXC$$->reg = regAlloc();
-                                     EXC$$->regType = REG_TYPE_VALUE;
+                                     EXC$$->regType = BPInfo::REG_TYPE_VALUE;
 
                                      string s1 = codeGenerator::arithmeticOpToString($2->pd_op);
                                      buffer.emit(s1 + EXC$$->reg.toString() + ", " + EXC$1->reg.toString() + ", " + EXC$3->reg.toString());
@@ -468,7 +479,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      }
 		|	Exp MUL_DIV Exp         {TRY_AND_CATCH($$ = new parsedExp(*$1,*$3, MATH_OP));
 		                             EXC$$->reg = regAlloc();
-		                             EXC$$->regType = REG_TYPE_VALUE;
+		                             EXC$$->regType = BPInfo::REG_TYPE_VALUE;
 
 		                             string s1 = codeGenerator::arithmeticOpToString($2->pd_op);
 
@@ -494,11 +505,11 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      codeGenerator::putIdAddressInRegister(scopesList->getId($1->getName()),addressReg);
 
                                      if($$->kind == parsedData::DK_ARRAY){
-                                        EXC$$->regType = REG_TYPE_REFERENCE;
+                                        EXC$$->regType = BPInfo::REG_TYPE_REFERENCE;
                                         buffer.emit(string("addu ") + EXC$$->reg.toString() + string(", $0, ") + addressReg.toString());
                                      }
                                      else{
-                                        EXC$$->regType = REG_TYPE_VALUE;
+                                        EXC$$->regType = BPInfo::REG_TYPE_VALUE;
                                         buffer.emit(string("lw ") + EXC$$->reg.toString() + string(", (") + addressReg.toString() + string(")"));
                                      }
 
@@ -514,7 +525,8 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                         EXC$$->falseList.push_back(buffer.emit(string("j ")));
 
                                         regFree(EXC$$->reg);
-                                        EXC$$->regType = REG_TYPE_UNDEF; // hope this is enough for representing null
+                                        EXC$$->regType = BPInfo::REG_TYPE_UNDEF; // hope this is enough for representing null
+                                        EXC$$->boolType = BPInfo::BOOL_TYPE_BRANCH_LISTS;
                                         regFree(boolTrueValue);
                                      }
 
@@ -526,7 +538,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 
         |	NUM_T	                {$$ = new parsedExp(*$1);
                                     EXC$$->reg =  regAlloc();
-                                    EXC$$->regType = REG_TYPE_VALUE;
+                                    EXC$$->regType = BPInfo::REG_TYPE_VALUE;
                                     string s1 = "li "; // load immediate
                                     string s2 = EXC$$->reg.toString();
                                     string s3 = ", ";
@@ -536,7 +548,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 
         |	STRING                  {$$ = new parsedExp(Type(Type::STRING));    // return string type
                                      EXC$$->reg =  regAlloc();
-                                     EXC$$->regType = REG_TYPE_REFERENCE;
+                                     EXC$$->regType = BPInfo::REG_TYPE_REFERENCE;
 
                                      // create string in .data segment
                                      string stringLocation = codeGenerator::pushStringToDataBuffer(*$1);
@@ -549,16 +561,27 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      EMIT_TEXT(s1 + s2 + s3 + s4);
                                     }
         |	TRUE	                {$$ = new parsedExp(Type(Type::BOOL)); // return bool type
+                                     EXC$$->boolType = BPInfo::BOOL_TYPE_BRANCH_LISTS;
+                                     EXC$$->regType = BPInfo::REG_TYPE_UNDEF;
+
                                      EXC$$->trueList.push_back(EMIT_TEXT("j "));
                                     }
 
 		|	FALSE	                {$$ = new parsedExp(Type(Type::BOOL)); // return bool type
+		                             EXC$$->boolType = BPInfo::BOOL_TYPE_BRANCH_LISTS;
+                                     EXC$$->regType = BPInfo::REG_TYPE_UNDEF;
 		                             EXC$$->falseList.push_back(EMIT_TEXT("j "));
                                     }
 
 		|	NOT Exp	                {TRY_AND_CATCH($$ = new parsedExp(*$2, BOOL_OP));
-		 		                     EXC$$->trueList = EXC$2->falseList;
-		 		                     EXC$$->falseList = EXC$2->trueList;
+		                             assert(EXC$2->boolType != BPInfo::BOOL_TYPE_UNDEF);
+		 		                     if(EXC$2->boolType == BPInfo::BOOL_TYPE_BRANCH_LISTS){
+		 		                        EXC$$->trueList = EXC$2->falseList;
+		 		                        EXC$$->falseList = EXC$2->trueList;
+		 		                     }
+		 		                     else
+		 		                        assert("it is ok, need to implement" && 0);
+		 		                     EXC$$->boolType = EXC$2->boolType;
 		 		                     delete $2;
 		 		                    }
 		|	Exp OR Gen_Label Exp              {TRY_AND_CATCH($$ = new parsedExp(*$1,*$4, BOOL_OP));
@@ -567,9 +590,15 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
         		                            << $1->getName() << " " << $3->getName()
         		                            << endl;
 
+                                     assert(EXC$1->boolType != BPInfo::BOOL_TYPE_UNDEF);
+                                     assert(EXC$4->boolType != BPInfo::BOOL_TYPE_UNDEF);
+
+
                                      buffer.bpatch(EXC$1->falseList,EXC$3->beginLabel);
                                      EXC$$->falseList = EXC$4->falseList;
                                      EXC$$->trueList = mergeVectors(EXC$4->trueList,EXC$1->trueList);
+
+                                     EXC$$->boolType = BPInfo::BOOL_TYPE_BRANCH_LISTS;
 
         		                     delete $1; delete $3;
                                     }  // make sure Exp and Exp are of type bool
@@ -579,9 +608,14 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
         		                            << $1->getName() << " " << $3->getName()
         		                            << endl;
 
+                                     assert(EXC$1->boolType != BPInfo::BOOL_TYPE_UNDEF);
+                                     assert(EXC$4->boolType != BPInfo::BOOL_TYPE_UNDEF);
+
         		                     buffer.bpatch(EXC$1->trueList,EXC$3->beginLabel);
-                                    EXC$$->trueList = EXC$4->trueList;
-                                    EXC$$->falseList = mergeVectors(EXC$4->falseList,EXC$1->falseList);
+                                     EXC$$->trueList = EXC$4->trueList;
+                                     EXC$$->falseList = mergeVectors(EXC$4->falseList,EXC$1->falseList);
+
+                                    EXC$$->boolType = BPInfo::BOOL_TYPE_BRANCH_LISTS;
 
         		                     delete $1; delete $3;
                                     }     // make sure Exp and Exp are of type bool
@@ -598,6 +632,8 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      string s5 = ", ";
                                      EXC$$->trueList.push_back(EMIT_TEXT(s1 + s2 + s3 + s4 + s5));
                                      EXC$$->falseList.push_back(EMIT_TEXT("j "));
+                                     EXC$$->boolType = BPInfo::BOOL_TYPE_BRANCH_LISTS;
+                                     EXC$$->regType = BPInfo::REG_TYPE_UNDEF;
 
                                      regFree(EXC$1->reg);
                                      regFree(EXC$3->reg);
@@ -616,6 +652,8 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
                                      string s5 = ", ";
                                      EXC$$->trueList.push_back(EMIT_TEXT(s1 + s2 + s3 + s4 + s5));
                                      EXC$$->falseList.push_back(EMIT_TEXT("j "));
+                                     EXC$$->boolType = BPInfo::BOOL_TYPE_BRANCH_LISTS;
+                                     EXC$$->regType = BPInfo::REG_TYPE_UNDEF;
 
                                      regFree(EXC$1->reg);
                                      regFree(EXC$3->reg);

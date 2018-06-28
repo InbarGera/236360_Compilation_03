@@ -391,16 +391,16 @@ parsedData::PDOp parsedData::stringToOp(string parsed_op_t){
 
 //=========================== BPInfo Class ===============================//
 
-BPInfo::BPInfo() : beginLabel("undef"){}
+BPInfo::BPInfo() : beginLabel("undef"), regType(REG_TYPE_UNDEF), boolType(BOOL_TYPE_UNDEF){}
 
 BPInfo::BPInfo(string label) : beginLabel(label){}
 
 
 //=========================== ParsedExp Class ===============================//
 
-parsedExp::parsedExp(Type::typeKind kind): parsedData(Type(kind)), regType(REG_TYPE_UNDEF){}
-parsedExp::parsedExp(Type type) : parsedData(type), regType(REG_TYPE_UNDEF){};
-parsedExp::parsedExp(parsedExp exp, binOps ops): regType(REG_TYPE_UNDEF) {
+parsedExp::parsedExp(Type::typeKind kind): parsedData(Type(kind)){}
+parsedExp::parsedExp(Type type) : parsedData(type){};
+parsedExp::parsedExp(parsedExp exp, binOps ops){
         if (ops == BOOL_OP) {
             if (exp.isBool()) {
                 *this = parsedExp(Type(Type::BOOL));
@@ -411,7 +411,7 @@ parsedExp::parsedExp(parsedExp exp, binOps ops): regType(REG_TYPE_UNDEF) {
             throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
         }
     }
-parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops): regType(REG_TYPE_UNDEF){
+parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops){
         switch (ops){
             case REL_OP: {
                 if (exp1.isInteger() && exp2.isInteger()) {
@@ -435,11 +435,11 @@ parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops): regType(REG_TY
                 throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
             }        }
     }
-parsedExp::parsedExp(parsedData data) : parsedData(data), regType(REG_TYPE_UNDEF){};
-parsedExp::parsedExp(parsedData data1, parsedData data2, binOps ops): regType(REG_TYPE_UNDEF){
+parsedExp::parsedExp(parsedData data) : parsedData(data){};
+parsedExp::parsedExp(parsedData data1, parsedData data2, binOps ops){
         *this = parsedExp(parsedExp(data1), parsedExp(data2), ops);
     }
-parsedExp::parsedExp(parsedData data, binOps ops): regType(REG_TYPE_UNDEF){
+parsedExp::parsedExp(parsedData data, binOps ops){
         *this = parsedExp(parsedExp(data), ops);
     }
 parsedExp parsedExp::maxRange(parsedExp exp1, parsedExp exp2) {
@@ -456,7 +456,7 @@ parsedExp parsedExp::maxRange(parsedExp exp1, parsedExp exp2) {
 parsedExp::parsedExp(parsedExp e1,parsedExp e2): parsedData(e1,e2){}
 
 bool parsedExp::isBoolExp(){
-    return regType == REG_TYPE_UNDEF; // (!(trueList.empty() && falseList.empty())) old code
+    return regType == BPInfo::REG_TYPE_UNDEF && boolType != BPInfo::BOOL_TYPE_UNDEF;
 }
 //=========================== ParsedStatement Class ===============================//
 
@@ -995,11 +995,11 @@ void codeGenerator::assignArrayToArray(Id id,parsedExp exp){ //branch bug : if b
 void codeGenerator::assignValueToId(Id id,parsedExp exp) {
 
     regClass tempReg = regAlloc();
-    if(exp.regType == REG_TYPE_REFERENCE) {
+    if(exp.regType == BPInfo::REG_TYPE_REFERENCE) {
         assignArrayToArray(id, exp);
     }
     else {
-        if (exp.regType == REG_TYPE_UNDEF)  // meaning it is the case of true/false list of bool
+        if (exp.regType == BPInfo::REG_TYPE_UNDEF)  // meaning it is the case of true/false list of bool
             assignBoolIntoV1(exp);
 
         if (string_to_num(idOffsetFromFp(id).c_str()) >= 0)
@@ -1008,7 +1008,7 @@ void codeGenerator::assignValueToId(Id id,parsedExp exp) {
             buffer.emit(string("subu ") + tempReg.toString() + string(", $fp, ") +
                         num_to_string(-string_to_num(idOffsetFromFp(id).c_str())));
 
-        if (exp.regType == REG_TYPE_UNDEF)  // meaning it is the case of true/false list of bool
+        if (exp.regType == BPInfo::REG_TYPE_UNDEF)  // meaning it is the case of true/false list of bool
             buffer.emit(string("sw $v1, (") + tempReg.toString() + string(")"));
         else
             assignNonBoolIntoLocation(exp, tempReg);
@@ -1054,7 +1054,7 @@ void codeGenerator::assignValueToArray(Id id,parsedExp offsetExp,parsedExp assig
     regClass addressReg = regAlloc();
     regClass toAssign = regAlloc();
 
-    if (assignExp.regType == REG_TYPE_UNDEF){ // bool
+    if (assignExp.regType == BPInfo::REG_TYPE_UNDEF){ // bool
         assignBoolIntoV1(assignExp);
         buffer.emit(string("addu ") + toAssign.toString() + string(", $v1, $0"));
     }
@@ -1093,8 +1093,16 @@ int codeGenerator::getIdOffset(string name){
     return scopesList->getId(name).offset;
 }
 
+static void pushNumeric(VarInfo simple_var){
+    buffer.emit(string("subu $sp, $sp, 4"));
+    buffer.emit(string("sw ") + simple_var.reg.toString() + string(", ($sp)"));
+    regFree(simple_var.reg);
+}
+
 static void pushBool(VarInfo var_bool){
-    assert(!(var_bool.trueList.empty() && var_bool.falseList.empty()));
+    assert(var_bool.boolType == BPInfo::BOOL_TYPE_VALUE);//(var_bool.trueList.empty() && var_bool.falseList.empty()));
+    pushNumeric(var_bool);
+    /*
     regClass tempReg = regAlloc();
     vector<int> tempBackPatchList;
 
@@ -1109,6 +1117,7 @@ static void pushBool(VarInfo var_bool){
     buffer.emit(string("sw ") + tempReg.toString() + string(", ($sp)"));
 
     regFree(tempReg);
+     */
 }
 
 static void pushArray(VarInfo var_array){
@@ -1128,12 +1137,6 @@ static void pushArray(VarInfo var_array){
     regFree(destinationReg);
     regFree(tempReg);
     regFree(var_array.reg);
-}
-
-static void pushNumeric(VarInfo simple_var){
-    buffer.emit(string("subu $sp, $sp, 4"));
-    buffer.emit(string("sw ") + simple_var.reg.toString() + string(", ($sp)"));
-    regFree(simple_var.reg);
 }
 
 static void pushString(VarInfo var_string){
@@ -1272,7 +1275,7 @@ void codeGenerator::returnFunction(parsedExp returnExp){
     buffer.emit(string("# in returnFunction begin"));
     regClass tempReg = regAlloc();
 
-    if(returnExp.regType == REG_TYPE_UNDEF) { // bool
+    if(returnExp.regType == BPInfo::REG_TYPE_UNDEF) { // bool
         assignBoolIntoV1(returnExp);
         buffer.emit(string("addu $v0, $v1, $0"));
     }
