@@ -15,139 +15,139 @@ parsingExceptions::parsingExceptions(errType err_type_t, int lineno_t)
 parsingExceptions::parsingExceptions(errType err_type_t, int lineno_t, string id_t)
         :print_now(true), err_type(err_type_t), lineno(lineno_t), id(id_t){};
 parsingExceptions::parsingExceptions(errType err_type_t, int lineno_t, string id_t, vector<string> args) :
-            print_now(true), err_type(err_type_t), id(id_t), lineno(lineno_t), argTypes(args){};
+        print_now(true), err_type(err_type_t), id(id_t), lineno(lineno_t), argTypes(args){};
 string parsingExceptions::intToString(int val){
-        int i=0;
-        int mod =1;
-        char retVal[100];
+    int i=0;
+    int mod =1;
+    char retVal[100];
 
-        if(val == 0){
-            retVal[0] = '0';
-            retVal [1] = '\0';
-            if(PRINT_DEBUG) cout << " in num translation, original num is : " << val << "translation is: " << retVal << endl;
-            return string(retVal);
-        }
-
-        while(val/mod)
-            mod*=10;
-        mod /= 10;
-        while(mod){
-            retVal[i++] = (char)((val/mod % 10) +'0');
-            mod /= 10;
-        }
-        retVal[i]='\0';
+    if(val == 0){
+        retVal[0] = '0';
+        retVal [1] = '\0';
         if(PRINT_DEBUG) cout << " in num translation, original num is : " << val << "translation is: " << retVal << endl;
         return string(retVal);
     }
+
+    while(val/mod)
+        mod*=10;
+    mod /= 10;
+    while(mod){
+        retVal[i++] = (char)((val/mod % 10) +'0');
+        mod /= 10;
+    }
+    retVal[i]='\0';
+    if(PRINT_DEBUG) cout << " in num translation, original num is : " << val << "translation is: " << retVal << endl;
+    return string(retVal);
+}
 void parsingExceptions::printErrMsg(){
-        switch (err_type) {
-            case ERR_LEX: {
-                errorLex(lineno);
-            }
-                break;
-            case ERR_SYN: {
-                errorSyn(lineno);
-            }
-                break;
-            case ERR_UNDEF: {
-                errorUndef(lineno, id);
-            }
-                break;
-            case ERR_DEF: {
-                errorDef(lineno, id);
-            }
-                break;
-            case ERR_UNDEF_FUN: {
-                errorUndefFunc(lineno, id);
-            }
-                break;
-            case ERR_MISMATCH: {
-                errorMismatch(lineno);
-            }
-                break;
-            case ERR_PROTOTYPE_MISMATCH: {
-                //if(PRINT_DEBUG) cout << "in ERR_PROTOTYPE_MISMATCH, argTypes.front() = " << argTypes.front() << endl;
-                errorPrototypeMismatch(lineno, id, argTypes);
-            }
-                break;
-            case ERR_UNEXPECTED_BREAK: {
-                errorUnexpectedBreak(lineno);
-            }
-                break;
-            case ERR_MAIN_MISSING: {
-                errorMainMissing();
-            }
-                break;
-            case ERR_BYTE_TOO_LARGE: {
-                if(PRINT_DEBUG) cout << "got into the case, id = " << id << endl;
-                errorByteTooLarge(lineno,id);
-            }
-                break;
-            case ERR_INVALID_ARRAY_SIZE: {
-                errorInvalidArraySize(lineno, id);
-            }
-                break;
-            case ERR_UNKNOWN_ERROR: {
-                if (PRINT_DEBUG) cout << "received an unknown error!!!!!!!!!!!!!!!!!!!!!!!" << endl;
-            }
-                break;
+    switch (err_type) {
+        case ERR_LEX: {
+            errorLex(lineno);
         }
+            break;
+        case ERR_SYN: {
+            errorSyn(lineno);
+        }
+            break;
+        case ERR_UNDEF: {
+            errorUndef(lineno, id);
+        }
+            break;
+        case ERR_DEF: {
+            errorDef(lineno, id);
+        }
+            break;
+        case ERR_UNDEF_FUN: {
+            errorUndefFunc(lineno, id);
+        }
+            break;
+        case ERR_MISMATCH: {
+            errorMismatch(lineno);
+        }
+            break;
+        case ERR_PROTOTYPE_MISMATCH: {
+            //if(PRINT_DEBUG) cout << "in ERR_PROTOTYPE_MISMATCH, argTypes.front() = " << argTypes.front() << endl;
+            errorPrototypeMismatch(lineno, id, argTypes);
+        }
+            break;
+        case ERR_UNEXPECTED_BREAK: {
+            errorUnexpectedBreak(lineno);
+        }
+            break;
+        case ERR_MAIN_MISSING: {
+            errorMainMissing();
+        }
+            break;
+        case ERR_BYTE_TOO_LARGE: {
+            if(PRINT_DEBUG) cout << "got into the case, id = " << id << endl;
+            errorByteTooLarge(lineno,id);
+        }
+            break;
+        case ERR_INVALID_ARRAY_SIZE: {
+            errorInvalidArraySize(lineno, id);
+        }
+            break;
+        case ERR_UNKNOWN_ERROR: {
+            if (PRINT_DEBUG) cout << "received an unknown error!!!!!!!!!!!!!!!!!!!!!!!" << endl;
+        }
+            break;
     }
+}
 parsingExceptions::~parsingExceptions() throw() {
-        if (print_now)
-            printErrMsg();
-    }
+    if (print_now)
+        printErrMsg();
+}
 //===========================================================================//
 //=========================== DATA TYPES ====================================//
 //===========================================================================//
 
 //=========================== TYPE CLASS ====================================//
 Type::Type() : kind(UNDEF), arrayLength(-1) {
-        arrayType = Type::UNDEF;
-    };
+    arrayType = Type::UNDEF;
+};
 Type::Type(typeKind Kind) : kind(Kind), arrayLength(-1){
-        if(kind == ARRAY) assert(0); // this constructor should get only basic types
-    }
+    if(kind == ARRAY) assert(0); // this constructor should get only basic types
+}
 Type::Type(typeKind Kind, int len) : kind(ARRAY), arrayLength(len), arrayType(Kind){
-        if (Kind == ARRAY) assert(0);
-    }
+    if (Kind == ARRAY) assert(0);
+}
 bool Type::operator==(const Type& toCompare){
-        if(kind != ARRAY) return kind == toCompare.kind;
-        return arrayLength == toCompare.arrayLength && arrayType == toCompare.arrayType;
-    }
+    if(kind != ARRAY) return kind == toCompare.kind;
+    return arrayLength == toCompare.arrayLength && arrayType == toCompare.arrayType;
+}
 int Type::size(){
-        return kind == ARRAY ? arrayLength:1;
-    }
+    return kind == ARRAY ? arrayLength:1;
+}
 string Type::typeKindToString(typeKind kind){
-        switch(kind) {
-            case VOID : {
-                return string("VOID");
-            }
-            case BOOL : {
-                return string("BOOL");
-            }
-            case INTEGER : {
-                return string("INT");
-            }
-            case BYTE : {
-                return string("BYTE");
-            }
-            case STRING : {
-                return string("STRING");
-            }
-            case ARRAY : {
-                return string("ARRAY");
-            }
-            default: {
-                assert(0);
-            }
+    switch(kind) {
+        case VOID : {
+            return string("VOID");
+        }
+        case BOOL : {
+            return string("BOOL");
+        }
+        case INTEGER : {
+            return string("INT");
+        }
+        case BYTE : {
+            return string("BYTE");
+        }
+        case STRING : {
+            return string("STRING");
+        }
+        case ARRAY : {
+            return string("ARRAY");
+        }
+        default: {
+            assert(0);
         }
     }
+}
 string Type::toString(){
-        if(kind == ARRAY)
-            return makeArrayType(typeKindToString(arrayType),arrayLength);
-        return typeKindToString(kind);
-    }
+    if(kind == ARRAY)
+        return makeArrayType(typeKindToString(arrayType),arrayLength);
+    return typeKindToString(kind);
+}
 
 //=========================== VarBase CLASS =================================//
 VarBase::VarBase(){};
@@ -160,15 +160,15 @@ VarInfo::VarInfo() : value(0), BPInfo(){};
 VarInfo::VarInfo(Type type): value(0),VarBase(type), BPInfo() {};
 VarInfo::VarInfo(int val) : value(val), VarBase(string(),Type::INTEGER), BPInfo() {};
 VarInfo::VarInfo(int val, string str, Type::typeKind kind):
-            value(val), VarBase(str,kind), BPInfo(){};
+        value(val), VarBase(str,kind), BPInfo(){};
 VarInfo::VarInfo(int val, string str, Type::typeKind kind, int len):
-            value(val), VarBase(str, kind, len), BPInfo(){};
+        value(val), VarBase(str, kind, len), BPInfo(){};
 
 //============================= ID CLASS ====================================//
 Id::Id(Type type_t, int offset, string name_t) : offset(offset){
-        this->type = type_t;
-        this->name = name_t;
-    };
+    this->type = type_t;
+    this->name = name_t;
+};
 
 Id::Id(){
     offset = -9876543; // or something better ?
@@ -177,18 +177,18 @@ Id::Id(){
 }
 //=========================== FUNCTION CLASS ================================//
 function::function(string idName_t, Type return_type_t, list<Type> inputTypes_t) :
-            idName(idName_t), return_type(return_type_t), inputTypes(inputTypes_t){};
+        idName(idName_t), return_type(return_type_t), inputTypes(inputTypes_t){};
 string function::toString(){
-        function temp = *this;
-        vector<string> inputTypes;
-        while(!temp.inputTypes.empty()){
-            Type temp2 = temp.inputTypes.front();
-            inputTypes.push_back(temp2.toString());
-            temp.inputTypes.pop_front();
-        }
-
-        return makeFunctionType(temp.return_type.toString(),inputTypes); // to reverse inputTypes
+    function temp = *this;
+    vector<string> inputTypes;
+    while(!temp.inputTypes.empty()){
+        Type temp2 = temp.inputTypes.front();
+        inputTypes.push_back(temp2.toString());
+        temp.inputTypes.pop_front();
     }
+
+    return makeFunctionType(temp.return_type.toString(),inputTypes); // to reverse inputTypes
+}
 
 //===========================================================================//
 //========================== GRAMMAR VARIABLES CLASSES ======================//
@@ -197,167 +197,167 @@ string function::toString(){
 //=========================== ParsedData Class ==============================//
 parsedData::parsedData() : kind(DK_UNDEF){ };
 parsedData::parsedData(GrammerVar g_var) : kind(DK_LIST), pd_op(PD_NO_OP){
-        if(g_var != IS_CALL)
-            assert(0);
-    }
+    if(g_var != IS_CALL)
+        assert(0);
+}
 parsedData::parsedData(Type type) : single_var(type), pd_op(PD_NO_OP){
-        kind = type.kind == Type::ARRAY ? DK_ARRAY : DK_SINGLE;
-    };
+    kind = type.kind == Type::ARRAY ? DK_ARRAY : DK_SINGLE;
+};
 parsedData::parsedData(char* tmp_yytext, GrammerVar g_var) : pd_op(PD_NO_OP){
-        kind = DK_SINGLE;
-        switch (g_var) {
-            case IS_INT: {
-                single_var = VarInfo(string_to_num(tmp_yytext));
-            }
-                break;
-            case IS_ID: {
-                single_var = VarInfo(0, string(tmp_yytext), Type::VOID);
-            }
-                break;
-            case IS_STR: {
-                char *tmp = remove_double_quotes(tmp_yytext);
-                single_var = VarInfo(0, string(tmp), Type::STRING);
-                free(tmp);
-            }
-                break;
-            case IS_ARRAY: {
-                //TODO - not supposed to get here
-                if (PRINT_DEBUG) cout << "something wierd happend!!!"
-                                      << " constructor yytext, g_var , IS_ARRAY"
-                                      << endl;
-            }
-                break;
-            case IS_CALL: {
-                //TODO - not supposed to get here
-                if (PRINT_DEBUG) cout << "something wierd happend!!!"
-                                      << " constructor yytext, g_var , IS_CALL"
-                                      << endl;
-            }
-                break;
-            case IS_OP:{
-                kind = DK_OP;
-                pd_op = stringToOp(string(tmp_yytext));
-            }
-                break;
-            default: {
-                if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(char*,GrammarVar)" << endl;
-                throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
-            }
+    kind = DK_SINGLE;
+    switch (g_var) {
+        case IS_INT: {
+            single_var = VarInfo(string_to_num(tmp_yytext));
+        }
+            break;
+        case IS_ID: {
+            single_var = VarInfo(0, string(tmp_yytext), Type::VOID);
+        }
+            break;
+        case IS_STR: {
+            char *tmp = remove_double_quotes(tmp_yytext);
+            single_var = VarInfo(0, string(tmp), Type::STRING);
+            free(tmp);
+        }
+            break;
+        case IS_ARRAY: {
+            //TODO - not supposed to get here
+            if (PRINT_DEBUG) cout << "something wierd happend!!!"
+                                  << " constructor yytext, g_var , IS_ARRAY"
+                                  << endl;
+        }
+            break;
+        case IS_CALL: {
+            //TODO - not supposed to get here
+            if (PRINT_DEBUG) cout << "something wierd happend!!!"
+                                  << " constructor yytext, g_var , IS_CALL"
+                                  << endl;
+        }
+            break;
+        case IS_OP:{
+            kind = DK_OP;
+            pd_op = stringToOp(string(tmp_yytext));
+        }
+            break;
+        default: {
+            if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(char*,GrammarVar)" << endl;
+            throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
         }
     }
+}
 parsedData::parsedData(Type type, parsedData& data) : kind(DK_SINGLE),pd_op(PD_NO_OP){
-        single_var.type = type;
-        single_var.name = data.getName();
-    }
+    single_var.type = type;
+    single_var.name = data.getName();
+}
 parsedData::parsedData(Type type, string id): pd_op(PD_NO_OP){ // for TYPE_ID -> TYPE ID
-        single_var = VarInfo(type);
-        single_var.name = id;
-    }
+    single_var = VarInfo(type);
+    single_var.name = id;
+}
 parsedData::parsedData(Type type, int value): pd_op(PD_NO_OP){
 
-        if(PRINT_DEBUG) cout << "inside parsedData(Type type, int value, value = " << value << endl;
+    if(PRINT_DEBUG) cout << "inside parsedData(Type type, int value, value = " << value << endl;
 
 
-        if(type.kind == Type::BYTE && (value<0||value>255))
-            throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE,parsingExceptions::intToString(value));
-        kind = DK_SINGLE;
-        single_var.value = value;
-        single_var.type = type;
-    }
+    if(type.kind == Type::BYTE && (value<0||value>255))
+        throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE,parsingExceptions::intToString(value));
+    kind = DK_SINGLE;
+    single_var.value = value;
+    single_var.type = type;
+}
 parsedData::parsedData(parsedData& data1, parsedData& data2): pd_op(PD_NO_OP){
-        if(data2.kind != DK_UNDEF)
-            kind = data2.kind;
+    if(data2.kind != DK_UNDEF)
+        kind = data2.kind;
 
-        single_var = data1.single_var;
-        single_var.name = data2.single_var.name;
-        switch (data2.kind){
-            case DK_SINGLE: {
-                single_var.type = data2.single_var.type;
-                single_var.value = data1.single_var.value;
-                if(single_var.type.kind == Type::BYTE) {
-                    if (single_var.value > 255 || single_var.value < 0)
-                        throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE,parsingExceptions::intToString(single_var.value));
-                }
-            }break;
-            case DK_ARRAY: {
-                single_var.type =
-                        Type(data1.single_var.type.kind, data2.single_var.type.arrayLength);
-            }break;
-            case DK_LIST: {
-                list_of_vars = data2.list_of_vars;
-                list_of_vars.push_front(data1.single_var);
-            }break;
-            default: {
-                if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData, parsedData)" << endl;
-                throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+    single_var = data1.single_var;
+    single_var.name = data2.single_var.name;
+    switch (data2.kind){
+        case DK_SINGLE: {
+            single_var.type = data2.single_var.type;
+            single_var.value = data1.single_var.value;
+            if(single_var.type.kind == Type::BYTE) {
+                if (single_var.value > 255 || single_var.value < 0)
+                    throw parsingExceptions(parsingExceptions::ERR_BYTE_TOO_LARGE,parsingExceptions::intToString(single_var.value));
             }
-        }
-
-    }
-parsedData::parsedData(parsedData& data, GrammerVar g_var): pd_op(PD_NO_OP) {
-        if (g_var == IS_CALL) {
-            kind = DK_LIST;
-            list_of_vars = data.list_of_vars;
-            if (data.list_of_vars.size() == 0)
-                list_of_vars.push_front(data.single_var);
-        } else if (g_var == IS_ARRAY) {
-            kind = DK_ARRAY;
+        }break;
+        case DK_ARRAY: {
             single_var.type =
-                    Type(data.single_var.type.kind, data.single_var.value);
-        } else {
-            if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData,GrammerVar)" << endl;
+                    Type(data1.single_var.type.kind, data2.single_var.type.arrayLength);
+        }break;
+        case DK_LIST: {
+            list_of_vars = data2.list_of_vars;
+            list_of_vars.push_front(data1.single_var);
+        }break;
+        default: {
+            if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData, parsedData)" << endl;
             throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
         }
     }
+
+}
+parsedData::parsedData(parsedData& data, GrammerVar g_var): pd_op(PD_NO_OP) {
+    if (g_var == IS_CALL) {
+        kind = DK_LIST;
+        list_of_vars = data.list_of_vars;
+        if (data.list_of_vars.size() == 0)
+            list_of_vars.push_front(data.single_var);
+    } else if (g_var == IS_ARRAY) {
+        kind = DK_ARRAY;
+        single_var.type =
+                Type(data.single_var.type.kind, data.single_var.value);
+    } else {
+        if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData,GrammerVar)" << endl;
+        throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+    }
+}
 parsedData::parsedData(parsedData& data1, parsedData& data2, GrammerVar g_var): pd_op(PD_NO_OP){
-        if(g_var == IS_ARRAY){
-            kind = DK_ARRAY;
-            Type int_t = Type(Type::INTEGER);
-            Type byte_t = Type(Type::BYTE);
-
-            if(PRINT_DEBUG) {
-                cout << "in parsedData(parsedData& data1, parsedData& data2, GrammerVar g_var), data2.single_var.value =  " << data2.single_var.value << endl;
-            }
-
-            if((data2.getType() == int_t || data2.getType() == byte_t)
-               && (data2.getInteger()>0 && data2.getInteger() <256 )){
-                single_var.name = data1.single_var.name;
-                single_var.type = Type(data1.single_var.type.kind, data2.single_var.value );
-            }
-            else
-                throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE, data1.single_var.name);      //TODO
-        }
-        else {
-            if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData,parsedData,GrammerVar)" << endl;
-            throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
-        }
-    }
-Type parsedData::getType(){
-        return single_var.type;
-    }
-string parsedData::getName(){
-        return single_var.name;
-    }
-int parsedData::getInteger(){
-        return single_var.value;
-    }
-bool parsedData::isInteger(){
+    if(g_var == IS_ARRAY){
+        kind = DK_ARRAY;
         Type int_t = Type(Type::INTEGER);
         Type byte_t = Type(Type::BYTE);
-        return (getType()==int_t || getType()==byte_t);
-    }
-bool parsedData::isBool(){
-        return getType().kind == Type::BOOL;
-    }
-vector<string> parsedData::getArgsTypes(){
-        assert(kind == DK_LIST);
-        vector<string> tmp;
-        while(!list_of_vars.empty()){
-            tmp.push_back(list_of_vars.front().name);
-            list_of_vars.pop_front();
+
+        if(PRINT_DEBUG) {
+            cout << "in parsedData(parsedData& data1, parsedData& data2, GrammerVar g_var), data2.single_var.value =  " << data2.single_var.value << endl;
         }
-        return tmp;
+
+        if((data2.getType() == int_t || data2.getType() == byte_t)
+           && (data2.getInteger()>0 && data2.getInteger() <256 )){
+            single_var.name = data1.single_var.name;
+            single_var.type = Type(data1.single_var.type.kind, data2.single_var.value );
+        }
+        else
+            throw parsingExceptions(parsingExceptions::ERR_INVALID_ARRAY_SIZE, data1.single_var.name);      //TODO
     }
+    else {
+        if (PRINT_DEBUG) cout << "reached a default case in constructor parsedData(parsedData,parsedData,GrammerVar)" << endl;
+        throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+    }
+}
+Type parsedData::getType(){
+    return single_var.type;
+}
+string parsedData::getName(){
+    return single_var.name;
+}
+int parsedData::getInteger(){
+    return single_var.value;
+}
+bool parsedData::isInteger(){
+    Type int_t = Type(Type::INTEGER);
+    Type byte_t = Type(Type::BYTE);
+    return (getType()==int_t || getType()==byte_t);
+}
+bool parsedData::isBool(){
+    return getType().kind == Type::BOOL;
+}
+vector<string> parsedData::getArgsTypes(){
+    assert(kind == DK_LIST);
+    vector<string> tmp;
+    while(!list_of_vars.empty()){
+        tmp.push_back(list_of_vars.front().name);
+        list_of_vars.pop_front();
+    }
+    return tmp;
+}
 
 parsedData::PDOp parsedData::stringToOp(string parsed_op_t){
     if (parsed_op_t == "+")
@@ -401,57 +401,57 @@ BPInfo::BPInfo(string label) : beginLabel(label){}
 parsedExp::parsedExp(Type::typeKind kind): parsedData(Type(kind)){}
 parsedExp::parsedExp(Type type) : parsedData(type){};
 parsedExp::parsedExp(parsedExp exp, binOps ops){
-        if (ops == BOOL_OP) {
-            if (exp.isBool()) {
+    if (ops == BOOL_OP) {
+        if (exp.isBool()) {
+            *this = parsedExp(Type(Type::BOOL));
+        } else
+            throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
+    } else {
+        if (PRINT_DEBUG) cout << "reached a default case in constructor parsedExp(parsedExp,binOps)" << endl;
+        throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
+    }
+}
+parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops){
+    switch (ops){
+        case REL_OP: {
+            if (exp1.isInteger() && exp2.isInteger()) {
                 *this = parsedExp(Type(Type::BOOL));
             } else
+                throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
+        }break;
+        case BOOL_OP: {
+            if (exp1.isBool() && exp2.isBool()) {
+                *this = parsedExp(Type(Type::BOOL));
+            } else
+                throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
+        }break;
+        case MATH_OP: {
+            if(!exp1.isInteger() || !exp2.isInteger())
                 throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
-        } else {
-            if (PRINT_DEBUG) cout << "reached a default case in constructor parsedExp(parsedExp,binOps)" << endl;
+            *this = maxRange(exp1, exp2);   //maxRange already throws the compatible error
+        }break;
+        default: {
+            if (PRINT_DEBUG) cout << "reached a default case in constructor parsedExp(parsedExp,parsedExp,binOps)" << endl;
             throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
-        }
-    }
-parsedExp::parsedExp(parsedExp exp1, parsedExp exp2, binOps ops){
-        switch (ops){
-            case REL_OP: {
-                if (exp1.isInteger() && exp2.isInteger()) {
-                    *this = parsedExp(Type(Type::BOOL));
-                } else
-                    throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
-            }break;
-            case BOOL_OP: {
-                if (exp1.isBool() && exp2.isBool()) {
-                    *this = parsedExp(Type(Type::BOOL));
-                } else
-                    throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
-            }break;
-            case MATH_OP: {
-                if(!exp1.isInteger() || !exp2.isInteger())
-                    throw parsingExceptions(parsingExceptions::ERR_MISMATCH);
-                *this = maxRange(exp1, exp2);   //maxRange already throws the compatible error
-            }break;
-            default: {
-                if (PRINT_DEBUG) cout << "reached a default case in constructor parsedExp(parsedExp,parsedExp,binOps)" << endl;
-                throw parsingExceptions(parsingExceptions::ERR_UNKNOWN_ERROR);      //TODO
-            }        }
-    }
+        }        }
+}
 parsedExp::parsedExp(parsedData data) : parsedData(data){};
 parsedExp::parsedExp(parsedData data1, parsedData data2, binOps ops){
-        *this = parsedExp(parsedExp(data1), parsedExp(data2), ops);
-    }
+    *this = parsedExp(parsedExp(data1), parsedExp(data2), ops);
+}
 parsedExp::parsedExp(parsedData data, binOps ops){
-        *this = parsedExp(parsedExp(data), ops);
-    }
+    *this = parsedExp(parsedExp(data), ops);
+}
 parsedExp parsedExp::maxRange(parsedExp exp1, parsedExp exp2) {
-        Type int_t = Type(Type::INTEGER);
-        Type byte_t = Type(Type::BYTE);
-        if (exp1.getType() == int_t || exp2.getType() == int_t)
-            return parsedExp(int_t);
-        else if (exp1.getType() == byte_t && exp2.getType() == byte_t)
-            return parsedExp(byte_t);
-        else
-            throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
-    }
+    Type int_t = Type(Type::INTEGER);
+    Type byte_t = Type(Type::BYTE);
+    if (exp1.getType() == int_t || exp2.getType() == int_t)
+        return parsedExp(int_t);
+    else if (exp1.getType() == byte_t && exp2.getType() == byte_t)
+        return parsedExp(byte_t);
+    else
+        throw parsingExceptions(parsingExceptions::ERR_MISMATCH);      //TODO
+}
 
 parsedExp::parsedExp(parsedExp e1,parsedExp e2): parsedData(e1,e2){}
 
@@ -481,42 +481,45 @@ parsedStatement::parsedStatement(string label){
 
 //=============================== SCOPE CLASS ===============================//
 scope::scope(){} // in case of the first scope scope
-scope::scope(int nextIdLocation, bool isWhileScope) : nextIdLocation(nextIdLocation), isWhileScope(isWhileScope){}
+scope::scope(int nextIdLocation, bool insideWhileScope_t, bool isWhileScope_t) :
+        nextIdLocation(nextIdLocation), insideWhileScope(insideWhileScope_t),
+        isWhileScope(isWhileScope_t){}
+
 void scope::addId(Type newIdType, string newIdName){
 
-        Id temp(newIdType,nextIdLocation,newIdName);
-        IdList.push_front(temp);
-        nextIdLocation += newIdType.size();
-    }
+    Id temp(newIdType,nextIdLocation,newIdName);
+    IdList.push_front(temp);
+    nextIdLocation += newIdType.size();
+}
 bool scope::containsId(string name){
-        list<Id> IdNames = IdList;
-        while(!IdNames.empty()){
-            if(IdNames.front().name == name)
-                return true;
-            IdNames.pop_front();
-        }
-        return false;
+    list<Id> IdNames = IdList;
+    while(!IdNames.empty()){
+        if(IdNames.front().name == name)
+            return true;
+        IdNames.pop_front();
     }
+    return false;
+}
 
 //============================== SCOPES CLASS ===============================//
 scopes::scopes() : need_to_print(true){};
 Id scopes::getId(string name){
-        list<scope> allScopes(scopesList);
-        if (PRINT_DEBUG) cout << "trying to GET the  ID:  " << name << endl;
-        if(allScopes.size() == 0)
-            assert(0);
-
-        for(list<scope>::iterator s = allScopes.begin(); s != allScopes.end() ; s++) {
-            if((*s).IdList.size() == 0)
-                continue;
-            for (list<Id>::iterator id = (*s).IdList.begin(); id !=(*s).IdList.end() ; id++){
-                if (PRINT_DEBUG) cout << "checking if " << (*id).name << " == " << name << endl;
-                if ((*id).name == name)
-                    return *id;
-            }
-        }
+    list<scope> allScopes(scopesList);
+    if (PRINT_DEBUG) cout << "trying to GET the  ID:  " << name << endl;
+    if(allScopes.size() == 0)
         assert(0);
+
+    for(list<scope>::iterator s = allScopes.begin(); s != allScopes.end() ; s++) {
+        if((*s).IdList.size() == 0)
+            continue;
+        for (list<Id>::iterator id = (*s).IdList.begin(); id !=(*s).IdList.end() ; id++){
+            if (PRINT_DEBUG) cout << "checking if " << (*id).name << " == " << name << endl;
+            if ((*id).name == name)
+                return *id;
+        }
     }
+    assert(0);
+}
 
 int scopes::getIdOffset(string name){
     Id temp = getId(name);
@@ -524,83 +527,83 @@ int scopes::getIdOffset(string name){
 }
 
 function scopes::getFunction(string name){
-        list<function> funcs = functions;
+    list<function> funcs = functions;
 
-        if(funcs.size() == 0)
-            assert(0);
-
-        for(list<function>::iterator fun = funcs.begin(); fun != funcs.end(); fun ++)
-            if((*fun).idName == name)
-                return *fun;
-
+    if(funcs.size() == 0)
         assert(0);
-    }
+
+    for(list<function>::iterator fun = funcs.begin(); fun != funcs.end(); fun ++)
+        if((*fun).idName == name)
+            return *fun;
+
+    assert(0);
+}
 bool scopes::containsIdName(string name){
-        list<scope> allScopes(scopesList);
+    list<scope> allScopes(scopesList);
 
-        if(allScopes.size() == 0)
-            return false;
-        if (PRINT_DEBUG) cout << "trying to find (bool) ID:  " << name << endl;
-        for(list<scope>::iterator s = allScopes.begin(); s != allScopes.end() ; s++) {
-            if((*s).IdList.size() == 0)
-                continue;
-            for (list<Id>::iterator id = (*s).IdList.begin(); id !=(*s).IdList.end() ; id++){
-                if (PRINT_DEBUG) cout << "checking if " << (*id).name << " == " << name << endl;
-                if ((*id).name == name)
-                    return true;
-            }
-        }
+    if(allScopes.size() == 0)
         return false;
-    }
-bool scopes::containsFunctionName(string name){
-        list<function> funcs = functions;
-
-        if(funcs.size() == 0)
-            return false;
-        for(list<function>::iterator fun = funcs.begin(); fun != funcs.end(); fun ++)
-            if((*fun).idName == name)
+    if (PRINT_DEBUG) cout << "trying to find (bool) ID:  " << name << endl;
+    for(list<scope>::iterator s = allScopes.begin(); s != allScopes.end() ; s++) {
+        if((*s).IdList.size() == 0)
+            continue;
+        for (list<Id>::iterator id = (*s).IdList.begin(); id !=(*s).IdList.end() ; id++){
+            if (PRINT_DEBUG) cout << "checking if " << (*id).name << " == " << name << endl;
+            if ((*id).name == name)
                 return true;
-        return false;
-    }
-void scopes::addInitialFunction(Type returnType, string name, Type inputType){
-        list<Type> functionInputTypes;
-        functionInputTypes.push_front(inputType);
-
-        function temp(name, returnType, functionInputTypes);
-        if(name == "print")
-            temp.beginLabel = "printFunc";
-        if(name == "printi")
-            temp.beginLabel = "printiFunc";
-
-        functions.push_front(temp);
-    }
-void scopes::addFunction(parsedData retType,parsedData Id, parsedData functionInputs, parsedExp labelExp){
-        assert(retType.kind == retType.DK_SINGLE);
-        assert(Id.kind == Id.DK_SINGLE);
-
-        //extracting the variables from the parsed data
-        string name = Id.single_var.name;
-        Type returnType = retType.single_var.type;
-
-        list<Type> functionInputTypes;
-        while(!functionInputs.list_of_vars.empty()){
-            functionInputTypes.push_back(functionInputs.list_of_vars.front().type);
-            functionInputs.list_of_vars.pop_front();
         }
-
-        // input check
-        if(containsFunctionName(name)) {
-            throw parsingExceptions(parsingExceptions::ERR_DEF,name);
-        }//errorUndefFunc(lineno,name); assert
-        /*   if(name == "main" &&(returnType.kind != returnType.VOID || !functionInputTypes.empty())) {
-               throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH,Id.getName());
-           } */ //throw {/* appropriate exception*/};
-
-        // inserting to the function list
-        function temp(name, returnType, functionInputTypes);
-        temp.beginLabel = labelExp.beginLabel;
-        functions.push_front(temp);
     }
+    return false;
+}
+bool scopes::containsFunctionName(string name){
+    list<function> funcs = functions;
+
+    if(funcs.size() == 0)
+        return false;
+    for(list<function>::iterator fun = funcs.begin(); fun != funcs.end(); fun ++)
+        if((*fun).idName == name)
+            return true;
+    return false;
+}
+void scopes::addInitialFunction(Type returnType, string name, Type inputType){
+    list<Type> functionInputTypes;
+    functionInputTypes.push_front(inputType);
+
+    function temp(name, returnType, functionInputTypes);
+    if(name == "print")
+        temp.beginLabel = "printFunc";
+    if(name == "printi")
+        temp.beginLabel = "printiFunc";
+
+    functions.push_front(temp);
+}
+void scopes::addFunction(parsedData retType,parsedData Id, parsedData functionInputs, parsedExp labelExp){
+    assert(retType.kind == retType.DK_SINGLE);
+    assert(Id.kind == Id.DK_SINGLE);
+
+    //extracting the variables from the parsed data
+    string name = Id.single_var.name;
+    Type returnType = retType.single_var.type;
+
+    list<Type> functionInputTypes;
+    while(!functionInputs.list_of_vars.empty()){
+        functionInputTypes.push_back(functionInputs.list_of_vars.front().type);
+        functionInputs.list_of_vars.pop_front();
+    }
+
+    // input check
+    if(containsFunctionName(name)) {
+        throw parsingExceptions(parsingExceptions::ERR_DEF,name);
+    }//errorUndefFunc(lineno,name); assert
+    /*   if(name == "main" &&(returnType.kind != returnType.VOID || !functionInputTypes.empty())) {
+           throw parsingExceptions(parsingExceptions::ERR_PROTOTYPE_MISMATCH,Id.getName());
+       } */ //throw {/* appropriate exception*/};
+
+    // inserting to the function list
+    function temp(name, returnType, functionInputTypes);
+    temp.beginLabel = labelExp.beginLabel;
+    functions.push_front(temp);
+}
 void scopes::addIdArray(parsedData Id,parsedData type,parsedData arraySize) {
     if (containsIdName(Id.single_var.name) || containsFunctionName(Id.single_var.name)) {
         throw parsingExceptions(parsingExceptions::ERR_DEF, Id.single_var.name);
@@ -625,18 +628,18 @@ void scopes::addIdNotArray(parsedData type) {
     scopesList.front().addId(type.single_var.type, type.single_var.name);
     if (PRINT_DEBUG) cout << "\n\n\nadded ID (not array): " << type.single_var.name << endl;
 }
-void scopes::newRegularScope(bool isWhileScope) {
+void scopes::newRegularScope(bool insideWhileScope_t, bool isWhileScope_t) {
 
     int nextIdLocation = scopesList.front().nextIdLocation;
-    bool oldIsInWhileScope = scopesList.front().isWhileScope;
+    bool oldIsInWhileScope = scopesList.front().insideWhileScope;
 
-    scope temp(nextIdLocation, oldIsInWhileScope | isWhileScope);
+    scope temp(nextIdLocation, oldIsInWhileScope | insideWhileScope_t, isWhileScope_t);
     scopesList.push_front(temp);
 }
 void scopes::newFunctionScope(parsedData inputVars) {
 
     int newNextIdLocation = scopesList.front().nextIdLocation;
-    scope newScope(newNextIdLocation, false);// false because opening a function means that we are not in a while scope
+    scope newScope(newNextIdLocation, false, false);// false because opening a function means that we are not in a while scope
 
     // functions are always at the begin of the scope list, so for inserting the input values we will use a bit of
     // a hack, just manually insert the parameters to the next scope, without changing nextIdLocation.
@@ -659,21 +662,39 @@ void scopes::newFunctionScope(parsedData inputVars) {
 }
 void scopes::removeScope() {
     scope oldScope = scopesList.front();
-    int variblesSize = 0; //HW5
     // print the scope
     endScope();
-    while (!oldScope.IdList.empty()) {
-        Id temp = oldScope.IdList.back();
+    removeScopeVars(oldScope);
+    scopesList.pop_front();
+
+}
+
+void scopes::removeScopeVars(scope to_remove){
+    int variblesSize = 0; //HW5
+    while (!to_remove.IdList.empty()) {
+        Id temp = to_remove.IdList.back();
         printID(temp.name, temp.offset, temp.type.toString());
-        oldScope.IdList.pop_back();
+        to_remove.IdList.pop_back();
 
         variblesSize += temp.type.size()*4; // HW5
     }
 
-    scopesList.pop_front();
-
     buffer.emit(string("addu $sp, $sp, ") + num_to_string(variblesSize));
+
 }
+
+vector<scope> scopes::findFirstWhileScope(){
+    vector<scope> sub_scopes;
+    for(list<scope>::iterator s = scopesList.begin(); s != scopesList.end() ; s++) {
+        sub_scopes.push_back(*s);
+        if((*s).isWhileScope){
+            return sub_scopes;
+        }
+    }
+    assert(0);
+}
+
+
 void scopes::verifyAssign(parsedData id_t,parsedExp exp) {
     if (!containsIdName(id_t.single_var.name)) {
         throw parsingExceptions(parsingExceptions::ERR_UNDEF_FUN, id_t.single_var.name); // id not found
@@ -730,7 +751,7 @@ void scopes::verifyReturnType(parsedData returnType) {
     }//throw {/*  appropriate exception */}; //function return different type
 }
 void scopes::verifyBreakBlock() {
-    if (!scopesList.front().isWhileScope) {
+    if (!scopesList.front().insideWhileScope) {
         throw parsingExceptions(parsingExceptions::ERR_UNEXPECTED_BREAK);
     }//throw {/*  appropriate exception */}; //break in middle of not while scope
 }
@@ -983,7 +1004,7 @@ void codeGenerator::assignArrayToArray(Id id,parsedExp exp){ //branch bug : if b
     regClass tempReg = regAlloc();
 
     for(int i=0; i < id.type.arrayLength; i++){
-        int offset = string_to_num(offsetFromFp.c_str()) - i*4; // is it + or - ??
+        int offset = string_to_num(offsetFromFp.c_str()) + i*4; // is it + or - ??
         buffer.emit(string("lw ") + reg.toString() + string(", (") + exp.reg.toString() + string(")"));
         buffer.emit(string("add ") + exp.reg.toString() + string(", ") + exp.reg.toString() + string(", ") + string("4"));
         if(offset >= 0)
@@ -1022,7 +1043,7 @@ void codeGenerator::assignValueToId(Id id,parsedExp exp) {
 
 void codeGenerator::generateArrayOverflowCheck(int arrayLen,regClass reg) {
     if(PRINT_DEBUG)
-    cout << "in codeGenerator::generateArrayOverflowCheck(int arrayLen,regClass reg), arrayLen = " << arrayLen << endl;
+        cout << "in codeGenerator::generateArrayOverflowCheck(int arrayLen,regClass reg), arrayLen = " << arrayLen << endl;
     string res = "bge ";
     res += reg.toString();
     res += ", ";
@@ -1109,17 +1130,14 @@ static void pushBool(VarInfo var_bool){
     /*
     regClass tempReg = regAlloc();
     vector<int> tempBackPatchList;
-
     buffer.bpatch(var_bool.trueList,buffer.genLabel());
     buffer.emit(string("add ") + tempReg.toString() + string(", $0, ") + codeGenerator::trueValueRepresentation());
     tempBackPatchList.push_back(buffer.emit(string("j ")));
     buffer.bpatch(var_bool.falseList,buffer.genLabel());
     buffer.emit(string("add ") + tempReg.toString() + string(", $0, ") + codeGenerator::falseValueRepresentation());
     buffer.bpatch(tempBackPatchList,buffer.genLabel());
-
     buffer.emit(string("subu $sp, $sp, 4"));
     buffer.emit(string("sw ") + tempReg.toString() + string(", ($sp)"));
-
     regFree(tempReg);
      */
 }

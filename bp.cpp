@@ -23,22 +23,22 @@ string CodeBuffer::genLabel(){
 }
 
 int CodeBuffer::emit(const string &s){
-    buffer.push_back(s);
+	buffer.push_back(s);
 	return buffer.size() - 1;
 }
 
 void CodeBuffer::bpatch(const vector<int>& l, const std::string &label){
-    for(vector<int>::const_iterator i = l.begin(); i != l.end(); i++){
+	for(vector<int>::const_iterator i = l.begin(); i != l.end(); i++){
 		buffer[*i] += label;
-    }
+	}
 }
 
 void CodeBuffer::printCodeBuffer(){
 	std::cout << ".text" << std::endl;
-	for (std::vector<string>::const_iterator it = buffer.begin(); it != buffer.end(); ++it) 
+	for (std::vector<string>::const_iterator it = buffer.begin(); it != buffer.end(); ++it)
 	{
 		cout << *it << endl;
-    }
+	}
 }
 
 vector<int> CodeBuffer::makelist(int litem)
@@ -56,7 +56,7 @@ vector<int> CodeBuffer::merge(const vector<int> &l1,const vector<int> &l2)
 }
 
 // ******** Methods to handle the data section ********** //
-void CodeBuffer::emitData(const std::string& dataLine) 
+void CodeBuffer::emitData(const std::string& dataLine)
 {
 	dataDefs.push_back(dataLine);
 }
@@ -71,10 +71,10 @@ void CodeBuffer::printDataBuffer()
 }
 
 string CodeBuffer::genDataLabel(){
-    static int n=1;
-    std::stringstream label;
-    label << "labelData_";
-    label << n++;
-    std::string ret(label.str());
-    return ret;
+	static int n=1;
+	std::stringstream label;
+	label << "labelData_";
+	label << n++;
+	std::string ret(label.str());
+	return ret;
 }

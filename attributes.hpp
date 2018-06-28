@@ -288,11 +288,11 @@ public:
     int nextIdLocation;
     list<Id> IdList;
 
-    bool isWhileScope; // for the break command, make sure it is valid
-
+    bool insideWhileScope; // for the break command, make sure it is valid
+    bool isWhileScope;
     scope();// in case of the first scope scope
 
-    scope(int nextIdLocation, bool isWhileScope);
+    scope(int nextIdLocation, bool insideWhileScope_t, bool isWhileScope_t);
     ~scope(){}
 
     void addId(Type newIdType, string newIdName);
@@ -319,9 +319,12 @@ public:
     void addIdArray(parsedData Id,parsedData type,parsedData arraySize);
     void addIdNotArray(parsedData type);
 
-    void newRegularScope(bool isWhileScope);
+    void newRegularScope(bool insideWhileScope_t, bool isWhileScope_t);
     void newFunctionScope(parsedData inputVars);
     void removeScope();
+    void removeScopeVars(scope to_remove);
+
+    vector<scope> findFirstWhileScope();
 
     void verifyAssign(parsedData Id,parsedExp exp);
     void verifyAssignToArray(parsedData idInput, parsedExp arrIndex, parsedExp assigned);

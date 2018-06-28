@@ -229,6 +229,11 @@ Statement : 	LBRACE_t Statements RBRACE_t {$$ = $2;}
            	|	While_Statement     {$$ = $1;}
 			|	BREAK SC            {TRY_AND_CATCH(scopesList->verifyBreakBlock());
 			                         $$ = new parsedStatement();
+                                     vector<scope> while_sub_scopes = scopesList->findFirstWhileScope();
+                                     while(!while_sub_scopes.empty()){
+                                        scopesList->removeScopeVars(while_sub_scopes.back());
+                                        while_sub_scopes.pop_back();
+			                         }
 			                         STC$$->breakList.push_back(EMIT_TEXT("j "));
 			                        }
 
@@ -279,18 +284,18 @@ Go_To_End_of_If_Statement : {
                             }
 
 Gen_Label : {$$ = new parsedStatement(buffer.genLabel());}
-Open_Scope : { scopesList->newRegularScope(false);}
+Open_Scope : { scopesList->newRegularScope(false, false);}
            ;
 
 Open_Scope_and_create_label:{
-                             scopesList->newRegularScope(false);
+                             scopesList->newRegularScope(false, false);
                              $$ = new parsedStatement(buffer.genLabel());
                              }
            ;
 CloseScope : { scopesList->removeScope(); }
            ;
 
-While_Statement : While_Open Gen_Label Statement {scopesList->removeScope();
+While_Statement : While_Open Gen_Label Statement {
                                         $$ = new parsedStatement(); // for the delete at higher levels
 
                                         regClass trueValueReg = regAlloc();
@@ -306,12 +311,13 @@ While_Statement : While_Open Gen_Label Statement {scopesList->removeScope();
 
                                         regFree(trueValueReg);
                                         regFree(STC$1->reg);
+                                        scopesList->removeScope();
                                         delete $1; delete $2;
                                        }
             ;
 
 While_Open : WHILE LPAREN Exp RPAREN {TRY_AND_CATCH(scopesList->verifyExpIsBool(*$3));
-                                      TRY_AND_CATCH(scopesList->newRegularScope(true));
+                                      TRY_AND_CATCH(scopesList->newRegularScope(true, true));
 
                                       $$ = new parsedStatement();
                                       assert(EXC$3->boolType != BPInfo::BOOL_TYPE_UNDEF);
@@ -675,7 +681,7 @@ Exp		:	LPAREN Exp RPAREN       {$$ = $2;}
 		;
 
 
-LBRACE_t : LBRACE { scopesList->newRegularScope(false); }
+LBRACE_t : LBRACE { scopesList->newRegularScope(false, false); }
          ;
 
 RBRACE_t : RBRACE{ scopesList->removeScope(); }
@@ -693,10 +699,10 @@ int main()
         oldCoutStreamBuf = cout.rdbuf();
         cout.rdbuf( strCout.rdbuf() );
     }
-
+    bool print_hw3_error = false;
 	// initSystem
 	scopesList = new scopes();
-	scopesList->scopesList.push_front(scope(0,false));
+	scopesList->scopesList.push_front(scope(0,false, false));
     scopesList->addInitialFunction( Type(Type::VOID),string("print"), Type(Type::STRING));
     scopesList->addInitialFunction( Type(Type::VOID),string("printi"), Type(Type::INTEGER));
 
@@ -706,21 +712,25 @@ int main()
 	    yyparse();
 	}catch(parsingExceptions& e){
 	    scopesList->need_to_print = false;
+	    print_hw3_error = true;
 	}
 	catch(...){
 	    scopesList->need_to_print = false;
-        if(PRINT_DEBUG) cout << "Something wierd happened!!!" << endl;
+ 	    print_hw3_error = true;
+       if(PRINT_DEBUG) cout << "Something wierd happened!!!" << endl;
 	}
 	if(scopesList->need_to_print){      //check valid main function in the scopelist
 	    if(!scopesList->containsFunctionName("main")){
    	        scopesList->need_to_print = false;
-            errorMainMissing();
+ 	        print_hw3_error = true;
+           errorMainMissing();
     	}else{
     	    function main_func = scopesList->getFunction("main");
     	    if((main_func.return_type.kind != main_func.return_type.VOID ||
     	            !main_func.inputTypes.empty())){
                 scopesList->need_to_print = false;
                 errorMainMissing();
+	            print_hw3_error = true;
                 if(PRINT_DEBUG) cout <<"in the if to check the main function" << endl;
             }
         }
@@ -729,8 +739,8 @@ int main()
     delete scopesList;
 
     // Restore old cout.
-    if(!PRINT_HW3_STUFF) cout.rdbuf( oldCoutStreamBuf );
-    if(PRINT_HW5_STUFF){
+    if(!PRINT_HW3_STUFF || print_hw3_error) cout.rdbuf( oldCoutStreamBuf );
+    if(PRINT_HW5_STUFF && scopesList->need_to_print){
 	    buffer.printCodeBuffer();
 	    buffer.printDataBuffer();
 	 }
