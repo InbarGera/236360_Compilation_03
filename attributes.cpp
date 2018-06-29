@@ -859,7 +859,7 @@ void codeGenerator::initiateKnownConstants(){
     buffer.emitData(string("byteMask: .word 0x000000ff"));
     buffer.emitData(string("arrayIndexErrMsg: .asciiz  \"Error index out of bounds\\n\""));
     buffer.emitData(string("divByZeroErrMsg: .asciiz  \"Error division by zero\\n\""));
-
+    buffer.emitData(string("newline: .asciiz \"\\n\""));
     initiated = true;
 }
 
@@ -888,7 +888,15 @@ void codeGenerator::initiatePrintFunctions(){
     buffer.emit(string("syscall"));
     buffer.emit(string("addu $sp, $sp, 4"));
     buffer.emit(string("jr $ra"));
+
+
+    buffer.emit(string("printNewline:"));
+    buffer.emit(string("la $a0, newline"));
+    buffer.emit(string("li $v0, 4"));
+    buffer.emit(string("syscall"));
+    buffer.emit(string("jr $ra"));
 }
+
 
 string codeGenerator::opToBranchString(parsedData::PDOp op){
     switch(op){
@@ -956,7 +964,7 @@ string codeGenerator::divisionByZeroCheck(regClass reg){
 }
 
 string codeGenerator::idOffsetFromFp(Id id){
-    return num_to_string(-(id.offset)*4);
+    return num_to_string((-id.offset)*4);
 }
 
 void codeGenerator::assignBoolIntoLocation(parsedExp exp, regClass destination){
@@ -999,22 +1007,25 @@ void codeGenerator::assignNonBoolIntoLocation(parsedExp exp, regClass destinatio
 }
 
 void codeGenerator::assignArrayToArray(Id id,parsedExp exp){ //branch bug : if branches will not work due to long distances, this is a good place to adapt the code
-    string offsetFromFp = idOffsetFromFp(id);
+    buffer.emit("################################# begining assign array to array");
+    string offsetFromFp = num_to_string(-string_to_num(idOffsetFromFp(id).c_str()));
     regClass reg = regAlloc();
     regClass tempReg = regAlloc();
 
     for(int i=0; i < id.type.arrayLength; i++){
         int offset = string_to_num(offsetFromFp.c_str()) + i*4; // is it + or - ??
         buffer.emit(string("lw ") + reg.toString() + string(", (") + exp.reg.toString() + string(")"));
-        buffer.emit(string("add ") + exp.reg.toString() + string(", ") + exp.reg.toString() + string(", ") + string("4"));
+        buffer.emit(string("subu ") + exp.reg.toString() + string(", ") + exp.reg.toString() + string(", ") + string("4"));
         if(offset >= 0)
-            buffer.emit(string("addu ") + tempReg.toString() + string(", $fp, ") + num_to_string(offset));
+            buffer.emit(string("subu ") + tempReg.toString() + string(", $fp, ") + num_to_string(offset));
         else
-            buffer.emit(string("subu ") + tempReg.toString() + string(", $fp, ") + num_to_string(-offset));
+            buffer.emit(string("addu ") + tempReg.toString() + string(", $fp, ") + num_to_string(-offset));
         buffer.emit(string("sw ") + reg.toString() + string(", (") + tempReg.toString() + string(")"));
     }
     regFree(tempReg);
     regFree(reg);
+    buffer.emit("################################# after assign array to array");
+
 }
 
 void codeGenerator::assignValueToId(Id id,parsedExp exp) {
@@ -1372,82 +1383,3 @@ void codeGenerator::generateNewSingleVarCreation(parsedExp exp){
 
     regFree(tempReg);
 }
-
-
-
-
-void callerSaveRegisters(){
-    for (int i = 0; i <26 ; i++) {
-        string reg_to_save = IntToReg(i);
-        buffer.emit(string("subu $sp, $sp, 4"));
-        buffer.emit(string("sw ")+reg_to_save+string(", ($sp)"));
-    }
-}
-void callerRestoreRegisters(){
-    for (int i = 26; i >0 ; i--) {
-        string reg_to_load = IntToReg(i-1);
-        buffer.emit(string("lw ")+reg_to_load+string(", ($sp)"));
-        buffer.emit(string("addu $sp, $sp, 4"));
-    }
-}
-
-string IntToReg(int reg_to_save){
-    switch (reg_to_save){
-        case 0:
-            return string("$a0");
-        case 1:
-            return string("$a1");
-        case 2:
-            return string("$a2");
-        case 3:
-            return string("$a3");
-        case 4:
-            return string("$t0");
-        case 5:
-            return string("$t1");
-        case 6:
-            return string("$t2");
-        case 7:
-            return string("$t3");
-        case 8:
-            return string("$t4");
-        case 9:
-            return string("$t5");
-        case 10:
-            return string("$t6");
-        case 11:
-            return string("$t7");
-        case 12:
-            return string("$t8");
-        case 13:
-            return string("$t9");
-        case 14:
-            return string("$v1");
-        case 15:
-            return string("$s0");
-        case 16:
-            return string("$s1");
-        case 17:
-            return string("$s2");
-        case 18:
-            return string("$s3");
-        case 19:
-            return string("$s4");
-        case 20:
-            return string("$s5");
-        case 21:
-            return string("$s6");
-        case 22:
-            return string("$s7");
-        case 23:
-            return string("$s8");
-        case 24:
-            return string("$k0");
-        case 25:
-            return string("$k1");
-
-    }
-}
-
-
-
