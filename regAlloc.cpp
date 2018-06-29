@@ -50,6 +50,7 @@ void assertAllRegistersAreFree(){
 }
 
 bool regClass::isFree(){
+    if(myIndex < 0) return true;
     return  status[myIndex] == FREE;
 }
 

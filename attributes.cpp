@@ -662,8 +662,8 @@ void scopes::newFunctionScope(parsedData inputVars) {
 }
 void scopes::removeScope() {
     scope oldScope = scopesList.front();
-    // print the scope
-    endScope();
+
+
     removeScopeVars(oldScope);
     scopesList.pop_front();
 
@@ -673,7 +673,6 @@ void scopes::removeScopeVars(scope to_remove){
     int variblesSize = 0; //HW5
     while (!to_remove.IdList.empty()) {
         Id temp = to_remove.IdList.back();
-        printID(temp.name, temp.offset, temp.type.toString());
         to_remove.IdList.pop_back();
 
         variblesSize += temp.type.size()*4; // HW5
@@ -821,17 +820,13 @@ vector<string> scopes::listToVector(list<Type> list) {
     return res;
 }
 scopes::~scopes() {
-    if (need_to_print) {
         while (!scopesList.empty())
             removeScope();
 
         while (!functions.empty()) {
             function func = functions.back();
-            printID(func.idName, 0, func.toString());
             functions.pop_back();
         }
-    }
-
 }
 
 //============================== codeGenerator CLASS ===============================//
@@ -1201,6 +1196,8 @@ void codeGenerator::pushExpListAndFreeRegisters(parsedExp input_list){
             case Type::UNDEF:
                 assert("in codeGenerator::pushExpList(parsedExp input_list), in case: Type::UNDEF" && 0);      //not supposed to get here
         }
+        if(!temp.reg.isFree())
+            regFree(temp.reg);
         inputs.pop_back();
     }
 }
