@@ -6,6 +6,7 @@
 	using namespace std;
     extern int yylineno;
 	extern int yylex();		// do they both need to be extern?
+	extern void yylex_destroy();
 	extern CodeBuffer buffer;
 	extern scopes* scopesList;
 	extern vector<int> goToMainBackPatch;
@@ -745,6 +746,7 @@ int main()
     }
 
     delete scopesList;
+    yylex_destroy();
 
     // Restore old cout.
     if(PRINT_HW5_STUFF && scopesList->need_to_print){

@@ -775,14 +775,6 @@ void scopes::verifyFunctionCall(parsedData idInput,parsedData inputList) {
 
     while (funIterator != functionInputList.end() && (inputIterator != actualInputTypes.end())) {
 
-
-        if (PRINT_DEBUG) {
-            cout << "function expected type : ";
-            printID("", 0, funIterator->toString());
-            cout << "actual input type : ";
-            printID("", 0, inputIterator->type.toString());
-        }
-
         Type funExpectedType = *funIterator;
         Type actualInputType = inputIterator->type;
 
@@ -820,13 +812,13 @@ vector<string> scopes::listToVector(list<Type> list) {
     return res;
 }
 scopes::~scopes() {
-        while (!scopesList.empty())
-            removeScope();
+    while (!scopesList.empty())
+        removeScope();
 
-        while (!functions.empty()) {
-            function func = functions.back();
-            functions.pop_back();
-        }
+    while (!functions.empty()) {
+        function func = functions.back();
+        functions.pop_back();
+    }
 }
 
 //============================== codeGenerator CLASS ===============================//
